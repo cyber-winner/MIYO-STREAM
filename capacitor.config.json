@@ -1,0 +1,16 @@
+{
+  "appId": "app.miyo.stream",
+  "appName": "MIYO",
+  "webDir": "dist-native",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    }
+  }
+}

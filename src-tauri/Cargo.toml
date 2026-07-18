@@ -1,0 +1,31 @@
+[package]
+name = "miyo"
+version = "1.0.0"
+description = "MIYO - Stream anime, movies and TV shows locally"
+authors = ["CYBER <contact@cyber-winner.site>"]
+homepage = "https://cyber-winner.site"
+edition = "2021"
+
+[lib]
+name = "miyo_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-localhost = "2"
+portpicker = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "github": {
+    "enabled": false,
+    "silent": true
+  },
+  "crons": [
+    {
+      "path": "/api/cron/sync",
+      "schedule": "30 18 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(movie|tv|anime)/:id/:slug?",
+      "destination": "/api/og"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

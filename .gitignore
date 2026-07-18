@@ -1,0 +1,88 @@
+# ========================
+#  Dependencies
+# ========================
+node_modules/
+
+# ========================
+#  Production Builds
+# ========================
+dist/
+dist-ssr/
+dist-native/
+build/
+
+# ========================
+#  Vite / Bundler
+# ========================
+.vite/
+*.local
+
+# ========================
+#  Environment Variables
+# ========================
+.env
+.env.*
+!.env.example
+
+# ========================
+#  Logs
+# ========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ========================
+#  Editor / IDE
+# ========================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ========================
+#  OS Generated Files
+# ========================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# ========================
+#  Agent / AI Tools
+# ========================
+graphify-out/
+.agents/
+
+# ========================
+#  Project-Specific
+# ========================
+.cache/
+deploy.js
+.strawverse-ref/
+
+# ========================
+#  Watch Together Go Server
+# ========================
+wt-server-bin
+wt-server/go.sum
+
+# ========================
+#  Tauri (Rust) Build
+# ========================
+src-tauri/target/
+src-tauri/gen/schemas/

@@ -1,0 +1,62 @@
+{
+  "name": "miyo-stream",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "author": {
+    "name": "CYBER",
+    "email": "contact@cyber-winner.site",
+    "url": "https://cyber-winner.site"
+  },
+  "description": "MIYO - Stream anime, movies and TV shows",
+  "homepage": "https://miyo-stream.cyber-winner.site",
+  "scripts": {
+    "start": "concurrently \"node server.js\" \"vite\"",
+    "dev": "concurrently \"node server.js\" \"vite\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:native": "cross-env VITE_NATIVE=1 vite build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "android:sync": "npm run build:native && cap sync android",
+    "android:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-fs": "^2.5.1",
+    "@tauri-apps/plugin-http": "^2.5.9",
+    "@vercel/blob": "^2.3.3",
+    "axios": "^1.18.0",
+    "cheerio": "^1.2.0",
+    "clsx": "^2.0.0",
+    "concurrently": "^10.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "hls.js": "^1.6.16",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "ssh2-sftp-client": "^12.1.1",
+    "swr": "^2.4.2",
+    "tailwind-merge": "^2.0.0",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
+    "@tauri-apps/cli": "^2.11.4",
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.4.0",
+    "cross-env": "^10.1.0",
+    "postcss": "^8.4.0",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^3.4.0",
+    "vite": "^8.0.16"
+  }
+}

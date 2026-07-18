@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MIYO",
+  "version": "1.0.0",
+  "identifier": "app.miyo.stream",
+  "build": {
+    "beforeDevCommand": "npm run build:native",
+    "beforeBuildCommand": "npm run build:native",
+    "frontendDist": "../dist-native"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self' https: blob: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; style-src 'self' 'unsafe-inline' https:; img-src 'self' https: data: blob:; media-src 'self' https: blob: data:; frame-src 'self' https: blob: data:; worker-src 'self' blob:; child-src 'self' https: blob:; connect-src 'self' https: wss: blob: data:; font-src 'self' https: data:;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Entertainment",
+    "publisher": "CYBER",
+    "copyright": "Copyright © 2026 CYBER (contact@cyber-winner.site)",
+    "homepage": "https://cyber-winner.site",
+    "shortDescription": "MIYO - Stream anime, movies and TV shows",
+    "longDescription": "MIYO is a fully local streaming app for anime, movies and TV shows. It fetches data directly from TMDB, AniList and anime providers with no server dependency. Author: CYBER — contact@cyber-winner.site",
+    "linux": {
+      "deb": {
+        "section": "video"
+      }
+    }
+  }
+}

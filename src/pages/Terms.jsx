@@ -1,0 +1,64 @@
+import React from 'react';
+export function Terms() {
+  const sections = [
+    {
+      title: "1. Acceptance of Terms",
+      content: "By accessing and using MIYO-STREAM, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by these terms, please do not use this service."
+    },
+    {
+      title: "2. Nature of the Service",
+      content: "MIYO-STREAM is an open-source web application designed as a catalog and search interface for publicly available entertainment metadata. We do not host, upload, or store any video, audio, or media files on our servers."
+    },
+    {
+      title: "3. Third-Party APIs",
+      content: "All movie, TV show, and anime metadata, images, and synopses are fetched dynamically from third-party APIs, primarily TMDB (The Movie Database) and AniList. MIYO-STREAM is not endorsed or certified by these providers."
+    },
+    {
+      title: "4. Embedded Players & Copyright",
+      content: "Streaming functionality relies entirely on embedded iframes from third-party video hosting services (such as videasy.net) or backend proxies resolving dynamic source links (powered by the StrawVerse architecture). MIYO-STREAM has no control over the content hosted on external servers. Any DMCA takedown requests regarding video content must be directed to the third-party platforms that are actually hosting the files."
+    },
+    {
+      title: "5. Open Source License",
+      content: "The MIYO-STREAM source code is licensed under the MIT License. You are free to view, use, modify, and distribute the source code in accordance with the terms of the MIT License. A special acknowledgment is given to the StrawVerse project."
+    },
+    {
+      title: "6. Limitation of Liability",
+      content: "The MIYO-STREAM software is provided 'as is', without warranty of any kind. In no event shall the developers or contributors be liable for any claim, damages, or other liability arising from your use of the application, including legal disputes arising from third-party streaming embeds."
+    },
+    {
+      title: "7. User Responsibility",
+      content: "Users are responsible for their own actions and the legality of the content they access in their respective jurisdictions. MIYO-STREAM is intended for educational and personal use only."
+    }
+  ];
+  return (
+    <div className="pt-24 pb-20 px-6 min-h-screen animate-in fade-in duration-700">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-12 text-center md:text-left">
+          <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase mb-4">
+            Terms of <span className="text-accent animate-rgb-shift">Service</span>
+          </h1>
+          <p className="text-text-secondary text-sm font-bold uppercase tracking-widest opacity-60">
+            Last Updated: June 2026
+          </p>
+        </div>
+        <div className="space-y-12">
+          {sections.map((section, index) => (
+            <section key={index} className="bg-surface/30 backdrop-blur-xl border border-white/5 p-8 rounded-[2rem] hover:border-accent/20 transition-colors group">
+              <h2 className="text-xl font-black text-white mb-4 uppercase tracking-tight group-hover:text-accent transition-colors">
+                {section.title}
+              </h2>
+              <p className="text-text-secondary leading-relaxed text-sm md:text-base opacity-90">
+                {section.content}
+              </p>
+            </section>
+          ))}
+        </div>
+        <div className="mt-16 p-8 bg-accent/5 border border-accent/10 rounded-[2rem] text-center">
+           <p className="text-sm font-bold text-text-secondary">
+             Questions about our terms? Please open an issue on the MIYO-STREAM GitHub repository.
+           </p>
+        </div>
+      </div>
+    </div>
+  );
+}

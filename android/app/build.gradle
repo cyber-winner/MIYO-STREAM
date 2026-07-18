@@ -1,0 +1,100 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "app.miyo.stream"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "app.miyo.stream"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // Version is CI-driven so every published build is an upgrade
+        // (Android refuses updates when versionCode doesn't increase).
+        versionCode Integer.parseInt(
+            project.findProperty("MIYO_VERSION_CODE")?.toString() 
+            ?: System.getenv("MIYO_VERSION_CODE") 
+            ?: "2"
+        )
+        versionName (
+            project.findProperty("MIYO_VERSION_NAME")?.toString()
+            ?: System.getenv("MIYO_VERSION_NAME")
+            ?: "2.0.0"
+        )
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        // Stable signing identity. Previously CI produced debug APKs signed
+        // with a throwaway debug keystore generated fresh on every CI runner,
+        // so each new APK had a different signature and Android rejected
+        // installs over an existing copy with a "package conflict".
+        // Every build (debug + release, local + CI) now signs with the same
+        // committed keystore so updates always install over old versions.
+        // A private keystore can be swapped in via the MIYO_KEYSTORE_* env vars.
+        miyo {
+            storeFile file(
+                project.findProperty("MIYO_KEYSTORE_PATH")?.toString()
+                ?: System.getenv("MIYO_KEYSTORE_PATH")
+                ?: "keystore/miyo-release.p12"
+            )
+            storePassword (
+                project.findProperty("MIYO_KEYSTORE_PASSWORD")?.toString()
+                ?: System.getenv("MIYO_KEYSTORE_PASSWORD")
+                ?: "miyo-stream"
+            )
+            keyAlias (
+                project.findProperty("MIYO_KEY_ALIAS")?.toString()
+                ?: System.getenv("MIYO_KEY_ALIAS")
+                ?: "miyo"
+            )
+            keyPassword (
+                project.findProperty("MIYO_KEY_PASSWORD")?.toString()
+                ?: System.getenv("MIYO_KEY_PASSWORD")
+                ?: "miyo-stream"
+            )
+            storeType "PKCS12"
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.miyo
+        }
+        release {
+            signingConfig signingConfigs.miyo
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for the MIYO desktop app. The `remote` block grants the same permissions when the app is served from the local HTTP server (http://localhost:<port>) in production.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["http://localhost:*", "http://localhost"]
+  },
+  "permissions": [
+    "core:default",
+    "dialog:allow-save",
+    "fs:allow-write-file",
+    "fs:allow-open",
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://**" },
+        { "url": "http://**" }
+      ]
+    }
+  ]
+}
