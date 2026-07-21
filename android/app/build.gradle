@@ -12,12 +12,12 @@ android {
         versionCode Integer.parseInt(
             project.findProperty("MIYO_VERSION_CODE")?.toString() 
             ?: System.getenv("MIYO_VERSION_CODE") 
-            ?: "2"
+            ?: "5"
         )
         versionName (
             project.findProperty("MIYO_VERSION_NAME")?.toString()
             ?: System.getenv("MIYO_VERSION_NAME")
-            ?: "2.0.0"
+            ?: "5.0.0"
         )
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

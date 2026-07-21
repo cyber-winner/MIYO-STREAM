@@ -4,6 +4,21 @@ import { useDevice } from '../context/DeviceContext';
 import { Badge } from '../components/ui/Badge';
 const CHANGELOGS = [
   {
+    date: 'JULY 21, 2026',
+    featured: true,
+    variant: 'core',
+    decoration: '/logo.png',
+    title: 'v5.0.0: New Logo & Mobile App',
+    description: 'Fresh new logo for MIYO — the M-play icon with the play button built in. Updated it everywhere including the favicon, app icons, and social previews. Also officially releasing the Android app, you can now sideload the APK and stream on your phone.',
+    highlights: [
+      'New M-Play Logo',
+      'Android App Released',
+      'Desktop App Updated',
+      'All Icons Refreshed'
+    ],
+    tags: ['Major', 'CORE', 'Branding', 'Mobile']
+  },
+  {
     date: 'JUNE 23, 2026',
     title: 'UI Parity & Cinematic Backgrounds',
     decoration: '/oshi-no-ko-onk.gif',
@@ -254,8 +269,8 @@ export function Changelog() {
       <header className="mb-32 border-b border-white/10 pb-10 relative z-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 uppercase tracking-[0.2em] text-[10px] font-sans font-black text-accent mb-12">
           <span className="text-accent animate-rgb-shift">Maintenance Records</span>
-          <span className="opacity-40">Updated: June 20, 2026</span>
-          <span className="opacity-40">Ref: MIYO-CORE-4.0</span>
+          <span className="opacity-40">Updated: July 21, 2026</span>
+          <span className="opacity-40">Ref: MIYO-CORE-5.0</span>
         </div>
       </header>
       <div className="space-y-40 relative z-10">

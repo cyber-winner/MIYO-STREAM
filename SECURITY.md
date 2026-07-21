@@ -6,8 +6,8 @@ Only the latest major version of MIYO-STREAM is currently supported with securit
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.x.x   | :white_check_mark: |
-| < 2.0   | :x:                |
+| 5.x.x   | :white_check_mark: |
+| < 5.0   | :x:                |
 
 ## Reporting a Vulnerability
 
