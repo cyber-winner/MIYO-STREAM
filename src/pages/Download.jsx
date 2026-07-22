@@ -82,9 +82,7 @@ export function Download() {
         <section className="rounded-2xl border border-border bg-surface/60 p-8 text-center">
           <h2 className="text-lg font-bold text-text-primary mb-2">No release published yet</h2>
           <p className="text-sm text-text-secondary leading-relaxed max-w-xl mx-auto">
-            The apps are built, but no public release has been published on GitHub yet. Push a
-            version tag (for example <code className="text-accent font-mono">v1.0.0</code>) to the
-            repository and the build workflow will publish the downloads here automatically.
+            AUTO
           </p>
           <a
             href={`https://github.com/${REPO}/releases`}

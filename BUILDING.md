@@ -15,7 +15,7 @@ The repo ships with `.github/workflows/build-apps.yml`.
 
 1. Push the repo to GitHub.
 2. Go to **Actions → Build Desktop & Mobile Apps → Run workflow**
-   (or push a tag like `v1.0.0`).
+   (or push a tag like `v5.0.0`).
 3. Download the artifacts:
    - `MIYO-windows` — `.msi` and `.exe` installers
    - `MIYO-linux` — `.AppImage`, `.deb`, `.rpm`

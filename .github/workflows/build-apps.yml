@@ -37,7 +37,7 @@ jobs:
 
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease -PMIYO_VERSION_CODE=${{ github.run_number }} -PMIYO_VERSION_NAME="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('2.0.{0}', github.run_number) }}"
+        run: ./gradlew assembleRelease -PMIYO_VERSION_CODE=${{ github.run_number }} -PMIYO_VERSION_NAME="${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('5.0.{0}', github.run_number) }}"
 
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk MIYO.apk
