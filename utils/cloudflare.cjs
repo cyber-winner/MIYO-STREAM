@@ -19,84 +19,7 @@ const libsBinDir = path.join(libsDir, "usr/bin");
 
 // Setup patched Xvfb that uses /tmp/xb/xkbcomp instead of /usr/bin/xkbcomp
 (function () {
-  // Ensure libs/usr/bin is in PATH
-  if (fs.existsSync(libsBinDir) && !process.env.PATH.includes(libsBinDir)) {
-    process.env.PATH = libsBinDir + ":" + process.env.PATH;
-    console.log(`[CF Bypass] Prepended ${libsBinDir} to PATH.`);
-  }
-
-  // Create /tmp/xb/xkbcomp symlink pointing to our local xkbcomp
-  const xkbcompSrc = path.join(libsBinDir, "xkbcomp");
-  if (fs.existsSync(xkbcompSrc)) {
-    try {
-      fs.mkdirSync("/tmp/xb", { recursive: true });
-      try { fs.unlinkSync("/tmp/xb/xkbcomp"); } catch (e) {}
-      fs.symlinkSync(xkbcompSrc, "/tmp/xb/xkbcomp");
-      console.log(`[CF Bypass] Created /tmp/xb/xkbcomp -> ${xkbcompSrc}`);
-    } catch (e) {
-      console.log(`[CF Bypass] xkbcomp symlink setup: ${e.message}`);
-    }
-  }
-
-  // Create patched Xvfb binary (replace /usr/bin with /tmp/xb in binary)
-  const patchedXvfb = path.join(libsBinDir, "Xvfb_patched");
-  const origXvfb = path.join(libsBinDir, "Xvfb");
-  if (!fs.existsSync(patchedXvfb) && fs.existsSync(origXvfb)) {
-    try {
-      console.log(`[CF Bypass] Creating patched Xvfb binary...`);
-      let data = fs.readFileSync(origXvfb);
-      const search = Buffer.from("/usr/bin\x00");
-      const replace = Buffer.from("/tmp/xb\x00\x00");
-      let idx = 0, count = 0;
-      while ((idx = data.indexOf(search, idx)) !== -1) {
-        replace.copy(data, idx);
-        count++;
-        idx += replace.length;
-      }
-      fs.writeFileSync(patchedXvfb, data);
-      fs.chmodSync(patchedXvfb, 0o755);
-      console.log(`[CF Bypass] Patched ${count} occurrences. Saved to ${patchedXvfb}`);
-    } catch (e) {
-      console.error(`[CF Bypass] Failed to patch Xvfb: ${e.message}`);
-    }
-  }
-
-  // Override the xvfb module to use our patched binary
-  if (fs.existsSync(patchedXvfb)) {
-    try {
-      const Xvfb = require("xvfb");
-      Xvfb.prototype._spawnProcess = function (lockFileExists, onAsyncSpawnError) {
-        var display = this.display();
-        if (lockFileExists) {
-          if (!this._reuse) {
-            throw new Error("Display " + display + " is already in use and the \"reuse\" option is false.");
-          }
-        } else {
-          console.log(`[CF Bypass] Spawning patched Xvfb: ${patchedXvfb} ${display}`);
-          this._process = spawn(patchedXvfb, [display].concat(this._xvfb_args || []));
-          this._process.stderr.on("data", function (data) {
-            process.stderr.write(`[Xvfb Stderr] ${data.toString()}`);
-          });
-          this._process.stdout.on("data", function (data) {
-            process.stdout.write(`[Xvfb Stdout] ${data.toString()}`);
-          });
-          this._process.once("error", function (e) {
-            onAsyncSpawnError(e);
-          });
-        }
-      };
-    } catch (e) {
-      console.log(`[CF Bypass] xvfb module not available: ${e.message}`);
-    }
-  }
-
-  // Set XKB_CONFIG_ROOT for keyboard config files
-  const xkbdirPath = path.join(libsDir, "usr/share/X11/xkb");
-  if (fs.existsSync(xkbdirPath)) {
-    process.env.XKB_CONFIG_ROOT = xkbdirPath;
-  }
-
-  // Set LD_LIBRARY_PATH to include all library dirs from libs/
+  // 1. Set LD_LIBRARY_PATH to include all library dirs from libs/
   if (fs.existsSync(libsDir)) {
     const libPaths = new Set();
     const scanForLibs = (dir) => {
@@ -128,6 +51,91 @@ const libsBinDir = path.join(libsDir, "usr/bin");
     if (!process.env.LD_LIBRARY_PATH || !process.env.LD_LIBRARY_PATH.includes(ldPath)) {
       process.env.LD_LIBRARY_PATH = ldPath + ":" + (process.env.LD_LIBRARY_PATH || "");
     }
+  }
+
+  // 2. Ensure libs/usr/bin is in PATH
+  if (fs.existsSync(libsBinDir) && !process.env.PATH.includes(libsBinDir)) {
+    process.env.PATH = libsBinDir + ":" + process.env.PATH;
+    console.log(`[CF Bypass] Prepended ${libsBinDir} to PATH.`);
+  }
+
+  // 3. Create /tmp/xb/xkbcomp shell wrapper script with full LD_LIBRARY_PATH exported
+  const xkbcompSrc = path.join(libsBinDir, "xkbcomp");
+  if (fs.existsSync(xkbcompSrc)) {
+    try {
+      fs.mkdirSync("/tmp/xb", { recursive: true });
+      try { fs.unlinkSync("/tmp/xb/xkbcomp"); } catch (e) {}
+      const ldPath = process.env.LD_LIBRARY_PATH || "";
+      const wrapperScript = `#!/bin/sh\nexport LD_LIBRARY_PATH="${ldPath}:$LD_LIBRARY_PATH"\nexec "${xkbcompSrc}" "$@"\n`;
+      fs.writeFileSync("/tmp/xb/xkbcomp", wrapperScript, { mode: 0o755 });
+      console.log(`[CF Bypass] Created /tmp/xb/xkbcomp wrapper script pointing to ${xkbcompSrc}`);
+    } catch (e) {
+      console.log(`[CF Bypass] xkbcomp wrapper setup: ${e.message}`);
+    }
+  }
+
+  // 4. Create patched Xvfb binary (replace /usr/bin with /tmp/xb in binary)
+  const patchedXvfb = path.join(libsBinDir, "Xvfb_patched");
+  const origXvfb = path.join(libsBinDir, "Xvfb");
+  if (!fs.existsSync(patchedXvfb) && fs.existsSync(origXvfb)) {
+    try {
+      console.log(`[CF Bypass] Creating patched Xvfb binary...`);
+      let data = fs.readFileSync(origXvfb);
+      const search = Buffer.from("/usr/bin\x00");
+      const replace = Buffer.from("/tmp/xb\x00\x00");
+      let idx = 0, count = 0;
+      while ((idx = data.indexOf(search, idx)) !== -1) {
+        replace.copy(data, idx);
+        count++;
+        idx += replace.length;
+      }
+      fs.writeFileSync(patchedXvfb, data);
+      fs.chmodSync(patchedXvfb, 0o755);
+      console.log(`[CF Bypass] Patched ${count} occurrences. Saved to ${patchedXvfb}`);
+    } catch (e) {
+      console.error(`[CF Bypass] Failed to patch Xvfb: ${e.message}`);
+    }
+  }
+
+  // 5. Override the xvfb module to use our patched binary and pass env
+  if (fs.existsSync(patchedXvfb)) {
+    try {
+      const Xvfb = require("xvfb");
+      Xvfb.prototype._spawnProcess = function (lockFileExists, onAsyncSpawnError) {
+        var display = this.display();
+        if (lockFileExists) {
+          if (!this._reuse) {
+            throw new Error("Display " + display + " is already in use and the \"reuse\" option is false.");
+          }
+        } else {
+          console.log(`[CF Bypass] Spawning patched Xvfb: ${patchedXvfb} ${display}`);
+          this._process = spawn(patchedXvfb, [display].concat(this._xvfb_args || []), {
+            env: {
+              ...process.env,
+              LD_LIBRARY_PATH: process.env.LD_LIBRARY_PATH,
+              XKB_CONFIG_ROOT: process.env.XKB_CONFIG_ROOT,
+            }
+          });
+          this._process.stderr.on("data", function (data) {
+            process.stderr.write(`[Xvfb Stderr] ${data.toString()}`);
+          });
+          this._process.stdout.on("data", function (data) {
+            process.stdout.write(`[Xvfb Stdout] ${data.toString()}`);
+          });
+          this._process.once("error", function (e) {
+            onAsyncSpawnError(e);
+          });
+        }
+      };
+    } catch (e) {
+      console.log(`[CF Bypass] xvfb module not available: ${e.message}`);
+    }
+  }
+
+  // Set XKB_CONFIG_ROOT for keyboard config files
+  const xkbdirPath = path.join(libsDir, "usr/share/X11/xkb");
+  if (fs.existsSync(xkbdirPath)) {
+    process.env.XKB_CONFIG_ROOT = xkbdirPath;
   }
 })();
 
@@ -247,6 +255,10 @@ async function bypassCloudflare(targetSite) {
     return false;
   }
 
+  if (fs.existsSync(libsBinDir) && !process.env.PATH.includes(libsBinDir)) {
+    process.env.PATH = libsBinDir + ":" + process.env.PATH;
+  }
+
   console.log(`[CF Bypass] Launching browser to solve challenge using ${chromePath}...`);
 
   const hasXvfb = (() => {
@@ -272,6 +284,15 @@ async function bypassCloudflare(targetSite) {
   } catch (e) {}
 
   let browser, page;
+  const chromeArgs = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-software-rasterizer",
+    "--no-first-run",
+    "--no-zygote",
+  ];
 
   try {
     const { connect } = require("puppeteer-real-browser");
@@ -281,12 +302,7 @@ async function bypassCloudflare(targetSite) {
       disableXvfb: disableXvfb,
       turnstile: true,
       customConfig: { chromePath: chromePath },
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
+      args: chromeArgs,
     });
     browser = res.browser;
     page = res.page;
@@ -301,16 +317,10 @@ async function bypassCloudflare(targetSite) {
         disableXvfb: true,
         turnstile: true,
         customConfig: { chromePath: chromePath },
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-        ],
+        args: chromeArgs,
       });
       browser = res.browser;
       page = res.page;
-      console.log("[CF Bypass] Fallback connection successful!");
     } catch (fallbackErr) {
       console.error("[CF Bypass] Fallback launch failed:", fallbackErr.message);
       return false;

@@ -222,11 +222,9 @@ global.axios.interceptors.response.use(
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Auto-run system setup (Chromium & shared libraries) if not present on container
-const libsDir = path.join(__dirname, 'libs');
+// Auto-run system setup (Chromium & shared libraries) if setup.cjs exists
 const setupScript = path.join(__dirname, 'setup.cjs');
-if (!fs.existsSync(path.join(libsDir, '.setup_success')) && fs.existsSync(setupScript)) {
-  console.log('[MIYO] Auto-running setup.cjs to download Chromium and system libraries for container...');
+if (fs.existsSync(setupScript)) {
   try {
     execSync('node setup.cjs', { stdio: 'inherit' });
   } catch (e) {
