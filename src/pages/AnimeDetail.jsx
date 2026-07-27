@@ -48,6 +48,23 @@ export function AnimeDetail() {
   const [wtRoomCode, setWtRoomCode] = useState(watchTogetherClient.roomCode);
   const wtSyncLock = useRef(false); // Prevents feedback loops when syncing playback
 
+  // ── Manga Reader State ──
+  const mangaProvider = (() => { try { return localStorage.getItem('miyo-manga-provider') || 'allmanga'; } catch { return 'allmanga'; } })();
+  const [mangaChapters, setMangaChapters] = useState([]);
+  const [mangaChaptersLoading, setMangaChaptersLoading] = useState(false);
+  const [mangaMatchId, setMangaMatchId] = useState(null);
+  const [mangaMatchTitle, setMangaMatchTitle] = useState('');
+  const [mangaChaptersReversed, setMangaChaptersReversed] = useState(false);
+  const [mangaVisibleCount, setMangaVisibleCount] = useState(100);
+  const [mangaActiveIdx, setMangaActiveIdx] = useState(null);
+  const [mangaPages, setMangaPages] = useState([]);
+  const [mangaPagesLoading, setMangaPagesLoading] = useState(false);
+  const [mangaPagesError, setMangaPagesError] = useState(null);
+  const [mangaProgress, setMangaProgress] = useState(0);
+  const [mangaFullscreen, setMangaFullscreen] = useState(false);
+  const mangaReaderRef = useRef(null);
+  const mangaScrollRef = useRef(null);
+
   // Auto-open Watch Together modal if URL has ?wt=
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -258,6 +275,55 @@ export function AnimeDetail() {
             // Fallback to Videasy if Anikoto fails
             setPlayerSrc(api.getAnimePlayerUrl(id, 1));
             setIsHls(false);
+          }
+        } else if (result.type === 'MANGA') {
+          // ── Manga: Search provider and fetch chapters ──
+          try {
+            setMangaChaptersLoading(true);
+            const searchTitle = result.title?.english || result.title?.romaji || '';
+            const searchQueries = [searchTitle];
+            if (result.title?.romaji && result.title.romaji !== searchTitle) searchQueries.push(result.title.romaji);
+            if (result.title?.native) searchQueries.push(result.title.native);
+
+            let bestMatch = null;
+            let bestScore = 0;
+            for (const query of searchQueries) {
+              try {
+                const providerResults = await api.getMangaSearch(mangaProvider, query, 1);
+                const matches = providerResults?.results || [];
+                for (const m of matches) {
+                  // Simple title similarity scoring
+                  const mTitle = (m.title || '').toLowerCase();
+                  const qTitle = query.toLowerCase();
+                  let score = 0;
+                  if (mTitle === qTitle) score = 1;
+                  else if (mTitle.includes(qTitle) || qTitle.includes(mTitle)) score = 0.8;
+                  else {
+                    const words = qTitle.split(/\s+/);
+                    const matched = words.filter(w => mTitle.includes(w)).length;
+                    score = words.length > 0 ? matched / words.length * 0.7 : 0;
+                  }
+                  if (score > bestScore) {
+                    bestMatch = m;
+                    bestScore = score;
+                  }
+                }
+                if (bestScore >= 0.85) break;
+              } catch (e) {
+                console.warn(`[${mangaProvider}] Manga search failed for "${query}":`, e.message);
+              }
+            }
+
+            if (bestMatch) {
+              setMangaMatchId(bestMatch.id);
+              setMangaMatchTitle(bestMatch.title || searchTitle);
+              const chapData = await api.getMangaChapters(mangaProvider, bestMatch.id);
+              setMangaChapters(chapData?.chapters || []);
+            }
+          } catch (e) {
+            console.error('Manga chapter fetch failed:', e);
+          } finally {
+            setMangaChaptersLoading(false);
           }
         }
       } catch (err) {
@@ -877,32 +943,33 @@ export function AnimeDetail() {
                 )}
               </div>
             </section>
-          ) : isManga && readLinks.length > 0 ? (
-            /* ── MANGA: Read Links ── */
-            <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1.5 h-6 bg-transparent border border-accent animate-rgb-shift rounded-full" />
-                <h2 className="text-2xl font-black text-white uppercase tracking-tight">Read Online</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {readLinks.map(link => (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 bg-surface border border-surface-light rounded-2xl px-5 py-4 hover:border-accent hover:shadow-lg hover:shadow-accent/5 transition-all group"
-                  >
-                    <BookIcon className="w-6 h-6 text-accent animate-rgb-shift flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-black text-sm text-white group-hover:text-accent transition-colors">{link.site}</p>
-                      <p className="text-xs text-text-muted truncate">{link.url}</p>
-                    </div>
-                    <ExternalIcon className="w-4 h-4 ml-auto text-text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                  </a>
-                ))}
-              </div>
-            </section>
+          ) : isManga ? (
+            /* ── MANGA: Inline Reader ── */
+            <MangaReaderSection
+              mangaProvider={mangaProvider}
+              mangaChapters={mangaChapters}
+              mangaChaptersLoading={mangaChaptersLoading}
+              mangaMatchTitle={mangaMatchTitle}
+              mangaChaptersReversed={mangaChaptersReversed}
+              setMangaChaptersReversed={setMangaChaptersReversed}
+              mangaVisibleCount={mangaVisibleCount}
+              setMangaVisibleCount={setMangaVisibleCount}
+              mangaActiveIdx={mangaActiveIdx}
+              setMangaActiveIdx={setMangaActiveIdx}
+              mangaPages={mangaPages}
+              setMangaPages={setMangaPages}
+              mangaPagesLoading={mangaPagesLoading}
+              setMangaPagesLoading={setMangaPagesLoading}
+              mangaPagesError={mangaPagesError}
+              setMangaPagesError={setMangaPagesError}
+              mangaProgress={mangaProgress}
+              setMangaProgress={setMangaProgress}
+              mangaFullscreen={mangaFullscreen}
+              setMangaFullscreen={setMangaFullscreen}
+              mangaReaderRef={mangaReaderRef}
+              mangaScrollRef={mangaScrollRef}
+              readLinks={readLinks}
+            />
           ) : null}
           {characters.length > 0 && (
             <section>
@@ -1200,4 +1267,310 @@ function extractYouTubeId(url) {
   if (!url) return '';
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
   return match ? match[1] : '';
+}
+
+/* ═══════════════════════════════════════
+   MANGA READER SECTION (inline in detail)
+   ═══════════════════════════════════════ */
+function MangaReaderSection({
+  mangaProvider, mangaChapters, mangaChaptersLoading, mangaMatchTitle,
+  mangaChaptersReversed, setMangaChaptersReversed,
+  mangaVisibleCount, setMangaVisibleCount,
+  mangaActiveIdx, setMangaActiveIdx,
+  mangaPages, setMangaPages,
+  mangaPagesLoading, setMangaPagesLoading,
+  mangaPagesError, setMangaPagesError,
+  mangaProgress, setMangaProgress,
+  mangaFullscreen, setMangaFullscreen,
+  mangaReaderRef, mangaScrollRef,
+  readLinks,
+}) {
+  const openChapter = useCallback(async (ch, idx) => {
+    setMangaActiveIdx(idx);
+    setMangaPagesLoading(true);
+    setMangaPagesError(null);
+    setMangaPages([]);
+    setMangaProgress(0);
+    setTimeout(() => {
+      mangaReaderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    try {
+      const data = await api.getMangaChapterPages(mangaProvider, ch.id);
+      setMangaPages(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setMangaPagesError(err.message);
+    } finally {
+      setMangaPagesLoading(false);
+    }
+  }, [mangaProvider, mangaReaderRef, setMangaActiveIdx, setMangaPages, setMangaPagesLoading, setMangaPagesError, setMangaProgress]);
+
+  const hasPrev = mangaActiveIdx !== null && mangaActiveIdx > 0;
+  const hasNext = mangaActiveIdx !== null && mangaActiveIdx < mangaChapters.length - 1;
+  const activeChapter = mangaActiveIdx !== null ? mangaChapters[mangaActiveIdx] : null;
+
+  const goToChapter = useCallback((idx) => {
+    if (idx < 0 || idx >= mangaChapters.length) return;
+    openChapter(mangaChapters[idx], idx);
+  }, [mangaChapters, openChapter]);
+
+  const handleReaderScroll = useCallback(() => {
+    const el = mangaScrollRef.current;
+    if (!el) return;
+    const scrolled = el.scrollTop;
+    const total = el.scrollHeight - el.clientHeight;
+    if (total > 0) setMangaProgress(Math.round((scrolled / total) * 100));
+  }, [mangaScrollRef, setMangaProgress]);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = mangaReaderRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().then(() => setMangaFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setMangaFullscreen(false)).catch(() => {});
+    }
+  }, [mangaReaderRef, setMangaFullscreen]);
+
+  useEffect(() => {
+    const onFsChange = () => setMangaFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, [setMangaFullscreen]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (mangaActiveIdx === null) return;
+    const onKey = (e) => {
+      if (e.key === 'ArrowLeft' && hasPrev) goToChapter(mangaActiveIdx - 1);
+      if (e.key === 'ArrowRight' && hasNext) goToChapter(mangaActiveIdx + 1);
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mangaActiveIdx, hasPrev, hasNext, goToChapter, toggleFullscreen]);
+
+  const displayedChapters = mangaChaptersReversed ? [...mangaChapters].reverse() : mangaChapters;
+  const visibleChapters = displayedChapters.slice(0, mangaVisibleCount);
+
+  return (
+    <section>
+      {/* ── Inline Reader (when a chapter is active) ── */}
+      {mangaActiveIdx !== null && (
+        <div
+          ref={mangaReaderRef}
+          className={cn(
+            "relative bg-black rounded-2xl overflow-hidden mb-8",
+            mangaFullscreen ? "fixed inset-0 z-[60] rounded-none" : ""
+          )}
+        >
+          {/* Controls bar */}
+          <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-sm border-b border-white/10">
+            <div className="px-4 md:px-6 py-3 flex items-center gap-3">
+              <button
+                onClick={() => { setMangaActiveIdx(null); setMangaPages([]); if (mangaFullscreen) document.exitFullscreen().catch(() => {}); }}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white cursor-pointer"
+                title="Close reader"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white truncate">
+                  Chapter {activeChapter?.number || '?'}
+                </p>
+                <p className="text-[11px] text-white/40">{mangaProgress}% read • {mangaPages.length} pages</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => hasPrev && goToChapter(mangaActiveIdx - 1)} disabled={!hasPrev}
+                  className={cn("p-2 rounded-lg transition-colors cursor-pointer", hasPrev ? "hover:bg-white/10 text-white" : "text-white/15 cursor-not-allowed")} title="Previous Chapter (←)">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button onClick={() => hasNext && goToChapter(mangaActiveIdx + 1)} disabled={!hasNext}
+                  className={cn("p-2 rounded-lg transition-colors cursor-pointer", hasNext ? "hover:bg-white/10 text-white" : "text-white/15 cursor-not-allowed")} title="Next Chapter (→)">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+              <button onClick={toggleFullscreen}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white cursor-pointer"
+                title={mangaFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}>
+                {mangaFullscreen ? (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+                ) : (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                )}
+              </button>
+            </div>
+            <div className="h-0.5 bg-white/5">
+              <div className="h-full bg-accent transition-all duration-200 animate-rgb-shift" style={{ width: `${mangaProgress}%` }} />
+            </div>
+          </div>
+
+          {/* Pages */}
+          <div
+            ref={mangaScrollRef}
+            className={cn("overflow-y-auto overflow-x-hidden", mangaFullscreen ? "h-[calc(100vh-56px)]" : "max-h-[85vh]")}
+            onScroll={handleReaderScroll}
+          >
+            {mangaPagesLoading ? (
+              <div className="flex items-center justify-center h-[60vh]">
+                <div className="text-center">
+                  <div className="inline-block w-10 h-10 border-3 border-accent border-t-transparent rounded-full animate-spin mb-4" />
+                  <p className="text-white/60 text-sm">Loading chapter...</p>
+                </div>
+              </div>
+            ) : mangaPagesError ? (
+              <div className="flex items-center justify-center h-[60vh]">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 text-2xl font-bold mx-auto">!</div>
+                  <p className="text-red-400 text-sm">{mangaPagesError}</p>
+                  <button onClick={() => activeChapter && openChapter(activeChapter, mangaActiveIdx)}
+                    className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-bold cursor-pointer">Retry</button>
+                </div>
+              </div>
+            ) : mangaPages.length === 0 ? (
+              <div className="flex items-center justify-center h-[60vh]">
+                <p className="text-white/60">No pages found for this chapter.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center w-full max-w-[900px] mx-auto">
+                {mangaPages.map((p, i) => (
+                  <MangaPageImage key={`${p.page}-${i}`} page={p} />
+                ))}
+                <div className="w-full py-12 px-6 flex flex-col items-center gap-4 border-t border-white/10">
+                  <p className="text-white/40 text-sm font-bold uppercase tracking-wider">End of Chapter {activeChapter?.number}</p>
+                  <div className="flex gap-3">
+                    {hasPrev && (
+                      <button onClick={() => goToChapter(mangaActiveIdx - 1)}
+                        className="px-5 py-3 rounded-xl bg-surface border border-border text-white text-sm font-bold hover:border-accent transition-all cursor-pointer">← Previous</button>
+                    )}
+                    {hasNext && (
+                      <button onClick={() => goToChapter(mangaActiveIdx + 1)}
+                        className="px-5 py-3 rounded-xl cyber-gradient text-white text-sm font-bold hover:opacity-90 transition-all cursor-pointer">Next Chapter →</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Chapter List ── */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-1.5 h-6 bg-transparent border border-accent animate-rgb-shift rounded-full" />
+          <h2 className="text-2xl font-black text-white uppercase tracking-tight">Chapters</h2>
+          <span className="text-sm text-text-muted font-bold">
+            {mangaChaptersLoading ? '...' : `(${mangaChapters.length})`}
+          </span>
+        </div>
+        {mangaChapters.length > 0 && (
+          <button
+            onClick={() => setMangaChaptersReversed(r => !r)}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-text-secondary hover:text-accent hover:border-accent transition-all cursor-pointer"
+          >
+            {mangaChaptersReversed ? '↑ Oldest First' : '↓ Newest First'}
+          </button>
+        )}
+      </div>
+
+      {mangaChaptersLoading ? (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div key={i} className="h-11 rounded-xl bg-surface animate-pulse" />
+          ))}
+        </div>
+      ) : mangaChapters.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-surface/60 p-8 text-center">
+          <p className="text-text-secondary">No chapters found from {mangaProvider}.</p>
+          {readLinks.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs text-text-muted">Try reading from external sources:</p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {readLinks.slice(0, 4).map(link => (
+                  <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-accent font-bold hover:underline">{link.site}</a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+          {visibleChapters.map((ch, i) => {
+            const realIdx = mangaChaptersReversed ? mangaChapters.length - 1 - i : i;
+            const isActive = mangaActiveIdx === realIdx;
+            return (
+              <button
+                key={ch.id}
+                onClick={() => openChapter(ch, realIdx)}
+                className={cn(
+                  "px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-left cursor-pointer",
+                  isActive
+                    ? "bg-accent/15 border-2 border-accent text-accent"
+                    : "bg-surface border border-border text-text-primary hover:border-accent hover:text-accent"
+                )}
+              >
+                Ch. {ch.number}
+                {isActive && <span className="block text-[10px] text-accent/60 mt-0.5 uppercase tracking-wider">Reading</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {mangaVisibleCount < displayedChapters.length && (
+        <div className="text-center mt-6">
+          <button onClick={() => setMangaVisibleCount(c => c + 100)}
+            className="px-6 py-3 rounded-xl bg-surface border border-border text-white text-sm font-bold hover:border-accent transition-all cursor-pointer">
+            Show More Chapters
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ─── Lazy-loaded manga page image ─── */
+function MangaPageImage({ page }) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+  const containerRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  const referer = page.headers?.Referer || '';
+  const imgSrc = api.buildMangaImageUrl(page.img, referer);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); } },
+      { rootMargin: '500px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="w-full relative" style={{ minHeight: loaded ? undefined : '50vh' }}>
+      {isVisible && !errored && (
+        <img src={imgSrc} alt={`Page ${page.page}`}
+          className={cn("w-full h-auto transition-opacity duration-300 select-none", loaded ? "opacity-100" : "opacity-0")}
+          loading="lazy" onLoad={() => setLoaded(true)} onError={() => setErrored(true)} draggable={false} />
+      )}
+      {isVisible && !loaded && !errored && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/5">
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      {errored && (
+        <div className="w-full h-[50vh] flex items-center justify-center bg-white/5">
+          <div className="text-center space-y-2">
+            <p className="text-white/40 text-sm">Page {page.page} failed to load</p>
+            <button onClick={() => { setErrored(false); setLoaded(false); }} className="text-accent text-xs font-bold hover:underline cursor-pointer">Retry</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

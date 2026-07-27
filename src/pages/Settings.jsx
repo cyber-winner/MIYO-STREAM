@@ -30,7 +30,7 @@ export function Settings() {
     try { return localStorage.getItem('miyo-anime-provider') || 'anikoto'; } catch { return 'anikoto'; }
   });
   const [mangaProvider, setMangaProvider] = useState(() => {
-    try { return localStorage.getItem('miyo-manga-provider') || 'weebcentral'; } catch { return 'weebcentral'; }
+    try { return localStorage.getItem('miyo-manga-provider') || 'allmanga'; } catch { return 'allmanga'; }
   });
 
   useEffect(() => {
