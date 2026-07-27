@@ -100,6 +100,32 @@ export function Manga() {
           renderResult={renderSearchResult}
         />
       </div>
+      <div className="px-5 md:px-10 mb-8">
+        <Link
+          to="/manga/browse"
+          className="group flex items-center justify-between p-5 rounded-2xl border border-border bg-surface/60 hover:border-accent/50 transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl cyber-gradient flex items-center justify-center shadow-lg">
+              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-text-primary group-hover:text-accent transition-colors">
+                Read Manga from Providers
+              </h3>
+              <p className="text-sm text-text-secondary">
+                Browse, search, and read manga chapters from WeebCentral, AllManga, and more
+              </p>
+            </div>
+          </div>
+          <svg className="w-5 h-5 text-text-muted group-hover:text-accent group-hover:translate-x-1 transition-all" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </Link>
+      </div>
       <div className="px-5 md:px-10 mt-8">
         <AnimeRow title="Trending Manga" items={data.trending.media} />
         <AnimeRow title="Popular Manga" items={data.popular.media} />

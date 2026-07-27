@@ -20,6 +20,7 @@ export function AnimeDetail() {
   const { id, slug } = useParams();
   const navigate = useNavigate();
   const { isMobile, isTv } = useDevice();
+  const animeProvider = (() => { try { return localStorage.getItem('miyo-anime-provider') || 'anikoto'; } catch { return 'anikoto'; } })();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -211,7 +212,7 @@ export function AnimeDetail() {
             let bestScore = 0;
             for (const query of searchQueries) {
               try {
-                const providerResults = await api.getProviderSearch('anikoto', query, 1);
+                const providerResults = await api.getProviderSearch(animeProvider, query, 1);
                 const matches = providerResults?.results || [];
                 if (matches.length > 0) {
                   const { match, score } = findBestMatch(matches, result, 0.4);
@@ -222,12 +223,12 @@ export function AnimeDetail() {
                   if (bestScore >= 0.85) break; // confident match
                 }
               } catch (searchErr) {
-                console.warn(`[Anikoto] Search failed for "${query}":`, searchErr.message);
+                console.warn(`[${animeProvider}] Search failed for "${query}":`, searchErr.message);
               }
             }
             if (bestMatch) {
               // Get AnimeInfo to get dataId
-              const providerInfo = await api.getProviderInfo('anikoto', bestMatch.id);
+              const providerInfo = await api.getProviderInfo(animeProvider, bestMatch.id);
               if (providerInfo) {
                 // Determine available audio types
                 const idStr = providerInfo.id || '';
@@ -241,7 +242,7 @@ export function AnimeDetail() {
                 }
                 if (providerInfo.dataId) {
                   // Get episodes
-                  const epData = await api.getProviderEpisodes('anikoto', providerInfo.dataId);
+                  const epData = await api.getProviderEpisodes(animeProvider, providerInfo.dataId);
                   const episodesList = epData?.episodes || [];
                   setAnikotoEpisodes(episodesList);
                   if (episodesList.length > 0) {
@@ -253,7 +254,7 @@ export function AnimeDetail() {
               }
             }
           } catch (e) {
-            console.error('Anikoto fetch failed:', e);
+            console.error(`${animeProvider} fetch failed:`, e);
             // Fallback to Videasy if Anikoto fails
             setPlayerSrc(api.getAnimePlayerUrl(id, 1));
             setIsHls(false);
@@ -288,7 +289,7 @@ export function AnimeDetail() {
         let targetEpId = anikotoEpId;
         const currentEp = anikotoEpisodes.find(e => e.id === anikotoEpId);
         // Use the StrawVerse /api/watch POST endpoint to fetch sources
-        const sourceData = await api.getProviderSources('anikoto', targetEpId, prefAudio);
+        const sourceData = await api.getProviderSources(animeProvider, targetEpId, prefAudio);
         let sourcesList = [];
         let subsList = [];
         // Handle StrawVerse format response

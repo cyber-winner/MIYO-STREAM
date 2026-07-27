@@ -109,6 +109,25 @@ if (fs.existsSync(extensionsDir)) {
     }
   }
 }
+
+// ── Manga Provider Extensions ──
+const mangaExtensionsDir = path.join(__dirname, 'extensions', 'Manga');
+const mangaProviders = {};
+if (fs.existsSync(mangaExtensionsDir)) {
+  const files = fs.readdirSync(mangaExtensionsDir).filter(f => f.endsWith('.js') || f.endsWith('.cjs'));
+  for (const file of files) {
+    try {
+      const extPath = path.join(mangaExtensionsDir, file);
+      const provider = require(extPath);
+      if (provider.name) {
+        mangaProviders[provider.name] = provider;
+        console.log(`Loaded manga provider: ${provider.name} (v${provider.version})`);
+      }
+    } catch (err) {
+      console.error(`Failed to load manga extension ${file}:`, err);
+    }
+  }
+}
 app.get('/api/providers', (req, res) => {
   res.json({
     providers: Object.entries(providers).map(([name, p]) => ({
@@ -163,6 +182,110 @@ app.get('/api/anime/:provider/:action', async (req, res) => {
   } catch (err) {
     console.error(`Error in ${provider}/${action}:`, err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── Manga API Routes ──
+// ═══════════════════════════════════════════════════════════════════════
+app.use('/api/manga', apiLimiter);
+
+app.get('/api/manga/providers', (req, res) => {
+  res.json({
+    providers: Object.entries(mangaProviders).map(([name, p]) => ({
+      name,
+      version: p.version || '1.0.0',
+    }))
+  });
+});
+
+app.get('/api/manga/:provider/:action', async (req, res) => {
+  const { provider, action } = req.params;
+  const p = mangaProviders[provider];
+  if (!p) {
+    return res.status(404).json({ error: `Manga provider ${provider} not found` });
+  }
+  try {
+    switch (action) {
+      case 'latest': {
+        const page = parseInt(req.query.page) || 1;
+        if (!p.latestManga) return res.status(400).json({ error: 'Not supported' });
+        const data = await p.latestManga(page);
+        return res.json(data);
+      }
+      case 'search': {
+        const query = req.query.query;
+        const page = parseInt(req.query.page) || 1;
+        if (!p.searchManga) return res.status(400).json({ error: 'Not supported' });
+        const data = await p.searchManga(query, page);
+        return res.json(data);
+      }
+      case 'info': {
+        const id = req.query.id;
+        if (!p.fetchMangaInfo) return res.status(400).json({ error: 'Not supported' });
+        const data = await p.fetchMangaInfo(id);
+        return res.json(data);
+      }
+      case 'chapters': {
+        const id = req.query.id;
+        if (!p.fetchChapters) return res.status(400).json({ error: 'Not supported' });
+        const data = await p.fetchChapters(id);
+        return res.json(data);
+      }
+      case 'pages': {
+        const id = req.query.id;
+        if (!p.fetchChapterPages) return res.status(400).json({ error: 'Not supported' });
+        const data = await p.fetchChapterPages(id);
+        return res.json(data);
+      }
+      default:
+        return res.status(400).json({ error: 'Invalid action' });
+    }
+  } catch (err) {
+    console.error(`Error in manga ${provider}/${action}:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Image Proxy (for manga images that need specific Referer headers) ──
+app.get('/api/image', proxyLimiter, async (req, res) => {
+  try {
+    const targetUrl = req.query.url;
+    const referer = req.query.referer || '';
+    if (!targetUrl) return res.status(400).send('URL is required');
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+    };
+    if (referer) {
+      headers['Referer'] = referer;
+      try { headers['Origin'] = new URL(referer).origin; } catch (e) {}
+    } else {
+      // Auto-detect referer from URL
+      const r = getRefererForUrl(targetUrl);
+      if (r) {
+        headers['Referer'] = r;
+        try { headers['Origin'] = new URL(r).origin; } catch (e) {}
+      }
+    }
+    const response = await axios({
+      method: 'GET',
+      url: targetUrl,
+      responseType: 'stream',
+      headers: headers,
+      timeout: 30000,
+    });
+    if (response.headers['content-type']) {
+      res.setHeader('Content-Type', response.headers['content-type']);
+    }
+    if (response.headers['content-length']) {
+      res.setHeader('Content-Length', response.headers['content-length']);
+    }
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    response.data.pipe(res);
+  } catch (err) {
+    console.error('Image Proxy Error:', err.message);
+    res.status(err.response?.status || 500).send(err.message);
   }
 });
 app.post('/api/watch', async (req, res) => {

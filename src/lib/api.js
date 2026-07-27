@@ -162,4 +162,40 @@ export const api = {
     if (isNative()) return m3u8Url;
     return `/api/proxy?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}`;
   },
+  // ── Manga API ──
+  getMangaProviders: async () => {
+    if (isNative()) return (await nativeBackend()).getMangaProviders?.() || { providers: [] };
+    const res = await fetch('/api/manga/providers');
+    return await res.json();
+  },
+  getMangaLatest: async (provider, page = 1) => {
+    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'latest', { page }) || { results: [] };
+    const res = await fetch(`/api/manga/${provider}/latest?page=${page}`);
+    return await res.json();
+  },
+  getMangaSearch: async (provider, query, page = 1) => {
+    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'search', { query, page }) || { results: [] };
+    const res = await fetch(`/api/manga/${provider}/search?query=${encodeURIComponent(query)}&page=${page}`);
+    return await res.json();
+  },
+  getMangaInfo: async (provider, id) => {
+    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'info', { id }) || null;
+    const res = await fetch(`/api/manga/${provider}/info?id=${encodeURIComponent(id)}`);
+    return await res.json();
+  },
+  getMangaChapters: async (provider, id) => {
+    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'chapters', { id }) || { chapters: [] };
+    const res = await fetch(`/api/manga/${provider}/chapters?id=${encodeURIComponent(id)}`);
+    return await res.json();
+  },
+  getMangaChapterPages: async (provider, chapterId) => {
+    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'pages', { id: chapterId }) || [];
+    const res = await fetch(`/api/manga/${provider}/pages?id=${encodeURIComponent(chapterId)}`);
+    return await res.json();
+  },
+  buildMangaImageUrl: (imgUrl, referer = '') => {
+    if (!imgUrl) return '';
+    if (isNative()) return imgUrl;
+    return `/api/image?url=${encodeURIComponent(imgUrl)}&referer=${encodeURIComponent(referer)}`;
+  },
 };

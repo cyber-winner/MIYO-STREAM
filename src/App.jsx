@@ -21,6 +21,9 @@ const NotFound = lazy(() => import('./pages/NotFound').then(m => ({ default: m.N
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Download = lazy(() => import('./pages/Download').then(m => ({ default: m.Download })));
 const WatchTogether = lazy(() => import('./pages/WatchTogether').then(m => ({ default: m.WatchTogether })));
+const MangaBrowse = lazy(() => import('./pages/MangaBrowse').then(m => ({ default: m.MangaBrowse })));
+const MangaDetail = lazy(() => import('./pages/MangaDetail').then(m => ({ default: m.MangaDetail })));
+const MangaReader = lazy(() => import('./pages/MangaReader').then(m => ({ default: m.MangaReader })));
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
     <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
@@ -39,6 +42,8 @@ export default function App() {
               <Routes>
                 {/* Watch Together — renders OUTSIDE AppShell for full immersion */}
                 <Route path="/watch-together" element={<WatchTogether />} />
+                {/* Manga Reader — full-screen immersive reading */}
+                <Route path="/manga/reader/:provider/:chapterId" element={<MangaReader />} />
                 {/* All other routes go through the normal AppShell layout */}
                 <Route path="*" element={
                   <AppShell>
@@ -60,6 +65,8 @@ export default function App() {
                       <Route path="/anime/:id/:slug?" element={<AnimeDetail />} />
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/download" element={<Download />} />
+                      <Route path="/manga/browse" element={<MangaBrowse />} />
+                      <Route path="/manga/read/:provider/:id/:slug?" element={<MangaDetail />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </AppShell>

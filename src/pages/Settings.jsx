@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getPlatform, isNative, getTmdbApiKey, setTmdbApiKey } from '../platform/index.js';
+import { api } from '../lib/api';
 import { cn } from '../lib/cn';
 
 const PLATFORM_LABELS = {
@@ -21,6 +22,30 @@ export function Settings() {
     setApiKey(existing);
     setSavedKey(existing);
   }, []);
+
+  // Provider selectors
+  const [animeProviders, setAnimeProviders] = useState([]);
+  const [mangaProviders, setMangaProviders] = useState([]);
+  const [animeProvider, setAnimeProvider] = useState(() => {
+    try { return localStorage.getItem('miyo-anime-provider') || 'anikoto'; } catch { return 'anikoto'; }
+  });
+  const [mangaProvider, setMangaProvider] = useState(() => {
+    try { return localStorage.getItem('miyo-manga-provider') || 'weebcentral'; } catch { return 'weebcentral'; }
+  });
+
+  useEffect(() => {
+    api.getProviders?.().then(data => setAnimeProviders(data?.providers || [])).catch(() => {});
+    api.getMangaProviders?.().then(data => setMangaProviders(data?.providers || [])).catch(() => {});
+  }, []);
+
+  const handleAnimeProviderChange = (name) => {
+    setAnimeProvider(name);
+    try { localStorage.setItem('miyo-anime-provider', name); } catch {}
+  };
+  const handleMangaProviderChange = (name) => {
+    setMangaProvider(name);
+    try { localStorage.setItem('miyo-manga-provider', name); } catch {}
+  };
 
   const handleSave = async () => {
     const key = apiKey.trim();
@@ -81,6 +106,63 @@ export function Settings() {
           </p>
         </section>
       )}
+
+      {/* ── Provider Selectors ── */}
+      <section className="rounded-2xl border border-border bg-surface/60 p-6 mb-8">
+        <h2 className="text-lg font-bold text-text-primary mb-1">
+          <span className="text-accent animate-rgb-shift">Anime</span> Provider
+        </h2>
+        <p className="text-sm text-text-secondary leading-relaxed mb-4">
+          Choose which source to use for streaming anime episodes. Default is <span className="text-accent font-semibold">anikoto</span>.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {animeProviders.length > 0 ? animeProviders.map(p => (
+            <button
+              key={p.name}
+              onClick={() => handleAnimeProviderChange(p.name)}
+              className={cn(
+                'px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer',
+                animeProvider === p.name
+                  ? 'bg-accent/10 border-accent text-accent animate-rgb-shift'
+                  : 'bg-transparent border-border text-text-secondary hover:bg-white/5 hover:text-text-primary'
+              )}
+            >
+              {p.name}
+              <span className="ml-1.5 text-[10px] text-text-muted">v{p.version}</span>
+            </button>
+          )) : (
+            <span className="text-sm text-text-muted">Loading providers...</span>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-surface/60 p-6 mb-8">
+        <h2 className="text-lg font-bold text-text-primary mb-1">
+          <span className="text-accent animate-rgb-shift">Manga</span> Provider
+        </h2>
+        <p className="text-sm text-text-secondary leading-relaxed mb-4">
+          Choose which source to use for reading manga chapters. Default is <span className="text-accent font-semibold">weebcentral</span>.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {mangaProviders.length > 0 ? mangaProviders.map(p => (
+            <button
+              key={p.name}
+              onClick={() => handleMangaProviderChange(p.name)}
+              className={cn(
+                'px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer',
+                mangaProvider === p.name
+                  ? 'bg-accent/10 border-accent text-accent animate-rgb-shift'
+                  : 'bg-transparent border-border text-text-secondary hover:bg-white/5 hover:text-text-primary'
+              )}
+            >
+              {p.name}
+              <span className="ml-1.5 text-[10px] text-text-muted">v{p.version}</span>
+            </button>
+          )) : (
+            <span className="text-sm text-text-muted">Loading providers...</span>
+          )}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-border bg-surface/60 p-6 mb-8">
         <h2 className="text-lg font-bold text-text-primary mb-1">
