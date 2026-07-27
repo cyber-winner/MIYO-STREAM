@@ -1335,9 +1335,9 @@ function MangaReaderSection({
           if (results.length > 0) {
             const fallbackId = results[0].id;
             const chapRes = await api.getMangaChapters('weebcentral', fallbackId);
-            const fallbackChaps = chapRes?.chapters || [];
-            const targetNum = String(ch.number || '');
-            const matchChap = fallbackChaps.find(c => String(c.number) === targetNum || String(c.title).includes(`Chapter ${targetNum}`)) || fallbackChaps[idx];
+            const fallbackChaps = chapRes?.chapters || chapRes?.Chapters || [];
+            const targetNum = Number(ch.number || (idx + 1));
+            const matchChap = fallbackChaps.find(c => Number(c.number) === targetNum || String(c.title || '').includes(`Chapter ${targetNum}`)) || fallbackChaps[idx];
             if (matchChap) {
               const fallbackPages = await api.getMangaChapterPages('weebcentral', matchChap.id);
               if (Array.isArray(fallbackPages) && fallbackPages.length > 0) {

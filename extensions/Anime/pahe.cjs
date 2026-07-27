@@ -1,6 +1,31 @@
-// AnimePahe Scraper — ported from StrawVerse
+/**
+ * StrawVerse Extension - AnimePahe Scraper
+ * Copyright (C) 2026 TheYogMehta
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * DISCLAIMER: This extension is intended for research, educational,
+ * and developer testing purposes only. It functions as a client-side parser
+ * of publicly available web pages. The developers do not host or distribute
+ * any copyrighted media. Users are responsible for compliance with the terms of
+ * service of the target website.
+ */
+
+// imports
 const cheerio = require("cheerio");
 
+// variables
 const baseUrl = "https://animepahe.pw";
 
 // Anime Search
@@ -21,7 +46,7 @@ async function SearchAnime(query, filters = {}) {
       results: data.data.map((item) => ({
         id: `${item.session}`,
         title: item.title,
-        image: item?.poster || null,
+        image: item?.poster ? `/api/image?url=${item?.poster}` : null,
       })),
     };
     return res;
@@ -48,7 +73,7 @@ async function fetchRecentEpisodes(filters = {}) {
       results: data.data.map((item) => ({
         id: `${item.anime_session}`,
         title: item.anime_title,
-        image: item?.snapshot || null,
+        image: item?.snapshot ? `/api/image?url=${item?.snapshot}` : null,
         episode: item.episode,
       })),
     };
@@ -74,7 +99,7 @@ async function AnimeInfo(id) {
         Referer: baseUrl,
       },
     });
-    const $ = cheerio.load(data);
+    const $ = (0, cheerio.load)(data);
 
     let MalId =
       parseInt($('meta[name="myanimelist"]').attr("content") ?? null) ?? null;
@@ -82,7 +107,7 @@ async function AnimeInfo(id) {
     animeInfo.malid = MalId;
     animeInfo.title = $("div.title-wrapper > h1 > span").first().text();
     let image = $("div.anime-poster a").attr("href") ?? null;
-    animeInfo.image = image || null;
+    animeInfo.image = image ? `/api/image?url=${image}` : null;
     animeInfo.description = $("div.anime-summary").text();
     animeInfo.genres = $("div.anime-genre ul li")
       .map((i, el) => $(el).find("a").attr("title"))
@@ -207,7 +232,7 @@ async function fetchEpisodeSources(episodeId) {
         Referer: baseUrl,
       },
     });
-    const $ = cheerio.load(data);
+    const $ = (0, cheerio.load)(data);
 
     const links = $("div#resolutionMenu > button").map((i, el) => ({
       url: $(el).attr("data-src"),

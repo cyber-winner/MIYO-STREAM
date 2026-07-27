@@ -366,6 +366,12 @@ app.get('/api/image', proxyLimiter, async (req, res) => {
       targetUrl = decodeURIComponent(targetUrl);
     } catch (_) {}
 
+    while (targetUrl.includes('/api/image?url=')) {
+      const idx = targetUrl.indexOf('/api/image?url=');
+      targetUrl = targetUrl.substring(idx + '/api/image?url='.length);
+      try { targetUrl = decodeURIComponent(targetUrl); } catch (_) {}
+    }
+
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       return res.status(400).send('Invalid URL protocol');
     }

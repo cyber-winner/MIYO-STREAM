@@ -148,10 +148,15 @@ function loadStore() {
   return null;
 }
 
+const { saveCookieCredentials } = require("./proxyHeaders.cjs");
+
 function saveStore(data) {
   storedCredentials = data;
   try {
     fs.writeFileSync(STORE_PATH, JSON.stringify(data), "utf8");
+    if (data.domain && data.cf_clearance) {
+      saveCookieCredentials(data.domain, data.cf_clearance, data.expiry);
+    }
   } catch (e) {
     console.error("[CF Bypass] Failed to save store:", e.message);
   }

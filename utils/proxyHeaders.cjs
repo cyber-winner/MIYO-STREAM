@@ -11,18 +11,22 @@ const refererCache = {};
 
 const STORE_PATH = path.join(__dirname, "..", ".cf-store.json");
 
+function saveCookieCredentials(domainName, cfClearance, expiryTime) {
+  const domain = normalizeDomain(domainName);
+  if (domain && cfClearance) {
+    cookieCache[domain] = {
+      value: cfClearance,
+      expiry: expiryTime || Date.now() + 2 * 60 * 60 * 1000,
+    };
+  }
+}
+
 function loadCookieStore() {
   try {
     if (fs.existsSync(STORE_PATH)) {
       const data = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
       if (data && data.domain && data.cf_clearance && data.expiry > Date.now()) {
-        const domain = normalizeDomain(data.domain);
-        if (domain) {
-          cookieCache[domain] = {
-            value: data.cf_clearance,
-            expiry: data.expiry,
-          };
-        }
+        saveCookieCredentials(data.domain, data.cf_clearance, data.expiry);
       }
     }
   } catch (e) {}
@@ -191,4 +195,5 @@ loadCookieStore();
 
 module.exports = {
   getHeaders,
+  saveCookieCredentials,
 };

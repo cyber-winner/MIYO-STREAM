@@ -214,6 +214,7 @@ export const api = {
   buildMangaImageUrl: (imgUrl, referer = '') => {
     if (!imgUrl) return '';
     if (isNative()) return imgUrl;
+    if (imgUrl.startsWith('/api/image')) return imgUrl;
     return `/api/image?url=${encodeURIComponent(imgUrl)}&referer=${encodeURIComponent(referer)}`;
   },
 };

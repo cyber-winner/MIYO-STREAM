@@ -1,3 +1,27 @@
+/**
+ * StrawVerse Extension - AniNeko Scraper
+ * Copyright (C) 2026 TheYogMehta
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * DISCLAIMER: This extension is intended for research, educational,
+ * and developer testing purposes only. It functions as a client-side parser
+ * of publicly available web pages. The developers do not host or distribute
+ * any copyrighted media. Users are responsible for compliance with the terms of
+ * service of the target website.
+ */
+
 const cheerio = require("cheerio");
 
 const baseUrl = "https://anineko.to";
@@ -447,7 +471,7 @@ async function processEmbedServer(server) {
 
       if (subtitles.length === 0) {
         const subFileRegex =
-          /["']?file["']?\s*:\s*["']([^"']+\.(?:vtt|srt)[^"']*)['"]/gi;
+          /["']?file["']?\s*:\s*["']([^"']+\.(?:vtt|srt)[^"']*)["']/gi;
         let subMatch;
         while ((subMatch = subFileRegex.exec(embedHtml)) !== null) {
           let sUrl = subMatch[1];
@@ -468,7 +492,7 @@ async function processEmbedServer(server) {
     let m3u8Match = embedHtml.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/);
     if (!m3u8Match) {
       const srcMatch = embedHtml.match(
-        /src\s*=\s*["']([^"']*\.m3u8[^"']*)['"]/,
+        /src\s*=\s*["']([^"']*\.m3u8[^"']*)["']/,
       );
       if (srcMatch) {
         m3u8Match = [srcMatch[1]];
@@ -485,7 +509,7 @@ async function processEmbedServer(server) {
     }
     if (!m3u8Match) {
       const fileMatch = embedHtml.match(
-        /["']?file["']?\s*:\s*["']([^"']+\.m3u8[^"']*)['"]/,
+        /["']?file["']?\s*:\s*["']([^"']+\.m3u8[^"']*)["']/,
       );
       if (fileMatch) {
         m3u8Match = [fileMatch[1]];
@@ -493,7 +517,7 @@ async function processEmbedServer(server) {
     }
     if (!m3u8Match) {
       const sourcesMatch = embedHtml.match(
-        /sources\s*[:=]\s*\[\s*\{[^}]*["']?file["']?\s*:\s*["']([^"']+)['"]/,
+        /sources\s*[:=]\s*\[\s*\{[^}]*["']?file["']?\s*:\s*["']([^"']+)["']/,
       );
       if (sourcesMatch) {
         m3u8Match = [sourcesMatch[1]];
@@ -528,7 +552,7 @@ async function processEmbedServer(server) {
       };
     }
     const mp4Match = embedHtml.match(
-      /["']?file["']?\s*:\s*["']([^"']+\.mp4[^"']*)['"]/,
+      /["']?file["']?\s*:\s*["']([^"']+\.mp4[^"']*)["']/,
     );
     if (mp4Match) {
       const mp4Url = mp4Match[1];

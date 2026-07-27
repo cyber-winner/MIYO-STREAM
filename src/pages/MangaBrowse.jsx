@@ -7,7 +7,7 @@ import { SkeletonGrid } from '../components/ui/Skeleton';
 import { cn } from '../lib/cn';
 import { useDevice } from '../context/DeviceContext';
 
-const DEFAULT_PROVIDER = 'allmanga';
+const DEFAULT_PROVIDER = 'weebcentral';
 
 function getMangaProvider() {
   try {

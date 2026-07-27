@@ -1,3 +1,27 @@
+/**
+ * StrawVerse Extension - Anikoto Scraper
+ * Copyright (C) 2026 TheYogMehta
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * DISCLAIMER: This extension is intended for research, educational,
+ * and developer testing purposes only. It functions as a client-side parser
+ * of publicly available web pages. The developers do not host or distribute
+ * any copyrighted media. Users are responsible for compliance with the terms of
+ * service of the target website.
+ */
+
 const cheerio = require("cheerio");
 
 const baseUrl = "https://anikototv.to";
@@ -193,7 +217,7 @@ async function AnimeInfo(id) {
     return animeInfo;
   } catch (error) {
     console.error("Error fetching data from AnikotoTV:", error);
-    return { results: [] };
+    throw error;
   }
 }
 
@@ -275,10 +299,18 @@ async function processServer(server) {
     const playerDbId = $iframe("#megaplay-player").attr("data-id");
     if (!playerDbId) return null;
 
+    const typeMatch =
+      iframeRes.data.match(/type\s*:\s*'([^']+)'/) ||
+      iframeUrl.match(/\/stream\/[^\/]+\/([^\/\?]+)/);
+    const type = typeMatch ? typeMatch[1] : "";
+
+    const ciduMatch = iframeRes.data.match(/cidu\s*:\s*'([^']+)'/);
+    const cidu = ciduMatch ? ciduMatch[1] : "";
+
     const domainName = new URL(iframeUrl).origin;
     const playerReferer = domainName + "/";
     const sourcesRes = await global.axios.get(
-      `${domainName}/stream/getSources?id=${playerDbId}`,
+      `${domainName}/stream/getSources?id=${playerDbId}${type ? `&type=${encodeURIComponent(type)}` : ""}${cidu ? `&cidu=${encodeURIComponent(cidu)}` : ""}`,
       {
         headers: {
           "X-Requested-With": "XMLHttpRequest",
@@ -302,12 +334,23 @@ async function processServer(server) {
 
         const subtitles = (sourcesRes.data.tracks || [])
           .filter(
-            (t) => t.file && (t.kind === "captions" || t.kind === "subtitles"),
+            (t) => t.file && (!t.kind || t.kind.toLowerCase() !== "thumbnails"),
           )
           .map((t) => {
+            let sUrl = t.file;
+            if (sUrl.startsWith("//")) {
+              sUrl = "https:" + sUrl;
+            } else if (
+              !sUrl.startsWith("http://") &&
+              !sUrl.startsWith("https://")
+            ) {
+              try {
+                sUrl = new URL(sUrl, iframeUrl).href;
+              } catch (e) {}
+            }
             return {
-              url: t.file,
-              lang: t.label || "English",
+              url: sUrl,
+              lang: t.label || t.language || "English",
             };
           });
 
@@ -367,7 +410,14 @@ async function fetchEpisodeSources(episodeIdStr) {
       });
     });
 
-    const results = await Promise.all(servers.map((s) => processServer(s)));
+    const results = await Promise.all(
+      servers.map((s) =>
+        Promise.race([
+          processServer(s),
+          new Promise((resolve) => setTimeout(() => resolve(null), 4000)),
+        ]),
+      ),
+    );
     const validResults = results.filter(Boolean);
     const anySubtitles = validResults.find(
       (r) => r.subtitles && r.subtitles.length > 0,
@@ -410,7 +460,7 @@ async function fetchEpisodeSources(episodeIdStr) {
 
 module.exports = {
   name: "anikoto",
-  version: "4.0.0",
+  version: "4.0.6",
   SearchAnime,
   AnimeInfo,
   fetchEpisodeSources,
