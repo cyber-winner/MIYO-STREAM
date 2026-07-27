@@ -105,6 +105,27 @@ async function downloadLibs() {
   const libsDir = path.resolve(__dirname, "./libs");
   const successSentinel = path.join(libsDir, ".setup_success");
 
+  // Force re-download if libxkbfile.so is missing from libs/
+  const hasLib = (name) => {
+    try {
+      let found = false;
+      const scan = (d) => {
+        for (const f of fs.readdirSync(d)) {
+          const full = path.join(d, f);
+          if (fs.statSync(full).isDirectory()) scan(full);
+          else if (f.includes(name)) found = true;
+        }
+      };
+      scan(libsDir);
+      return found;
+    } catch (e) { return false; }
+  };
+
+  if (fs.existsSync(successSentinel) && !hasLib("libxkbfile")) {
+    console.log("[Setup] Missing libxkbfile library. Re-running setup...");
+    try { fs.unlinkSync(successSentinel); } catch (e) {}
+  }
+
   if (fs.existsSync(successSentinel)) {
     console.log("[Setup] Libraries already present. Skipping download.");
     return;
@@ -126,6 +147,7 @@ async function downloadLibs() {
     ["libgbm1", "libgbm1t64"],
     ["libdrm2"],
     ["libxkbcommon0", "libxkbcommon0t64"],
+    ["libxkbfile1", "libxkbfile1t64"],
     ["libasound2", "libasound2t64"],
     ["libxcomposite1"],
     ["libxdamage1"],
