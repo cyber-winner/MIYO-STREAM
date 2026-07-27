@@ -1,7 +1,61 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { useDevice } from '../context/DeviceContext';
 import { Badge } from '../components/ui/Badge';
+
+/* ─── v6.0 Manga Panel Changelog Data ─── */
+const V6_PANELS = [
+  {
+    label: '📖 Manga Scraping',
+    text: 'Full manga reading experience with WeebCentral & AllManga providers. Browse, search, and read chapters in a vertical scroll reader with lazy-loading and progress tracking.',
+    image: '/mangapanelwebp.webp',
+    accent: '#ff6b9d',
+  },
+  {
+    label: '🎬 Multi-Provider Anime',
+    text: 'Added AniNeko and AnimePahe as new anime sources alongside Anikoto. Switch providers anytime from Settings.',
+    image: '/anime-frieren.gif',
+    accent: '#00f2ff',
+  },
+  {
+    label: '⚙️ Provider Selector',
+    text: 'New Settings UI lets you pick your default anime and manga providers. Your choice persists across sessions.',
+    image: '/asuka-anime.gif',
+    accent: '#a78bfa',
+  },
+  {
+    label: '🖼️ Image Proxy',
+    text: 'Smart image proxy handles cross-domain manga images with automatic Referer injection for each provider.',
+    image: '/evil-evil-lums.gif',
+    accent: '#fbbf24',
+  },
+  {
+    label: '🔐 AES Decryption',
+    text: 'AllManga chapter pages use AES-256-GCM encrypted URLs. Built-in decryption engine handles this transparently.',
+    image: '/oshi-no-ko-onk.gif',
+    accent: '#34d399',
+  },
+  {
+    label: '📱 Full-Screen Reader',
+    text: 'Immersive manga reader renders outside the AppShell. Keyboard shortcuts, chapter navigation, and a floating progress bar.',
+    image: '/marin-marin-kitagawa.gif',
+    accent: '#f472b6',
+  },
+];
+
+/* ─── Floating decorations config ─── */
+const FLOATERS = [
+  { src: '/anime-dance.gif', top: '5%', left: '2%', size: 80, delay: 0, rotate: -12 },
+  { src: '/cute-pokemon.webp', top: '15%', right: '3%', size: 70, delay: 0.5, rotate: 8 },
+  { src: '/anime-snow.gif', top: '35%', left: '1%', size: 90, delay: 1, rotate: -5 },
+  { src: '/rem-transparent.gif', top: '50%', right: '2%', size: 85, delay: 1.5, rotate: 15 },
+  { src: '/shigure-ui-dance.gif', top: '70%', left: '3%', size: 75, delay: 2, rotate: -8 },
+  { src: '/dance-cute.gif', top: '85%', right: '4%', size: 65, delay: 0.8, rotate: 10 },
+  { src: '/transparent-hunni-hime.gif', top: '25%', right: '1%', size: 80, delay: 1.2, rotate: -15 },
+  { src: '/anime-transparent.gif', top: '60%', left: '2%', size: 70, delay: 0.3, rotate: 6 },
+];
+
+/* ─── Old changelog data (pre-6.0) ─── */
 const CHANGELOGS = [
   {
     date: 'JULY 21, 2026',
@@ -262,41 +316,459 @@ const CHANGELOGS = [
     tags: ['Launch', 'System']
   }
 ];
-export function Changelog() {
+
+/* ═══════════════════════════════════════════
+   STYLES (injected as a <style> tag)
+   ═══════════════════════════════════════════ */
+const mangaStyles = `
+  @keyframes manga-float {
+    0%, 100% { transform: translateY(0px) rotate(var(--rot, 0deg)); }
+    50% { transform: translateY(-18px) rotate(calc(var(--rot, 0deg) + 3deg)); }
+  }
+  @keyframes manga-drift {
+    0%, 100% { transform: translateX(0px) translateY(0px); }
+    25% { transform: translateX(8px) translateY(-6px); }
+    50% { transform: translateX(-4px) translateY(-12px); }
+    75% { transform: translateX(6px) translateY(-4px); }
+  }
+  @keyframes speed-lines {
+    0% { opacity: 0; transform: scaleX(0); }
+    50% { opacity: 1; transform: scaleX(1); }
+    100% { opacity: 0; transform: scaleX(0); }
+  }
+  @keyframes panel-reveal {
+    0% { opacity: 0; transform: scale(0.85) rotate(-2deg); clip-path: inset(10% 10% 10% 10%); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); clip-path: inset(0% 0% 0% 0%); }
+  }
+  @keyframes halftone-scroll {
+    0% { background-position: 0 0; }
+    100% { background-position: 50px 50px; }
+  }
+  @keyframes marquee-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes ink-splash {
+    0% { transform: scale(0); opacity: 0.8; }
+    60% { transform: scale(1.2); opacity: 0.3; }
+    100% { transform: scale(1); opacity: 0; }
+  }
+  @keyframes glow-pulse {
+    0%, 100% { filter: drop-shadow(0 0 8px var(--glow, #00f2ff)); }
+    50% { filter: drop-shadow(0 0 20px var(--glow, #00f2ff)); }
+  }
+  .manga-hero {
+    position: relative;
+    overflow: hidden;
+    background: #0a0a0f;
+  }
+  .manga-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 20% 50%, rgba(255,107,157,0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 30%, rgba(0,242,255,0.06) 0%, transparent 50%),
+      radial-gradient(circle at 50% 80%, rgba(167,139,250,0.05) 0%, transparent 50%);
+    z-index: 1;
+  }
+  .manga-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+    animation: halftone-scroll 8s linear infinite;
+    z-index: 1;
+  }
+  .manga-panel-card {
+    position: relative;
+    border: 3px solid rgba(255,255,255,0.15);
+    background: rgba(10,10,20,0.85);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .manga-panel-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--panel-accent, #00f2ff);
+    z-index: 2;
+  }
+  .manga-panel-card:hover {
+    border-color: var(--panel-accent, #00f2ff);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow:
+      0 20px 40px rgba(0,0,0,0.5),
+      0 0 30px color-mix(in srgb, var(--panel-accent, #00f2ff) 20%, transparent),
+      inset 0 0 30px rgba(0,0,0,0.3);
+  }
+  .manga-panel-card:hover .panel-image {
+    transform: scale(1.1) rotate(2deg);
+    filter: brightness(1.1) saturate(1.2);
+  }
+  .panel-image {
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .manga-floater {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+    animation: manga-float 4s ease-in-out infinite;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+  .manga-hero:hover .manga-floater {
+    opacity: 0.75;
+  }
+  .speed-line {
+    position: absolute;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+    animation: speed-lines 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .manga-marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee-scroll 25s linear infinite;
+  }
+  .manga-marquee-track:hover {
+    animation-play-state: paused;
+  }
+  .section-divider-manga {
+    position: relative;
+    height: 120px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #0a0a0f 0%, transparent 40%, transparent 60%, #0a0a0f00 100%);
+  }
+  .section-divider-manga::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 20px, transparent 20px, transparent 40px);
+    transform: translateY(-50%);
+  }
+`;
+
+/* ═══════════════════════════════════════════
+   v6.0 MANGA PANEL HERO SECTION
+   ═══════════════════════════════════════════ */
+function MangaHeroSection() {
+  const { isMobile } = useDevice();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 100);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="max-w-[1100px] mx-auto px-6 py-20 font-serif selection:bg-accent/30 selection:text-white animate-in fade-in duration-1000 relative">
-      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent -translate-x-1/2" />
-      <header className="mb-32 border-b border-white/10 pb-10 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 uppercase tracking-[0.2em] text-[10px] font-sans font-black text-accent mb-12">
-          <span className="text-accent animate-rgb-shift">Maintenance Records</span>
-          <span className="opacity-40">Updated: July 21, 2026</span>
-          <span className="opacity-40">Ref: MIYO-CORE-5.0</span>
+    <div className="manga-hero" style={{ minHeight: '100vh' }}>
+      <style>{mangaStyles}</style>
+
+      {/* Floating anime decorations */}
+      {!isMobile && FLOATERS.map((f, i) => (
+        <img
+          key={i}
+          src={f.src}
+          alt=""
+          className="manga-floater"
+          style={{
+            top: f.top,
+            left: f.left,
+            right: f.right,
+            width: f.size,
+            height: f.size,
+            '--rot': `${f.rotate}deg`,
+            animationDelay: `${f.delay}s`,
+            objectFit: 'contain',
+          }}
+        />
+      ))}
+
+      {/* Speed lines */}
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="speed-line"
+          style={{
+            top: `${15 + i * 14}%`,
+            left: `${5 + (i % 3) * 10}%`,
+            width: `${20 + (i % 4) * 15}%`,
+            animationDelay: `${i * 0.7}s`,
+          }}
+        />
+      ))}
+
+      {/* Main content */}
+      <div className="relative z-10 max-w-[1400px] mx-auto px-4 md:px-8 pt-16 md:pt-24 pb-16">
+
+        {/* ── Title Block ── */}
+        <div className={cn(
+          "text-center mb-8 md:mb-16 transition-all duration-1000",
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+        )}>
+          {/* Top badge */}
+          <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm mb-6">
+            <span className="w-2 h-2 rounded-full bg-[#ff6b9d] animate-pulse" />
+            <span className="text-[11px] font-black tracking-[0.3em] uppercase text-white/60 font-sans">
+              July 27, 2026
+            </span>
+            <span className="text-[11px] font-black tracking-[0.3em] uppercase text-[#ff6b9d] font-sans">
+              MAJOR RELEASE
+            </span>
+          </div>
+
+          {/* Giant version number */}
+          <div className="relative inline-block">
+            <h1 className="text-[80px] md:text-[160px] lg:text-[200px] font-black leading-none tracking-tighter font-sans"
+                style={{
+                  background: 'linear-gradient(135deg, #ff6b9d, #00f2ff, #a78bfa, #ff6b9d)',
+                  backgroundSize: '300% 300%',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: 'rgb-shift 4s ease infinite',
+                }}>
+              6.0
+            </h1>
+            {/* Subtitle inside */}
+            <div className="absolute bottom-2 md:bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+              <span className="text-xs md:text-lg tracking-[0.5em] uppercase font-black font-sans text-white/30">
+                Manga &amp; Multi-Provider
+              </span>
+            </div>
+          </div>
         </div>
-      </header>
-      <div className="space-y-40 relative z-10">
-        {(() => {
-          let minorCounter = CHANGELOGS.filter(item => !item.featured).length;
-          return CHANGELOGS.map((item, index) => {
-            const isFeatured = item.featured;
-            const isAlt = isFeatured
-              ? true
-              : (--minorCounter % 2 === 0);
-            return (
-              <EditorialEntry
-                key={index}
-                item={item}
-                isAlt={isAlt}
+
+        {/* ── Manga Panel Image + Chapter Title ── */}
+        <div className={cn(
+          "relative flex flex-col lg:flex-row gap-6 md:gap-10 items-center mb-12 md:mb-20 transition-all duration-1000 delay-200",
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
+        )}>
+          {/* Manga panel image */}
+          <div className="relative w-full lg:w-[45%] max-w-lg">
+            <div className="manga-panel-card rounded-2xl p-1" style={{ '--panel-accent': '#ff6b9d' }}>
+              <img
+                src="/mangapanelwebp.webp"
+                alt="Manga Panel"
+                className="panel-image w-full rounded-xl"
+                style={{ aspectRatio: '4/5', objectFit: 'cover' }}
               />
-            );
-          });
-        })()}
+              {/* Overlay speech bubble */}
+              <div className="absolute bottom-4 right-4 md:bottom-6 md:right-6 bg-white text-black px-4 py-2 md:px-5 md:py-3 rounded-2xl rounded-br-sm shadow-xl max-w-[200px] md:max-w-[260px]">
+                <p className="text-[11px] md:text-sm font-bold leading-tight font-sans">
+                  "MIYO can read manga now?! This changes everything..."
+                </p>
+                <div className="absolute -bottom-2 right-4 w-4 h-4 bg-white rotate-45" />
+              </div>
+            </div>
+            {/* Corner gifs */}
+            <img
+              src="/frieren-popsicle.gif"
+              alt=""
+              className="absolute -top-6 -left-6 w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-lg"
+              style={{ animation: 'manga-drift 5s ease-in-out infinite' }}
+            />
+            <img
+              src="/one-piece-hat-luffy-hat.gif"
+              alt=""
+              className="absolute -bottom-4 -right-4 w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-lg"
+              style={{ animation: 'manga-drift 4s ease-in-out infinite', animationDelay: '1s' }}
+            />
+          </div>
+
+          {/* Chapter description */}
+          <div className="flex-1 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-gradient-to-r from-[#ff6b9d] to-transparent" />
+              <span className="text-[10px] tracking-[0.4em] uppercase font-black text-[#ff6b9d] font-sans">Chapter 6.0</span>
+              <div className="h-px flex-1 bg-gradient-to-l from-[#ff6b9d] to-transparent" />
+            </div>
+            <h2 className="text-2xl md:text-5xl font-serif italic text-white leading-tight">
+              The Manga Arc Begins
+            </h2>
+            <p className="text-sm md:text-lg text-white/50 leading-relaxed font-sans">
+              This is the biggest update to MIYO-STREAM yet. We've added a complete manga reading
+              experience with multiple providers, a full-screen vertical scroll reader, and a brand
+              new multi-provider system for both anime and manga. Choose your source, pick your chapter,
+              and start reading — all without leaving the app.
+            </p>
+            {/* Stats row */}
+            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/10">
+              {[
+                { n: '3', label: 'Anime Sources' },
+                { n: '2', label: 'Manga Sources' },
+                { n: '6', label: 'New Features' },
+              ].map((s, i) => (
+                <div key={i} className="text-center">
+                  <div className="text-2xl md:text-4xl font-black font-sans animate-rgb-shift">{s.n}</div>
+                  <div className="text-[10px] uppercase tracking-widest text-white/30 font-sans mt-1">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Panel Grid (manga-style comic panels) ── */}
+        <div className={cn(
+          "transition-all duration-1000 delay-500",
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
+        )}>
+          {/* Section header */}
+          <div className="flex items-center gap-4 mb-8 md:mb-12">
+            <div className="h-8 w-1 bg-gradient-to-b from-[#00f2ff] to-[#a78bfa] rounded-full" />
+            <h3 className="text-lg md:text-2xl font-black tracking-tight font-sans text-white uppercase">
+              What's New
+            </h3>
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[10px] font-black text-white/20 tracking-[0.2em] font-sans uppercase">6 Panels</span>
+          </div>
+
+          {/* Panel grid — asymmetric manga layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+            {V6_PANELS.map((panel, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "manga-panel-card rounded-xl overflow-hidden",
+                  i === 0 && "md:col-span-2 lg:col-span-2 md:row-span-2"
+                )}
+                style={{
+                  '--panel-accent': panel.accent,
+                  animationDelay: `${i * 0.15}s`,
+                }}
+              >
+                {/* Panel image */}
+                <div className={cn(
+                  "relative overflow-hidden",
+                  i === 0 ? "h-48 md:h-64" : "h-32 md:h-40"
+                )}>
+                  <img
+                    src={panel.image}
+                    alt=""
+                    className="panel-image w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a14] via-transparent to-transparent" />
+                  {/* Panel number */}
+                  <div
+                    className="absolute top-3 left-3 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-black font-sans border-2"
+                    style={{ borderColor: panel.accent, color: panel.accent, background: 'rgba(0,0,0,0.6)' }}
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </div>
+                </div>
+                {/* Panel text */}
+                <div className="p-4 md:p-5 space-y-2">
+                  <h4
+                    className="text-sm md:text-base font-black font-sans tracking-tight"
+                    style={{ color: panel.accent }}
+                  >
+                    {panel.label}
+                  </h4>
+                  <p className={cn(
+                    "text-white/50 leading-relaxed font-sans",
+                    i === 0 ? "text-sm" : "text-xs"
+                  )}>
+                    {panel.text}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Marquee banner ── */}
+        <div className="mt-12 md:mt-20 overflow-hidden border-y border-white/10 py-4">
+          <div className="manga-marquee-track">
+            {Array.from({ length: 4 }).map((_, rep) => (
+              <div key={rep} className="flex items-center gap-8 px-8 shrink-0">
+                <img src="/cute-pokemon.webp" alt="" className="w-8 h-8 object-contain" />
+                <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
+                  MANGA READER
+                </span>
+                <img src="/oshi-no-ko-ruby.gif" alt="" className="w-8 h-8 object-contain" />
+                <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
+                  MULTI-PROVIDER
+                </span>
+                <img src="/kawaii-anime.webp" alt="" className="w-8 h-8 object-contain" />
+                <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
+                  WEEBCENTRAL
+                </span>
+                <img src="/jump-happy.webp" alt="" className="w-8 h-8 object-contain" />
+                <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
+                  ALLMANGA
+                </span>
+                <img src="/ramen-cute-ramen.webp" alt="" className="w-8 h-8 object-contain" />
+                <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
+                  ANINEKO
+                </span>
+                <img src="/cute-angry.gif" alt="" className="w-8 h-8 object-contain" />
+                <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
+                  ANIMEPAHE
+                </span>
+                <img src="/owo-what.webp" alt="" className="w-8 h-8 object-contain" />
+                <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
+                  ANIKOTO
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Feature showcase strip ── */}
+        <div className={cn(
+          "mt-12 md:mt-16 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 transition-all duration-1000 delay-700",
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
+        )}>
+          {[
+            { img: '/shinepost-anime.gif', label: 'Browse', sub: 'Discover manga' },
+            { img: '/anime-dancing.gif', label: 'Search', sub: 'Find anything' },
+            { img: '/akane-shinjo-anime.gif', label: 'Read', sub: 'Full-screen reader' },
+            { img: '/sad-eyes-sad.gif', label: 'Switch', sub: 'Change providers' },
+          ].map((feat, i) => (
+            <div key={i} className="manga-panel-card rounded-xl overflow-hidden group" style={{ '--panel-accent': ['#ff6b9d','#00f2ff','#a78bfa','#fbbf24'][i] }}>
+              <div className="relative h-28 md:h-36 overflow-hidden">
+                <img src={feat.img} alt="" className="panel-image w-full h-full object-cover opacity-60 group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              </div>
+              <div className="p-3 md:p-4 text-center -mt-8 relative z-10">
+                <div className="text-base md:text-xl font-black font-sans text-white">{feat.label}</div>
+                <div className="text-[10px] uppercase tracking-widest text-white/30 font-sans">{feat.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-      <footer className="mt-60 pt-20 border-t border-white/5 text-center font-sans tracking-widest text-[9px] uppercase opacity-30 relative z-10">
-        End of recorded history. Future chapters are being optimized.
-      </footer>
+
+      {/* ── Transition to old timeline ── */}
+      <div className="relative h-32 md:h-48">
+        <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-b from-transparent to-[var(--bg-primary,#0a0a0f)]" />
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
+          <div className="w-px h-12 bg-gradient-to-b from-transparent to-white/20" />
+          <span className="text-[10px] font-black tracking-[0.4em] uppercase text-white/20 font-sans">
+            Previous Versions
+          </span>
+          <svg className="w-4 h-4 text-white/20 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </div>
+      </div>
     </div>
   );
 }
+
+/* ═══════════════════════════════════════════
+   OLD TIMELINE ENTRIES (unchanged)
+   ═══════════════════════════════════════════ */
 function EditorialEntry({ item, isAlt }) {
   const { isMobile } = useDevice();
   const isFeatured = item.featured;
@@ -401,5 +873,50 @@ function EditorialEntry({ item, isAlt }) {
       </div>
       <div className="h-px w-full bg-white/10 mt-20 group-hover:bg-accent/20 transition-colors" />
     </section>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   MAIN EXPORT
+   ═══════════════════════════════════════════ */
+export function Changelog() {
+  return (
+    <div className="animate-in fade-in duration-1000">
+      {/* v6.0 Manga Panel Hero */}
+      <MangaHeroSection />
+
+      {/* Old timeline entries (v5.0 and below) */}
+      <div className="max-w-[1100px] mx-auto px-6 py-20 font-serif selection:bg-accent/30 selection:text-white relative">
+        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent -translate-x-1/2" />
+        <header className="mb-32 border-b border-white/10 pb-10 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 uppercase tracking-[0.2em] text-[10px] font-sans font-black text-accent mb-12">
+            <span className="text-accent animate-rgb-shift">Maintenance Records</span>
+            <span className="opacity-40">Updated: July 21, 2026</span>
+            <span className="opacity-40">Ref: MIYO-CORE-5.0</span>
+          </div>
+        </header>
+        <div className="space-y-40 relative z-10">
+          {(() => {
+            let minorCounter = CHANGELOGS.filter(item => !item.featured).length;
+            return CHANGELOGS.map((item, index) => {
+              const isFeatured = item.featured;
+              const isAlt = isFeatured
+                ? true
+                : (--minorCounter % 2 === 0);
+              return (
+                <EditorialEntry
+                  key={index}
+                  item={item}
+                  isAlt={isAlt}
+                />
+              );
+            });
+          })()}
+        </div>
+        <footer className="mt-60 pt-20 border-t border-white/5 text-center font-sans tracking-widest text-[9px] uppercase opacity-30 relative z-10">
+          End of recorded history. Future chapters are being optimized.
+        </footer>
+      </div>
+    </div>
   );
 }
