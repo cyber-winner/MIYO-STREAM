@@ -224,11 +224,11 @@ const __dirname = path.dirname(__filename);
 
 // Auto-run system setup (Chromium & shared libraries) if not present on container
 const libsDir = path.join(__dirname, 'libs');
-const setupScript = path.join(__dirname, 'setup.js');
+const setupScript = path.join(__dirname, 'setup.cjs');
 if (!fs.existsSync(path.join(libsDir, '.setup_success')) && fs.existsSync(setupScript)) {
-  console.log('[MIYO] Auto-running setup.js to download Chromium and system libraries for container...');
+  console.log('[MIYO] Auto-running setup.cjs to download Chromium and system libraries for container...');
   try {
-    execSync('node setup.js', { stdio: 'inherit' });
+    execSync('node setup.cjs', { stdio: 'inherit' });
   } catch (e) {
     console.warn('[MIYO] Auto setup warning:', e.message);
   }
