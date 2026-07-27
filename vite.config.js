@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import 'dotenv/config';
 
 // VITE_NATIVE=1 builds the frontend for the native apps (Tauri desktop /
 // Capacitor Android): relative base path so assets load from a custom

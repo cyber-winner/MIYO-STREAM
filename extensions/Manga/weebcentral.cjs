@@ -1,6 +1,13 @@
 const cheerio = require("cheerio");
 const baseUrl = "https://weebcentral.com";
 
+function formatUrl(src) {
+  if (!src) return null;
+  if (src.startsWith("http://") || src.startsWith("https://")) return src;
+  if (src.startsWith("//")) return "https:" + src;
+  return baseUrl + (src.startsWith("/") ? src : "/" + src);
+}
+
 async function latestManga(page = 1) {
   try {
     const { data } = await global.axios.get(
@@ -16,7 +23,8 @@ async function latestManga(page = 1) {
       if (id?.includes("/series/")) {
         id = id.split("/series/")?.[1].split("/")?.[0];
         if (id) {
-          const image = Manga.find("picture > img")?.attr("src") ?? null;
+          const rawImg = Manga.find("picture > img")?.attr("src") ?? null;
+          const image = formatUrl(rawImg);
           const title =
             Manga.find(".font-semibold.text-lg")
               ?.text()
@@ -67,7 +75,8 @@ async function searchManga(query, page = 1) {
           if (id) {
             const MangaArticle = Manga?.find("article")?.eq(1);
             if (MangaArticle?.length > 0) {
-              const image = MangaArticle?.find("picture > img")?.attr("src");
+              const rawImg = MangaArticle?.find("picture > img")?.attr("src");
+              const image = formatUrl(rawImg);
               const title = MangaArticle?.find(".text-ellipsis")
                 ?.first()
                 ?.text()
@@ -119,7 +128,9 @@ async function fetchMangaInfo(mangaId) {
         .eq(0)
         ?.text()
         ?.trim();
-      mangaInfo.image = LeftSections.find("picture > img").attr("src") || null;
+      const rawImg = LeftSections.find("picture > img").attr("src");
+      mangaInfo.image = formatUrl(rawImg);
+
       // extra info
       LeftSections.find("section")
         .eq(2)
@@ -130,36 +141,44 @@ async function fetchMangaInfo(mangaId) {
             .find("strong")
             .text()
             .trim()
-            .replace(":", "")
-            .replace("(s)", "")
-            .toLowerCase();
+            .replaceAll("\n", "");
 
-          if (strongTag === "tags") strongTag = "genres";
-
-          if (mangaInfo.hasOwnProperty(strongTag)) {
-            let value = $(li)
-              .find("a, span")
-              .map((i, el) => $(el).text().trim().replace(/,$/, ""))
-              .get();
-
-            value = [...new Set(value)].filter((v) => v !== "");
-
-            mangaInfo[strongTag] = Array.isArray(mangaInfo[strongTag])
-              ? value
-              : value[0];
+          if (strongTag.includes("Type:")) {
+            mangaInfo.type = $(li)
+              .find("a")
+              .text()
+              .trim()
+              .replaceAll("\n", "");
+          } else if (strongTag.includes("Author(s):")) {
+            const authors = [];
+            $(li)
+              .find("a")
+              .each((i, a) => {
+                authors.push($(a).text().trim().replaceAll("\n", ""));
+              });
+            mangaInfo.author = authors.join(", ");
+          } else if (strongTag.includes("Released:")) {
+            mangaInfo.released = $(li)
+              .find("span")
+              .text()
+              .trim()
+              .replaceAll("\n", "");
           }
         });
 
-      // Right section
-      const RightSections = Main.eq(0).children("section").eq(1);
+      // genres
+      LeftSections.find("section")
+        .eq(3)
+        .find("div > a")
+        .each((index, a) => {
+          mangaInfo.genres.push($(a).text().trim().replaceAll("\n", ""));
+        });
 
-      const descriptionSection = RightSections.find(
-        "li:has(strong:contains('Description')) p",
-      );
-
-      mangaInfo.description = descriptionSection.length
-        ? descriptionSection.text().trim()
-        : null;
+      // right section (description)
+      mangaInfo.description = Main.find("p")
+        ?.text()
+        ?.trim()
+        ?.replaceAll("\n", "");
     }
 
     return mangaInfo;
@@ -173,45 +192,45 @@ async function fetchChapters(mangaId) {
     const { data } = await global.axios.get(
       `${baseUrl}/series/${mangaId}/full-chapter-list`,
     );
+
     const $ = cheerio.load(data);
+    const chapters = [];
 
-    let chapterLinks = [];
-    const divs = $("div").toArray();
-
-    for (
-      let i = divs.length - 1, chapterNumber = 1;
-      i >= 0;
-      i--, chapterNumber++
-    ) {
-      const aTag = $(divs[i]).find("a").first();
-      const href = aTag.attr("href");
-
-      if (href) {
-        let id = href.split("/chapters/")[1];
+    $("div > a").each((index, a) => {
+      let id = $(a).attr("href");
+      if (id?.includes("/chapters/")) {
+        id = id.split("/chapters/")?.[1]?.split("/")?.[0];
         if (id) {
-          chapterLinks.push({
+          const title = $(a)
+            .find("span")
+            .eq(0)
+            ?.text()
+            ?.replaceAll("\n", "")
+            ?.trim();
+
+          const date = $(a).find("time")?.attr("datetime");
+
+          let chapterNum = null;
+          if (title) {
+            const numMatch = title.match(/Chapter\s+([\d.]+)/i);
+            if (numMatch) {
+              chapterNum = parseFloat(numMatch[1]);
+            }
+          }
+
+          chapters.push({
             id: id,
-            number: chapterNumber,
+            title: title,
+            number: chapterNum !== null ? chapterNum : index + 1,
+            releaseDate: date,
           });
         }
       }
-    }
+    });
 
-    if (chapterLinks?.length > 0) {
-      chapterLinks.reverse();
-    }
-
-    return {
-      totalPages: 1,
-      total: chapterLinks?.length ?? 0,
-      chapters: chapterLinks,
-    };
+    return { chapters };
   } catch (err) {
-    return {
-      totalPages: 0,
-      total: 0,
-      chapters: [],
-    };
+    throw err;
   }
 }
 
@@ -223,12 +242,18 @@ async function fetchChapterPages(chapterId) {
     const $ = cheerio.load(data);
 
     const pages = $("img")
-      .map((index, img) => ({
-        page: index + 1,
-        img: $(img).attr("src"),
-        headers: { Referer: "https://weebcentral.com/" },
-      }))
-      .get();
+      .map((index, img) => {
+        const src = $(img).attr("src");
+        const fullUrl = formatUrl(src);
+        if (!fullUrl) return null;
+        return {
+          page: index + 1,
+          img: `/api/image?url=${encodeURIComponent(fullUrl)}`,
+          headers: { Referer: "https://weebcentral.com/" },
+        };
+      })
+      .get()
+      .filter(Boolean);
 
     return pages;
   } catch (err) {

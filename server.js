@@ -10,7 +10,9 @@ import { createRequire } from 'module';
 import { exec, spawn } from 'child_process';
 import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
-global.axios = axios.create();
+global.axios = axios.create({ timeout: 20000 });
+
+// ── Strawverse proxyHeaders.js (exact port) ──
 const domainReferers = new Map();
 let fallbackReferer = '';
 global.setDynamicReferer = (domain, referer) => {
@@ -19,32 +21,136 @@ global.setDynamicReferer = (domain, referer) => {
 global.setFallbackReferer = (referer) => {
   fallbackReferer = referer;
 };
-function getRefererForUrl(url) {
-  try {
-    if (url.includes('anikototv.to') || url.includes('megaplay.buzz')) {
-      return 'https://anikototv.to/';
-    }
-    if (url.includes('animepahe')) {
-      return 'https://animepahe.pw/';
-    }
-    if (url.includes('kwik.cx')) {
-      return 'https://animepahe.pw/';
-    }
-    if (url.includes('owocdn.top') || url.includes('uwucdn.top')) {
-      return 'https://kwik.cx/';
-    }
-    const domain = new URL(url).hostname;
-    if (domainReferers.has(domain)) return domainReferers.get(domain);
-    const parts = domain.split('.');
-    for (let i = 1; i < parts.length - 1; i++) {
-      const parent = parts.slice(i).join('.');
-      if (domainReferers.has(parent)) return domainReferers.get(parent);
-    }
-    if (fallbackReferer) return fallbackReferer;
-  } catch (e) {
-  }
-  return '';
+
+// Helper: remove a header case-insensitively and return its value (Strawverse pattern)
+function takeHeaderCaseInsensitive(headers, name) {
+  const wanted = name.toLowerCase();
+  const key = Object.keys(headers || {}).find((k) => k.toLowerCase() === wanted);
+  if (!key) return null;
+  const value = headers[key];
+  delete headers[key];
+  return value;
 }
+
+// Helper: merge cf_clearance cookie into headers (Strawverse pattern)
+function mergeCookie(headers, cookie) {
+  if (!cookie) return;
+  const existingCookie = takeHeaderCaseInsensitive(headers, 'cookie') || '';
+  if (!existingCookie) {
+    headers.Cookie = cookie;
+    return;
+  }
+  if (!existingCookie.includes('cf_clearance=')) {
+    headers.Cookie = existingCookie + '; ' + cookie;
+    return;
+  }
+  headers.Cookie = existingCookie.replace(
+    /cf_clearance=[^;]+/g,
+    cookie.trim().replace(/;$/, ''),
+  );
+}
+
+// Strawverse getHeaders() — exact port from proxyHeaders.js
+function getHeaders(url, method = 'GET') {
+  const chromeVer = '148.0.7778.218';
+  let userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
+  if (process.platform === 'linux') {
+    userAgent = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
+  } else if (process.platform === 'darwin') {
+    userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
+  }
+
+  const headers = { 'User-Agent': userAgent };
+
+  // kwik - animepahe
+  if (url.includes('owocdn.top') || url.includes('uwucdn.top')) {
+    headers.Referer = 'https://kwik.cx/';
+  } else if (url.includes('kwik.cx')) {
+    headers.Referer = 'https://animepahe.pw/';
+  }
+  // animepahe
+  else if (url.includes('animepahe')) {
+    headers.Referer = 'https://animepahe.pw/';
+  }
+  // weebcentral
+  else if (url.includes('temp.compsci88.com') || url.includes('weebcentral.com')) {
+    headers.Referer = 'https://weebcentral.com/';
+  }
+  // megaplay - anikoto
+  else if (url.includes('anikototv.to') || url.includes('megaplay.buzz')) {
+    headers.Referer = 'https://anikototv.to/';
+  }
+  // all manga
+  else if (url.includes('allmanga.to') || url.includes('allanime.day') || url.includes('youtube-anime.com')) {
+    headers.Referer = 'https://allmanga.to/';
+  }
+
+  // Dynamic referer fallback
+  if (!headers.Referer) {
+    try {
+      const domain = new URL(url).hostname.replace('www.', '');
+      if (domainReferers.has(domain)) {
+        headers.Referer = domainReferers.get(domain);
+      } else {
+        const parts = domain.split('.');
+        for (let i = 1; i < parts.length - 1; i++) {
+          const parent = parts.slice(i).join('.');
+          if (domainReferers.has(parent)) {
+            headers.Referer = domainReferers.get(parent);
+            break;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+  if (!headers.Referer && fallbackReferer) {
+    headers.Referer = fallbackReferer;
+  }
+
+  // Origin header for non-GET/HEAD (Strawverse pattern)
+  const reqMethod = String(method).toUpperCase();
+  if (headers.Referer && reqMethod !== 'GET' && reqMethod !== 'HEAD') {
+    try {
+      const refUrl = new URL(headers.Referer);
+      if (refUrl.protocol === 'http:' || refUrl.protocol === 'https:') {
+        headers.Origin = refUrl.origin;
+      }
+    } catch (e) {}
+  }
+
+  return headers;
+}
+
+// Strawverse request interceptor — exact port from scrapper.js
+global.axios.interceptors.request.use(
+  (config) => {
+    const headers = getHeaders(config.url, config.method);
+    if (config.headers) {
+      // Remove existing headers that getHeaders will replace (case-insensitive)
+      if (headers['User-Agent']) {
+        takeHeaderCaseInsensitive(config.headers, 'user-agent');
+      }
+      if (headers['Referer']) {
+        takeHeaderCaseInsensitive(config.headers, 'referer');
+      }
+      if (headers['Cookie']) {
+        const existingCookie = takeHeaderCaseInsensitive(config.headers, 'cookie');
+        if (existingCookie) {
+          mergeCookie(headers, existingCookie);
+        }
+      }
+    }
+    config.headers = {
+      ...config.headers,
+      ...headers,
+    };
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
@@ -94,6 +200,8 @@ app.get('/api/tmdb', async (req, res) => {
 const extensionsDir = path.join(__dirname, 'extensions', 'Anime');
 const providers = {};
 const require = createRequire(import.meta.url);
+
+
 if (fs.existsSync(extensionsDir)) {
   const files = fs.readdirSync(extensionsDir).filter(f => f.endsWith('.js') || f.endsWith('.cjs'));
   for (const file of files) {
@@ -250,22 +358,23 @@ app.get('/api/manga/:provider/:action', async (req, res) => {
 // ── Image Proxy (for manga images that need specific Referer headers) ──
 app.get('/api/image', proxyLimiter, async (req, res) => {
   try {
-    const targetUrl = req.query.url;
-    const referer = req.query.referer || '';
-    if (!targetUrl) return res.status(400).send('URL is required');
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
-    };
-    if (referer) {
-      headers['Referer'] = referer;
-      try { headers['Origin'] = new URL(referer).origin; } catch (e) {}
-    } else {
-      // Auto-detect referer from URL
-      const r = getRefererForUrl(targetUrl);
-      if (r) {
-        headers['Referer'] = r;
-        try { headers['Origin'] = new URL(r).origin; } catch (e) {}
-      }
+    let targetUrl = req.query.url;
+    if (!targetUrl || targetUrl === 'undefined' || targetUrl === 'null') {
+      return res.status(400).send('URL is required');
+    }
+    try {
+      targetUrl = decodeURIComponent(targetUrl);
+    } catch (_) {}
+
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      return res.status(400).send('Invalid URL protocol');
+    }
+
+    const reqReferer = req.query.referer || '';
+    const headers = getHeaders(targetUrl, 'GET');
+    if (reqReferer) {
+      headers['Referer'] = reqReferer;
+      try { headers['Origin'] = new URL(reqReferer).origin; } catch (e) {}
     }
     const response = await axios({
       method: 'GET',
@@ -284,7 +393,6 @@ app.get('/api/image', proxyLimiter, async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=86400');
     response.data.pipe(res);
   } catch (err) {
-    console.error('Image Proxy Error:', err.message);
     res.status(err.response?.status || 500).send(err.message);
   }
 });

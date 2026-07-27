@@ -186,11 +186,29 @@ export const api = {
   getMangaChapters: async (provider, id) => {
     if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'chapters', { id }) || { chapters: [] };
     const res = await fetch(`/api/manga/${provider}/chapters?id=${encodeURIComponent(id)}`);
+    if (!res.ok) {
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        throw new Error(json.error || `HTTP ${res.status}`);
+      } catch {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+    }
     return await res.json();
   },
   getMangaChapterPages: async (provider, chapterId) => {
     if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'pages', { id: chapterId }) || [];
     const res = await fetch(`/api/manga/${provider}/pages?id=${encodeURIComponent(chapterId)}`);
+    if (!res.ok) {
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        throw new Error(json.error || `HTTP ${res.status}`);
+      } catch {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+    }
     return await res.json();
   },
   buildMangaImageUrl: (imgUrl, referer = '') => {
