@@ -286,52 +286,34 @@ export function AnimeDetail() {
             if (result.title?.romaji && result.title.romaji !== searchTitle) searchQueries.push(result.title.romaji);
             if (result.title?.native) searchQueries.push(result.title.native);
 
-            // Try primary provider first, then fallback to others
-            const providersToTry = [mangaProvider];
-            try {
-              const provList = await api.getMangaProviders();
-              for (const prov of (provList?.providers || [])) {
-                if (prov.name !== mangaProvider && !providersToTry.includes(prov.name)) {
-                  providersToTry.push(prov.name);
-                }
-              }
-            } catch (_) {}
-
+            // Search WeebCentral directly for manga title
             let bestMatch = null;
             let bestScore = 0;
-            let usedProvider = mangaProvider;
+            const usedProvider = 'weebcentral';
 
-            for (const currentProvider of providersToTry) {
-              bestMatch = null;
-              bestScore = 0;
-              for (const query of searchQueries) {
-                try {
-                  const providerResults = await api.getMangaSearch(currentProvider, query, 1);
-                  const matches = providerResults?.results || [];
-                  for (const m of matches) {
-                    const mTitle = (m.title || '').toLowerCase();
-                    const qTitle = query.toLowerCase();
-                    let score = 0;
-                    if (mTitle === qTitle) score = 1;
-                    else if (mTitle.includes(qTitle) || qTitle.includes(mTitle)) score = 0.8;
-                    else {
-                      const words = qTitle.split(/\s+/);
-                      const matched = words.filter(w => mTitle.includes(w)).length;
-                      score = words.length > 0 ? matched / words.length * 0.7 : 0;
-                    }
-                    if (score > bestScore) {
-                      bestMatch = m;
-                      bestScore = score;
-                    }
+            for (const query of searchQueries) {
+              try {
+                const providerResults = await api.getMangaSearch(usedProvider, query, 1);
+                const matches = providerResults?.results || [];
+                for (const m of matches) {
+                  const mTitle = (m.title || '').toLowerCase();
+                  const qTitle = query.toLowerCase();
+                  let score = 0;
+                  if (mTitle === qTitle) score = 1;
+                  else if (mTitle.includes(qTitle) || qTitle.includes(mTitle)) score = 0.8;
+                  else {
+                    const words = qTitle.split(/\s+/);
+                    const matched = words.filter(w => mTitle.includes(w)).length;
+                    score = words.length > 0 ? matched / words.length * 0.7 : 0;
                   }
-                  if (bestScore >= 0.85) break;
-                } catch (e) {
-                  console.warn(`[${currentProvider}] Manga search failed for "${query}":`, e.message);
+                  if (score > bestScore) {
+                    bestMatch = m;
+                    bestScore = score;
+                  }
                 }
-              }
-              if (bestMatch && bestScore >= 0.3) {
-                usedProvider = currentProvider;
-                break;
+                if (bestScore >= 0.85) break;
+              } catch (e) {
+                console.warn(`[WeebCentral] Manga search failed for "${query}":`, e.message);
               }
             }
 
@@ -1317,46 +1299,19 @@ function MangaReaderSection({
       mangaReaderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
     try {
-      const data = await api.getMangaChapterPages(mangaProvider, ch.id);
+      const data = await api.getMangaChapterPages('weebcentral', ch.id);
       if (Array.isArray(data) && data.length > 0) {
         setMangaPages(data);
         return;
       }
-      throw new Error(`Provider ${mangaProvider} returned 0 pages.`);
+      throw new Error('WeebCentral returned 0 pages for this chapter.');
     } catch (err) {
-      console.warn(`[MangaReader] ${mangaProvider} failed for chapter ${ch.id}:`, err.message);
-
-      // Automatic fallback to WeebCentral if current provider is CAPTCHA blocked
-      if (mangaProvider !== 'weebcentral' && mangaMatchTitle) {
-        try {
-          console.log(`[MangaReader] Attempting fallback to WeebCentral for "${mangaMatchTitle}" chapter ${ch.number || idx + 1}...`);
-          const searchRes = await api.getMangaSearch('weebcentral', mangaMatchTitle, 1);
-          const results = searchRes?.results || [];
-          if (results.length > 0) {
-            const fallbackId = results[0].id;
-            const chapRes = await api.getMangaChapters('weebcentral', fallbackId);
-            const fallbackChaps = chapRes?.chapters || chapRes?.Chapters || [];
-            const targetNum = Number(ch.number || (idx + 1));
-            const matchChap = fallbackChaps.find(c => Number(c.number) === targetNum || String(c.title || '').includes(`Chapter ${targetNum}`)) || fallbackChaps[idx];
-            if (matchChap) {
-              const fallbackPages = await api.getMangaChapterPages('weebcentral', matchChap.id);
-              if (Array.isArray(fallbackPages) && fallbackPages.length > 0) {
-                console.log(`[MangaReader] Successfully loaded ${fallbackPages.length} pages via WeebCentral fallback!`);
-                setMangaPages(fallbackPages);
-                return;
-              }
-            }
-          }
-        } catch (fallbackErr) {
-          console.warn(`[MangaReader] Fallback to WeebCentral failed:`, fallbackErr.message);
-        }
-      }
-
-      setMangaPagesError(`AllAnime API is CAPTCHA protected on this server. Switch to WeebCentral in settings or below.`);
+      console.warn(`[MangaReader] Failed to load chapter ${ch.id}:`, err.message);
+      setMangaPagesError('Failed to load chapter pages from WeebCentral. Please try again.');
     } finally {
       setMangaPagesLoading(false);
     }
-  }, [mangaProvider, mangaMatchTitle, mangaReaderRef, setMangaActiveIdx, setMangaPages, setMangaPagesLoading, setMangaPagesError, setMangaProgress]);
+  }, [mangaReaderRef, setMangaActiveIdx, setMangaPages, setMangaPagesLoading, setMangaPagesError, setMangaProgress]);
 
   const hasPrev = mangaActiveIdx !== null && mangaActiveIdx > 0;
   const hasNext = mangaActiveIdx !== null && mangaActiveIdx < mangaChapters.length - 1;

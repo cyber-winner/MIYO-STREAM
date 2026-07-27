@@ -29,42 +29,50 @@ async function latestManga(page = 1) {
   try {
     const { data } = await global.axios.get(
       `${baseUrl}/latest-updates/${page}`,
+      {
+        headers: {
+          'Referer': `${baseUrl}/`,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      }
     );
     const $ = cheerio.load(data);
 
     const latestMangas = [];
+    const seenIds = new Set();
 
-    $("article").each((index, article) => {
-      const Manga = $(article);
-      let id = Manga.find("a").attr("href");
-      if (id?.includes("/series/")) {
-        id = id.split("/series/")?.[1].split("/")?.[0];
-        if (id) {
-          const image = Manga.find("picture > img")?.attr("src") ?? null;
-          const title =
-            Manga.find(".font-semibold.text-lg")
-              ?.text()
-              ?.replaceAll("\n", "")
-              ?.trim() ?? null;
+    $("a[href*='/series/'].link-hover, a[href*='/series/'].line-clamp-1, div.text-ellipsis").each((index, el) => {
+      const title = $(el).text().trim();
+      const href = $(el).attr("href") || $(el).closest("a").attr("href") || $(el).closest("section").parent().find("a[href*='/series/']").attr("href");
+      if (href && href.includes("/series/")) {
+        const id = href.split("/series/")[1]?.split("/")?.[0];
+        if (id && title && title !== "Official" && !title.startsWith("http") && !seenIds.has(id)) {
+          seenIds.add(id);
+          const parent = $(el).closest("section").parent();
+          const imgEl = parent.find("img").first();
+          const image = imgEl.attr("src") || imgEl.attr("data-src") || null;
 
-          if (image && title) {
-            latestMangas.push({
-              id: id,
-              title: title,
-              image: `/api/image?url=${image}`,
-            });
-          }
+          latestMangas.push({
+            id: id,
+            title: title,
+            image: image ? `/api/image?url=${encodeURIComponent(image)}` : null,
+          });
         }
       }
     });
 
     return {
       current_page: page,
-      hasNextPage: $("button[hx-get]").length > 0,
+      hasNextPage: $("button[hx-get]").length > 0 || latestMangas.length > 0,
       results: latestMangas,
     };
   } catch (err) {
-    throw err;
+    console.error("[WeebCentral] latestManga error:", err.message);
+    return {
+      current_page: page,
+      hasNextPage: false,
+      results: [],
+    };
   }
 }
 
@@ -76,48 +84,53 @@ async function searchManga(query, page = 1) {
       `${baseUrl}/search/data?limit=32&offset=${offset}&text=${encodeURIComponent(
         query,
       )}&sort=Best+Match&order=Ascending&official=Any&anime=Any&adult=Any&display_mode=Full+Display`,
+      {
+        headers: {
+          'Referer': `${baseUrl}/search`,
+          'HX-Request': 'true',
+          'HX-Target': 'search-results',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      }
     );
 
     const $ = cheerio.load(data);
 
     const results = [];
+    const seenIds = new Set();
 
-    $("body article").each((index, article) => {
-      const Manga = $(article).find("section").eq(0);
-      if (Manga.length > 0) {
-        let id = Manga.find("a").attr("href");
-        if (id?.includes("/series/")) {
-          id = id.split("/series/")?.[1].split("/")?.[0];
-          if (id) {
-            const MangaArticle = Manga?.find("article")?.eq(1);
-            if (MangaArticle?.length > 0) {
-              const image = MangaArticle?.find("picture > img")?.attr("src");
-              const title = MangaArticle?.find(".text-ellipsis")
-                ?.first()
-                ?.text()
-                ?.replaceAll("\n", "")
-                ?.trim();
+    $("a[href*='/series/'].link-hover, a[href*='/series/'].line-clamp-1, div.text-ellipsis").each((index, el) => {
+      const title = $(el).text().trim();
+      const href = $(el).attr("href") || $(el).closest("a").attr("href") || $(el).closest("section").parent().find("a[href*='/series/']").attr("href");
+      if (href && href.includes("/series/")) {
+        const id = href.split("/series/")[1]?.split("/")?.[0];
+        if (id && title && title !== "Official" && !title.startsWith("http") && !seenIds.has(id)) {
+          seenIds.add(id);
+          const parent = $(el).closest("section").parent();
+          const imgEl = parent.find("img").first();
+          const image = imgEl.attr("src") || imgEl.attr("data-src") || null;
 
-              if (title && image) {
-                results.push({
-                  id: id,
-                  title: title,
-                  image: `/api/image?url=${image}`,
-                });
-              }
-            }
-          }
+          results.push({
+            id: id,
+            title: title,
+            image: image ? `/api/image?url=${encodeURIComponent(image)}` : null,
+          });
         }
       }
     });
 
     return {
       current_page: page,
-      hasNextPage: $("button[hx-get]").length > 0,
+      hasNextPage: $("button[hx-get]").length > 0 || results.length === 32,
       results: results,
     };
   } catch (err) {
-    throw err;
+    console.error("[WeebCentral] searchManga error:", err.message);
+    return {
+      current_page: page,
+      hasNextPage: false,
+      results: [],
+    };
   }
 }
 
@@ -131,7 +144,12 @@ async function fetchMangaInfo(mangaId) {
       released: "",
     };
 
-    const { data } = await global.axios.get(`${baseUrl}/series/${mangaId}`);
+    const { data } = await global.axios.get(`${baseUrl}/series/${mangaId}`, {
+      headers: {
+        'Referer': `${baseUrl}/`,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
     const $ = cheerio.load(data);
     const Main = $("main > div > section");
 
@@ -144,7 +162,8 @@ async function fetchMangaInfo(mangaId) {
         ?.text()
         ?.trim()
         ?.toLowerCase();
-      mangaInfo.image = `/api/image?url=${LeftSections.find("picture > img").attr("src")}`;
+      const imgUrl = LeftSections.find("picture > img, img").first().attr("src");
+      mangaInfo.image = imgUrl ? `/api/image?url=${encodeURIComponent(imgUrl)}` : null;
       // extra info
       LeftSections.find("section")
         .eq(2)
@@ -189,7 +208,16 @@ async function fetchMangaInfo(mangaId) {
 
     return mangaInfo;
   } catch (err) {
-    throw err;
+    console.error("[WeebCentral] fetchMangaInfo error:", err.message);
+    return {
+      id: mangaId,
+      title: mangaId,
+      genres: [],
+      type: "",
+      author: "",
+      released: "",
+      description: null,
+    };
   }
 }
 
@@ -197,45 +225,53 @@ async function fetchChapters(mangaId) {
   try {
     const { data } = await global.axios.get(
       `${baseUrl}/series/${mangaId}/full-chapter-list`,
+      {
+        headers: {
+          'Referer': `${baseUrl}/series/${mangaId}`,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      }
     );
     const $ = cheerio.load(data);
 
     let chapterLinks = [];
-    const divs = $("div").toArray();
+    const seenChapterIds = new Set();
 
-    for (
-      let i = divs.length - 1, chapterNumber = 1;
-      i >= 0;
-      i--, chapterNumber++
-    ) {
-      const aTag = $(divs[i]).find("a").first();
-      const href = aTag.attr("href");
-
-      if (href) {
-        let id = href.split("/chapters/")[1];
-        if (id) {
+    $("a[href*='/chapters/']").each((i, el) => {
+      const href = $(el).attr("href");
+      if (href && href.includes("/chapters/")) {
+        const id = href.split("/chapters/")[1];
+        if (id && !seenChapterIds.has(id)) {
+          seenChapterIds.add(id);
+          const rawText = $(el).find("span").first().text().trim() || $(el).text().trim();
+          const cleanTitle = rawText.split("\n")[0].trim();
           chapterLinks.push({
             id: id,
-            number: chapterNumber,
+            title: cleanTitle,
           });
         }
       }
-    }
+    });
 
-    if (chapterLinks?.length > 0) {
-      chapterLinks.reverse();
-    }
+    // Assign chapter numbers (ascending 1..N or descending)
+    chapterLinks = chapterLinks.map((chap, idx) => ({
+      ...chap,
+      number: chapterLinks.length - idx,
+    }));
 
     return {
       TotalPages: 1,
       total: chapterLinks?.length ?? 0,
       Chapters: chapterLinks,
+      chapters: chapterLinks,
     };
   } catch (err) {
+    console.error("[WeebCentral] fetchChapters error:", err.message);
     return {
       TotalPages: 0,
       total: 0,
       Chapters: [],
+      chapters: [],
     };
   }
 }
@@ -244,18 +280,29 @@ async function fetchChapterPages(chapterId) {
   try {
     const { data } = await global.axios.get(
       `${baseUrl}/chapters/${chapterId}/images?is_prev=False&current_page=1&reading_style=long_strip`,
+      {
+        headers: {
+          'Referer': `${baseUrl}/chapters/${chapterId}`,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      }
     );
     const $ = cheerio.load(data);
 
     const pages = $("img")
-      .map((index, img) => ({
-        page: index + 1,
-        img: `/api/image?url=${$(img).attr("src")}`,
-      }))
-      .get();
+      .map((index, img) => {
+        const src = $(img).attr("src");
+        return src ? {
+          page: index + 1,
+          img: `/api/image?url=${encodeURIComponent(src)}`,
+        } : null;
+      })
+      .get()
+      .filter(Boolean);
 
     return pages;
   } catch (err) {
+    console.error("[WeebCentral] fetchChapterPages error:", err.message);
     return [];
   }
 }

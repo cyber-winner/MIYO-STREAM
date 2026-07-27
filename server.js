@@ -10,7 +10,15 @@ import { createRequire } from 'module';
 import { exec, spawn } from 'child_process';
 import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
+const require = createRequire(import.meta.url);
 global.axios = axios.create({ timeout: 20000 });
+
+try {
+  const { cloudflareBypass } = require('./utils/cloudflare.cjs');
+  global.cloudflarebypass = cloudflareBypass;
+} catch (e) {
+  console.warn('Cloudflare bypass module not loaded:', e.message);
+}
 
 // ── Strawverse proxyHeaders.js (exact port) ──
 const domainReferers = new Map();
@@ -52,7 +60,7 @@ function mergeCookie(headers, cookie) {
 
 // Strawverse getHeaders() — exact port from proxyHeaders.js
 function getHeaders(url, method = 'GET') {
-  const chromeVer = '148.0.7778.218';
+  const chromeVer = '131.0.6778.205';
   let userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
   if (process.platform === 'linux') {
     userAgent = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
@@ -60,7 +68,14 @@ function getHeaders(url, method = 'GET') {
     userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
   }
 
-  const headers = { 'User-Agent': userAgent };
+  const headers = {
+    'User-Agent': userAgent,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'sec-ch-ua': `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`,
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': process.platform === 'darwin' ? '"macOS"' : (process.platform === 'win32' ? '"Windows"' : '"Linux"'),
+  };
 
   // kwik - animepahe
   if (url.includes('owocdn.top') || url.includes('uwucdn.top')) {
@@ -79,10 +94,6 @@ function getHeaders(url, method = 'GET') {
   // megaplay - anikoto
   else if (url.includes('anikototv.to') || url.includes('megaplay.buzz')) {
     headers.Referer = 'https://anikototv.to/';
-  }
-  // all manga
-  else if (url.includes('allmanga.to') || url.includes('allanime.day') || url.includes('youtube-anime.com')) {
-    headers.Referer = 'https://allmanga.to/';
   }
 
   // Dynamic referer fallback
@@ -126,18 +137,11 @@ global.axios.interceptors.request.use(
   (config) => {
     const headers = getHeaders(config.url, config.method);
     if (config.headers) {
-      // Remove existing headers that getHeaders will replace (case-insensitive)
-      if (headers['User-Agent']) {
-        takeHeaderCaseInsensitive(config.headers, 'user-agent');
-      }
-      if (headers['Referer']) {
-        takeHeaderCaseInsensitive(config.headers, 'referer');
-      }
+      if (headers['User-Agent']) takeHeaderCaseInsensitive(config.headers, 'user-agent');
+      if (headers['Referer']) takeHeaderCaseInsensitive(config.headers, 'referer');
       if (headers['Cookie']) {
         const existingCookie = takeHeaderCaseInsensitive(config.headers, 'cookie');
-        if (existingCookie) {
-          mergeCookie(headers, existingCookie);
-        }
+        if (existingCookie) mergeCookie(headers, existingCookie);
       }
     }
     config.headers = {
@@ -147,6 +151,66 @@ global.axios.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error),
+);
+
+// Strawverse response interceptor for Cloudflare challenge bypass
+global.axios.interceptors.response.use(
+  (response) => {
+    const data = response.data;
+    if (
+      data &&
+      data.errors &&
+      data.errors.some((e) => e.message === 'NEED_CAPTCHA') &&
+      !response.config._retry &&
+      global.cloudflarebypass
+    ) {
+      response.config._retry = true;
+      const referer =
+        response.config.headers?.Referer ||
+        response.config.headers?.referer ||
+        '';
+      return global.cloudflarebypass(response.config.url, true, referer).then(() => {
+        const newHeaders = getHeaders(response.config.url, response.config.method);
+        response.config.headers = {
+          ...response.config.headers,
+          ...newHeaders,
+        };
+        return global.axios(response.config);
+      });
+    }
+    return response;
+  },
+  async (error) => {
+    const { config, response } = error;
+    if (
+      response &&
+      (response.status === 403 || response.status === 503) &&
+      config &&
+      !config._retry &&
+      global?.cloudflarebypass
+    ) {
+      config._retry = true;
+      console.log(
+        `Cloudflare challenge detected (status: ${response.status}) for ${config.url}. Retrying with bypass...`
+      );
+      try {
+        const referer =
+          config.headers?.Referer ||
+          config.headers?.referer ||
+          '';
+        await global.cloudflarebypass(config.url, true, referer);
+        const newHeaders = getHeaders(config.url, config.method);
+        config.headers = {
+          ...config.headers,
+          ...newHeaders,
+        };
+        return global.axios(config);
+      } catch (bypassErr) {
+        return Promise.reject(bypassErr);
+      }
+    }
+    return Promise.reject(error);
+  }
 );
 
 
@@ -325,8 +389,13 @@ app.get('/api/manga/:provider/:action', async (req, res) => {
         const query = req.query.query;
         const page = parseInt(req.query.page) || 1;
         if (!p.searchManga) return res.status(400).json({ error: 'Not supported' });
-        const data = await p.searchManga(query, page);
-        return res.json(data);
+        try {
+          const data = await p.searchManga(query, page);
+          return res.json(data || { current_page: page, hasNextPage: false, results: [] });
+        } catch (searchErr) {
+          console.error(`[Manga API] Search failed for ${provider}:`, searchErr.message);
+          return res.json({ current_page: page, hasNextPage: false, results: [] });
+        }
       }
       case 'info': {
         const id = req.query.id;
