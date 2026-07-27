@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import axios from 'axios';
 import { createRequire } from 'module';
-import { exec, spawn } from 'child_process';
+import { exec, execSync, spawn } from 'child_process';
 import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 const require = createRequire(import.meta.url);
@@ -198,7 +198,10 @@ global.axios.interceptors.response.use(
           config.headers?.Referer ||
           config.headers?.referer ||
           '';
-        await global.cloudflarebypass(config.url, true, referer);
+        const creds = await global.cloudflarebypass(config.url, true, referer);
+        if (!creds) {
+          return Promise.reject(error);
+        }
         const newHeaders = getHeaders(config.url, config.method);
         config.headers = {
           ...config.headers,
@@ -206,7 +209,8 @@ global.axios.interceptors.response.use(
         };
         return global.axios(config);
       } catch (bypassErr) {
-        return Promise.reject(bypassErr);
+        console.warn(`[CF Bypass] Bypass error:`, bypassErr.message);
+        return Promise.reject(error);
       }
     }
     return Promise.reject(error);
@@ -217,6 +221,19 @@ global.axios.interceptors.response.use(
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Auto-run system setup (Chromium & shared libraries) if not present on container
+const libsDir = path.join(__dirname, 'libs');
+const setupScript = path.join(__dirname, 'setup.js');
+if (!fs.existsSync(path.join(libsDir, '.setup_success')) && fs.existsSync(setupScript)) {
+  console.log('[MIYO] Auto-running setup.js to download Chromium and system libraries for container...');
+  try {
+    execSync('node setup.js', { stdio: 'inherit' });
+  } catch (e) {
+    console.warn('[MIYO] Auto setup warning:', e.message);
+  }
+}
+
 const app = express();
 const port = process.env.SERVER_PORT || process.env.PORT || 3000;
 app.set('trust proxy', 1);
@@ -263,8 +280,6 @@ app.get('/api/tmdb', async (req, res) => {
 });
 const extensionsDir = path.join(__dirname, 'extensions', 'Anime');
 const providers = {};
-const require = createRequire(import.meta.url);
-
 
 if (fs.existsSync(extensionsDir)) {
   const files = fs.readdirSync(extensionsDir).filter(f => f.endsWith('.js') || f.endsWith('.cjs'));
