@@ -227,19 +227,27 @@ function getChromePath() {
       "which chromium || which chromium-browser || which google-chrome 2>/dev/null",
       { encoding: "utf8" }
     ).trim();
-    if (result) return result;
+    if (result && fs.existsSync(result)) return result;
   } catch (e) {}
 
-  return "/usr/bin/google-chrome-stable"; // fallback
+  return null;
 }
 
-const CHROME_PATH = getChromePath();
+function getChromePathCached() {
+  return getChromePath();
+}
 
 // ── Bypass Logic (exact Strawverse pattern) ──
 let bypassInProgress = null;
 
 async function bypassCloudflare(targetSite) {
-  console.log("[CF Bypass] Launching browser to solve challenge...");
+  const chromePath = getChromePathCached();
+  if (!chromePath || !fs.existsSync(chromePath)) {
+    console.warn("[CF Bypass] No valid Chrome/Chromium executable found on system. Skipping browser challenge solver.");
+    return false;
+  }
+
+  console.log(`[CF Bypass] Launching browser to solve challenge using ${chromePath}...`);
 
   const hasXvfb = (() => {
     try {
@@ -254,7 +262,6 @@ async function bypassCloudflare(targetSite) {
   const disableXvfb = process.env.DISABLE_XVFB === "true" || !hasXvfb;
 
   console.log(`[CF Bypass] Environment: hasXvfb=${hasXvfb}, headless=${isHeadless}, disableXvfb=${disableXvfb}`);
-  console.log(`[CF Bypass] Chrome: ${CHROME_PATH}`);
 
   // Clean up stale X11 lock files
   try {
@@ -264,16 +271,16 @@ async function bypassCloudflare(targetSite) {
     }
   } catch (e) {}
 
-  const { connect } = require("puppeteer-real-browser");
   let browser, page;
 
   try {
+    const { connect } = require("puppeteer-real-browser");
     console.log(`[CF Bypass] Primary launch (headless=${isHeadless}, disableXvfb=${disableXvfb})...`);
     const res = await connect({
       headless: isHeadless,
       disableXvfb: disableXvfb,
       turnstile: true,
-      customConfig: { chromePath: CHROME_PATH },
+      customConfig: { chromePath: chromePath },
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -288,11 +295,12 @@ async function bypassCloudflare(targetSite) {
     // Fallback: headless mode
     console.log("[CF Bypass] Fallback: headless mode with disableXvfb=true...");
     try {
+      const { connect } = require("puppeteer-real-browser");
       const res = await connect({
         headless: "new",
         disableXvfb: true,
         turnstile: true,
-        customConfig: { chromePath: CHROME_PATH },
+        customConfig: { chromePath: chromePath },
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
