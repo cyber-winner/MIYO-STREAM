@@ -313,7 +313,7 @@ async function bypassCloudflare(targetSite) {
   console.log(`[CF Bypass] Browser UA: ${originalUA}`);
 
   // Navigate to target site
-  const siteUrl = targetSite || "https://allmanga.to";
+  const siteUrl = targetSite || "https://weebcentral.com";
   console.log(`[CF Bypass] Navigating to ${siteUrl}...`);
   await page.goto(siteUrl, { waitUntil: "domcontentloaded" });
 
@@ -385,10 +385,8 @@ async function cloudflareBypass(url, force = false, referer = "") {
 
   bypassInProgress = (async () => {
     try {
-      let solveSite = "https://allmanga.to";
-      if (url.includes("weebcentral.com") || url.includes("temp.compsci88.com")) {
-        solveSite = "https://weebcentral.com";
-      } else if (url.includes("animepahe")) {
+      let solveSite = "https://weebcentral.com";
+      if (url.includes("animepahe")) {
         solveSite = "https://animepahe.pw";
       }
 

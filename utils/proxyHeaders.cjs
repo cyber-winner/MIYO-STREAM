@@ -92,7 +92,7 @@ global.setFallbackReferer = (referer) => {
 };
 
 function getHeaders(url, method = "GET") {
-  const chromeVer = process.versions?.chrome || "148.0.7778.218";
+  const chromeVer = process.versions?.chrome || "131.0.6778.205";
   let userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
   if (process.platform === "linux") {
     userAgent = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
@@ -102,6 +102,11 @@ function getHeaders(url, method = "GET") {
 
   const headers = {
     "User-Agent": userAgent,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "sec-ch-ua": `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`,
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": process.platform === "darwin" ? '"macOS"' : (process.platform === "win32" ? '"Windows"' : '"Linux"'),
   };
 
   // kwik - animepahe
@@ -117,21 +122,13 @@ function getHeaders(url, method = "GET") {
   // weebcentral
   else if (
     url.includes("temp.compsci88.com") ||
-    url.startsWith("https://temp.compsci88.com/")
+    url.includes("weebcentral.com")
   ) {
     headers.Referer = "https://weebcentral.com/";
   }
   // megaplay - anikoto
   else if (url.includes("anikototv.to") || url.includes("megaplay.buzz")) {
     headers.Referer = "https://anikototv.to/";
-  }
-  // all manga
-  else if (
-    url.includes("allmanga.to") ||
-    url.includes("allanime.day") ||
-    url.includes("youtube-anime.com")
-  ) {
-    headers.Referer = "https://allmanga.to/";
   }
 
   if (!headers.Referer) {
