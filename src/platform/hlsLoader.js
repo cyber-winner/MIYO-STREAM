@@ -34,8 +34,20 @@ export function createNativeHlsLoaderClass(explicitReferer = '') {
       stats.loading.start = self.performance.now();
 
       const headers = buildStreamHeaders(url, explicitReferer);
+      
+      const isLocal = url.includes('localhost') || url.startsWith('/') || url.startsWith('asset://') || url.startsWith('http://localhost') || url.startsWith('capacitor://');
 
-      platformFetch(url, { headers, binary: isBinary, timeout: 30000 })
+      const doFetch = isLocal
+        ? window.fetch(url, { headers: { ...headers } })
+            .then(async res => ({
+              ok: res.ok,
+              status: res.status,
+              text: async () => res.text(),
+              arrayBuffer: async () => res.arrayBuffer()
+            }))
+        : platformFetch(url, { headers, binary: isBinary, timeout: 30000 });
+
+      doFetch
         .then(async (res) => {
           if (this._aborted) return;
           if (!res.ok) {
