@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getPlatform, isNative, getTmdbApiKey, setTmdbApiKey } from '../platform/index.js';
+import { getPlatform, isNative, getTmdbApiKey, setTmdbApiKey, isUsingDefaultTmdbKey } from '../platform/index.js';
 import { api } from '../lib/api';
 import { cn } from '../lib/cn';
 
@@ -19,8 +19,10 @@ export function Settings() {
 
   useEffect(() => {
     const existing = getTmdbApiKey();
-    setApiKey(existing);
-    setSavedKey(existing);
+    const usingBuiltin = isUsingDefaultTmdbKey();
+    // Never show the built-in key in the input field
+    setApiKey(usingBuiltin ? '' : existing);
+    setSavedKey(usingBuiltin ? '' : existing);
   }, []);
 
   // Provider selectors
@@ -168,10 +170,21 @@ export function Settings() {
         <h2 className="text-lg font-bold text-text-primary mb-1">
           TMDB <span className="text-accent animate-rgb-shift">API Key</span>
         </h2>
-        <p className="text-sm text-text-secondary leading-relaxed mb-5">
-          The native apps talk to TMDB directly from your device, so they need your own free API
-          key. It&apos;s stored only on this device and never sent anywhere except TMDB.
+        <p className="text-sm text-text-secondary leading-relaxed mb-4">
+          The native apps talk to TMDB directly from your device, so they need an API key.
+          A shared key is included by default — add your own free key for a better experience.
         </p>
+
+        {isUsingDefaultTmdbKey() && (
+          <div className="mb-4 px-4 py-3 rounded-xl bg-rating/10 border border-rating/30">
+            <p className="text-sm text-rating font-semibold">⚠ Using shared default key</p>
+            <p className="text-xs text-text-secondary mt-1 leading-relaxed">
+              MIYO includes a shared TMDB key so the app works out of the box. This key is
+              shared across all users and <span className="text-text-primary font-semibold">will hit rate limits</span> during
+              peak usage (slow/missing movie metadata). Get your own free key below for the best experience.
+            </p>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
