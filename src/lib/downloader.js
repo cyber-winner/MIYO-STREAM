@@ -139,7 +139,7 @@ async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, sub
 
     console.log('[downloader] Platform:', platform, 'SafeTitle:', safeTitle);
 
-    let Filesystem, Directory, tauriFs, tauriPath;
+    let Filesystem, Directory, Encoding, tauriFs, tauriPath;
     let dirPath = ''; // Relative or absolute path depending on platform
 
     if (platform === 'tauri') {
@@ -161,6 +161,7 @@ async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, sub
       const cap = await import('@capacitor/filesystem');
       Filesystem = cap.Filesystem;
       Directory = cap.Directory;
+      Encoding = cap.Encoding;
       dirPath = `MIYO/Anime/${safeTitle}/Episode_${safeEpNum}`;
       
       console.log('[downloader] Creating directory:', dirPath);
@@ -181,6 +182,7 @@ async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, sub
           path: `${dirPath}/.nomedia`,
           data: '',
           directory: Directory.Documents,
+          encoding: Encoding.UTF8,
         });
       } catch (e) {}
 
@@ -189,6 +191,7 @@ async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, sub
           path: `${dirPath}/subtitle.vtt`,
           data: subtitleData,
           directory: Directory.Documents,
+          encoding: Encoding.UTF8,
         });
       }
     }
@@ -304,6 +307,7 @@ async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, sub
         path: `${dirPath}/index.m3u8`,
         data: rewrittenPlaylist,
         directory: Directory.Documents,
+        encoding: Encoding.UTF8,
       });
 
       if (typeof onProgress === 'function') onProgress(100);
