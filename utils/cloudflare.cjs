@@ -161,6 +161,12 @@ const libsBinDir = path.join(libsDir, "usr/bin");
 const STORE_PATH = path.join(ROOT_DIR, ".cf-store.json");
 let storedCredentials = null;
 
+// ── Prefetched Response Cache ──
+// When Cloudflare uses TLS fingerprinting, the cookie-based retry from Node.js
+// will still get 403. We use the browser's own fetch() to grab the response
+// while the browser is still open, then serve it as a fallback.
+const prefetchedResponses = new Map();
+
 function loadStore() {
   try {
     if (fs.existsSync(STORE_PATH)) {
@@ -432,6 +438,44 @@ async function bypassCloudflare(targetSite, originalUrl) {
 
     saveStore(data);
     console.log(`[CF Bypass] Saved cf_clearance + ${allBrowserCookies.length} cookies (expires ${new Date(expiry).toISOString()})`);
+
+    // Use the browser's fetch() to grab the original URL response.
+    // This is the critical fix for TLS fingerprinting: the browser's TLS
+    // handshake matches what Cloudflare expects, so the request succeeds.
+    if (originalUrl) {
+      try {
+        console.log(`[CF Bypass] Browser-fetching original URL...`);
+        const fetchResult = await page.evaluate(async (fetchUrl) => {
+          try {
+            const resp = await fetch(fetchUrl, {
+              credentials: 'include',
+              headers: {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              },
+            });
+            if (resp.ok || resp.status < 400) {
+              return { status: resp.status, data: await resp.text(), ok: true };
+            }
+            return { status: resp.status, ok: false };
+          } catch (e) {
+            return { ok: false, error: e.message };
+          }
+        }, originalUrl);
+
+        if (fetchResult && fetchResult.ok && fetchResult.data) {
+          prefetchedResponses.set(originalUrl, {
+            data: fetchResult.data,
+            status: fetchResult.status,
+            timestamp: Date.now(),
+          });
+          console.log(`[CF Bypass] Prefetched response cached (${fetchResult.data.length} bytes, status ${fetchResult.status})`);
+        } else {
+          console.log(`[CF Bypass] Browser fetch returned status ${fetchResult?.status || 'unknown'}`);
+        }
+      } catch (e) {
+        console.log(`[CF Bypass] Browser fetch failed (non-fatal): ${e.message}`);
+      }
+    }
   } else {
     console.log("[CF Bypass] Failed to solve challenge or browser was closed.");
   }
@@ -494,9 +538,24 @@ process.on("uncaughtException", (err) => {
 // Initialize on load
 loadStore();
 
+/**
+ * Get a prefetched browser response for a URL (one-time use, 60s TTL).
+ * Returns { data, status } or null.
+ */
+function getPrefetchedResponse(url) {
+  const cached = prefetchedResponses.get(url);
+  if (cached && Date.now() - cached.timestamp < 60000) {
+    prefetchedResponses.delete(url);
+    return cached;
+  }
+  prefetchedResponses.delete(url);
+  return null;
+}
+
 module.exports = {
   cloudflareBypass,
   bypassCloudflare,
   getStoredCredentials,
   getChromePath,
+  getPrefetchedResponse,
 };
