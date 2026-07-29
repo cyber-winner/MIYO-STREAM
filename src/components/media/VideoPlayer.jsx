@@ -160,15 +160,18 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
                 controls
                 crossOrigin="anonymous"
               >
-                {subtitles?.map((sub, index) => (
-                  <track
-                    key={index}
-                    kind="subtitles"
-                    label={sub.lang}
-                    src={proxySubUrl(sub.url)}
-                    default={index === 0}
-                  />
-                ))}
+                {subtitles?.map((sub, index) => {
+                  const resolvedUrl = proxySubUrl(sub.url);
+                  return (
+                    <track
+                      key={`${index}-${resolvedUrl}`}
+                      kind="subtitles"
+                      label={sub.lang}
+                      src={resolvedUrl}
+                      default={index === 0}
+                    />
+                  );
+                })}
               </video>
               {/* Custom CC Button overlay */}
               {subtitles && subtitles.length > 0 && (
