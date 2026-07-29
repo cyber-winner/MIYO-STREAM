@@ -152,24 +152,21 @@ global.axios.interceptors.response.use(
             ...newHeaders,
           };
         }
-        return global.axios(config).catch((retryErr) => {
-          // Retry also failed (likely TLS fingerprint mismatch).
-          // Fall back to browser-prefetched response if available.
-          if (global.getPrefetchedResponse) {
-            const prefetched = global.getPrefetchedResponse(config.url);
-            if (prefetched) {
-              console.log(`[CF Bypass] Axios retry failed, using browser-prefetched response (${prefetched.data.length} bytes)`);
-              return {
-                data: prefetched.data,
-                status: prefetched.status || 200,
-                statusText: 'OK (browser-prefetched)',
-                headers: {},
-                config: config,
-              };
-            }
+        // Check if browser already fetched the response (skips doomed axios retry)
+        if (global.getPrefetchedResponse) {
+          const prefetched = global.getPrefetchedResponse(config.url);
+          if (prefetched) {
+            console.log(`[CF Bypass] Using browser-prefetched response (${prefetched.data.length} bytes)`);
+            return {
+              data: prefetched.data,
+              status: prefetched.status || 200,
+              statusText: 'OK (browser-prefetched)',
+              headers: {},
+              config: config,
+            };
           }
-          return Promise.reject(error);
-        });
+        }
+        return global.axios(config);
       } catch (bypassErr) {
         console.warn(`[CF Bypass] Bypass error:`, bypassErr.message);
         return Promise.reject(error);
