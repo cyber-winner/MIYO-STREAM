@@ -12,6 +12,7 @@ globalThis.setDynamicReferer = setDynamicReferer;
 globalThis.setFallbackReferer = setFallbackReferer;
 
 let providersPromise = null;
+let mangaProvidersPromise = null;
 
 async function loadProviders() {
   if (!providersPromise) {
@@ -23,6 +24,18 @@ async function loadProviders() {
     })();
   }
   return providersPromise;
+}
+
+async function loadMangaProviders() {
+  if (!mangaProvidersPromise) {
+    mangaProvidersPromise = (async () => {
+      const providers = {};
+      const weebcentral = (await import('./providers/weebcentralBrowser.js')).default;
+      if (weebcentral?.name) providers[weebcentral.name] = weebcentral;
+      return providers;
+    })();
+  }
+  return mangaProvidersPromise;
 }
 
 export const localBackend = {
@@ -57,6 +70,42 @@ export const localBackend = {
       }
     } catch (err) {
       console.error(`[localBackend] Error in ${providerName}/${action}:`, err);
+      return { error: err.message };
+    }
+  },
+
+  // ── Manga ──
+  async getMangaProviders() {
+    const providers = await loadMangaProviders();
+    return {
+      providers: Object.entries(providers).map(([name, p]) => ({
+        name,
+        version: p.version || '1.0.0',
+      })),
+    };
+  },
+
+  async mangaAction(providerName, action, params = {}) {
+    const providers = await loadMangaProviders();
+    const p = providers[providerName];
+    if (!p) return { error: `Manga provider ${providerName} not found` };
+    try {
+      switch (action) {
+        case 'latest':
+          return { results: await p.latestManga(parseInt(params.page) || 1) };
+        case 'search':
+          return { results: await p.searchManga(params.query, parseInt(params.page) || 1) };
+        case 'info':
+          return await p.fetchMangaInfo(params.id);
+        case 'chapters':
+          return { chapters: await p.fetchChapters(params.id) };
+        case 'pages':
+          return await p.fetchChapterPages(params.id);
+        default:
+          return { error: 'Invalid manga action' };
+      }
+    } catch (err) {
+      console.error(`[localBackend] Manga error in ${providerName}/${action}:`, err);
       return { error: err.message };
     }
   },
