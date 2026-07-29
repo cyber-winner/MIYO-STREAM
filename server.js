@@ -7,9 +7,23 @@ import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import axios from 'axios';
 import { createRequire } from 'module';
-import { exec, execSync, spawn } from 'child_process';
+import child_process, { exec, execSync, spawn } from 'child_process';
 import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
+
+// Protect against unhandled ENOENT error events on spawned child processes (e.g. ps, xvfb)
+const rawSpawn = child_process.spawn;
+child_process.spawn = function (...args) {
+  const cp = rawSpawn.apply(this, args);
+  if (cp && typeof cp.on === 'function') {
+    cp.on('error', (err) => {
+      if (err && err.code === 'ENOENT') {
+        console.warn(`[MIYO] Handled non-fatal child process spawn error (${args[0]}):`, err.message);
+      }
+    });
+  }
+  return cp;
+};
 const require = createRequire(import.meta.url);
 global.axios = axios.create({ timeout: 20000 });
 
@@ -20,15 +34,7 @@ try {
   console.warn('Cloudflare bypass module not loaded:', e.message);
 }
 
-// ── Strawverse proxyHeaders.js (exact port) ──
-const domainReferers = new Map();
-let fallbackReferer = '';
-global.setDynamicReferer = (domain, referer) => {
-  domainReferers.set(domain, referer);
-};
-global.setFallbackReferer = (referer) => {
-  fallbackReferer = referer;
-};
+const { getHeaders } = require('./utils/proxyHeaders.cjs');
 
 // Helper: remove a header case-insensitively and return its value (Strawverse pattern)
 function takeHeaderCaseInsensitive(headers, name) {
@@ -58,80 +64,6 @@ function mergeCookie(headers, cookie) {
   );
 }
 
-// Strawverse getHeaders() — exact port from proxyHeaders.js
-function getHeaders(url, method = 'GET') {
-  const chromeVer = '131.0.6778.205';
-  let userAgent = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
-  if (process.platform === 'linux') {
-    userAgent = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
-  } else if (process.platform === 'darwin') {
-    userAgent = `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVer} Safari/537.36`;
-  }
-
-  const headers = {
-    'User-Agent': userAgent,
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'sec-ch-ua': `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`,
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': process.platform === 'darwin' ? '"macOS"' : (process.platform === 'win32' ? '"Windows"' : '"Linux"'),
-  };
-
-  // kwik - animepahe
-  if (url.includes('owocdn.top') || url.includes('uwucdn.top')) {
-    headers.Referer = 'https://kwik.cx/';
-  } else if (url.includes('kwik.cx')) {
-    headers.Referer = 'https://animepahe.pw/';
-  }
-  // animepahe
-  else if (url.includes('animepahe')) {
-    headers.Referer = 'https://animepahe.pw/';
-  }
-  // weebcentral
-  else if (url.includes('temp.compsci88.com') || url.includes('weebcentral.com')) {
-    headers.Referer = 'https://weebcentral.com/';
-  }
-  // megaplay - anikoto
-  else if (url.includes('anikototv.to') || url.includes('megaplay.buzz')) {
-    headers.Referer = 'https://anikototv.to/';
-  }
-
-  // Dynamic referer fallback
-  if (!headers.Referer) {
-    try {
-      const domain = new URL(url).hostname.replace('www.', '');
-      if (domainReferers.has(domain)) {
-        headers.Referer = domainReferers.get(domain);
-      } else {
-        const parts = domain.split('.');
-        for (let i = 1; i < parts.length - 1; i++) {
-          const parent = parts.slice(i).join('.');
-          if (domainReferers.has(parent)) {
-            headers.Referer = domainReferers.get(parent);
-            break;
-          }
-        }
-      }
-    } catch (e) {}
-  }
-  if (!headers.Referer && fallbackReferer) {
-    headers.Referer = fallbackReferer;
-  }
-
-  // Origin header for non-GET/HEAD (Strawverse pattern)
-  const reqMethod = String(method).toUpperCase();
-  if (headers.Referer && reqMethod !== 'GET' && reqMethod !== 'HEAD') {
-    try {
-      const refUrl = new URL(headers.Referer);
-      if (refUrl.protocol === 'http:' || refUrl.protocol === 'https:') {
-        headers.Origin = refUrl.origin;
-      }
-    } catch (e) {}
-  }
-
-  return headers;
-}
-
 // Strawverse request interceptor — exact port from scrapper.js
 global.axios.interceptors.request.use(
   (config) => {
@@ -144,10 +76,16 @@ global.axios.interceptors.request.use(
         if (existingCookie) mergeCookie(headers, existingCookie);
       }
     }
-    config.headers = {
-      ...config.headers,
-      ...headers,
-    };
+    if (config.headers && typeof config.headers.set === 'function') {
+      Object.entries(headers).forEach(([k, v]) => {
+        config.headers.set(k, v);
+      });
+    } else {
+      config.headers = {
+        ...config.headers,
+        ...headers,
+      };
+    }
     return config;
   },
   (error) => Promise.reject(error),
@@ -203,10 +141,16 @@ global.axios.interceptors.response.use(
           return Promise.reject(error);
         }
         const newHeaders = getHeaders(config.url, config.method);
-        config.headers = {
-          ...config.headers,
-          ...newHeaders,
-        };
+        if (config.headers && typeof config.headers.set === 'function') {
+          Object.entries(newHeaders).forEach(([k, v]) => {
+            config.headers.set(k, v);
+          });
+        } else {
+          config.headers = {
+            ...config.headers,
+            ...newHeaders,
+          };
+        }
         return global.axios(config);
       } catch (bypassErr) {
         console.warn(`[CF Bypass] Bypass error:`, bypassErr.message);
@@ -973,7 +917,7 @@ const server = app.listen(port, () => {
   const isDev = process.env.NODE_ENV === 'development' || process.env.npm_lifecycle_event === 'dev';
   if (process.env.CF_TOKEN && !isDev) {
     console.log('[CLOUDFLARE] Starting Cloudflare Tunnel...');
-    const tunnel = exec(`npx --yes cloudflared tunnel --no-autoupdate run --token ${process.env.CF_TOKEN}`);
+    const tunnel = exec(`npx --yes cloudflared tunnel --no-autoupdate --protocol http2 run --token ${process.env.CF_TOKEN}`);
     tunnel.stdout.on('data', data => process.stdout.write(`[CF] ${data}`));
     tunnel.stderr.on('data', data => process.stdout.write(`[CF] ${data}`));
     tunnel.on('close', code => {

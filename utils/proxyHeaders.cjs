@@ -11,12 +11,14 @@ const refererCache = {};
 
 const STORE_PATH = path.join(__dirname, "..", ".cf-store.json");
 
-function saveCookieCredentials(domainName, cfClearance, expiryTime) {
+function saveCookieCredentials(domainName, cfClearance, expiryTime, userAgent, allCookies) {
   const domain = normalizeDomain(domainName);
   if (domain && cfClearance) {
     cookieCache[domain] = {
       value: cfClearance,
+      allCookies: allCookies || null,
       expiry: expiryTime || Date.now() + 2 * 60 * 60 * 1000,
+      userAgent: userAgent,
     };
   }
 }
@@ -26,7 +28,7 @@ function loadCookieStore() {
     if (fs.existsSync(STORE_PATH)) {
       const data = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
       if (data && data.domain && data.cf_clearance && data.expiry > Date.now()) {
-        saveCookieCredentials(data.domain, data.cf_clearance, data.expiry);
+        saveCookieCredentials(data.domain, data.cf_clearance, data.expiry, data.userAgent, data.allCookies);
       }
     }
   } catch (e) {}
@@ -104,7 +106,7 @@ function getHeaders(url, method = "GET") {
     "User-Agent": userAgent,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
-    "sec-ch-ua": `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`,
+    "sec-ch-ua": `"Google Chrome";v="${chromeVer.split('.')[0]}", "Chromium";v="${chromeVer.split('.')[0]}", "Not_A Brand";v="24"`,
     "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": process.platform === "darwin" ? '"macOS"' : (process.platform === "win32" ? '"Windows"' : '"Linux"'),
   };
@@ -150,12 +152,34 @@ function getHeaders(url, method = "GET") {
     cookieDomain = new URL(url).hostname;
   } catch (e) {}
 
+  loadCookieStore();
+
   if (cookieDomain) {
     const normDomain = normalizeDomain(cookieDomain);
     const cached = cookieCache[normDomain] || cookieCache[cookieDomain];
     if (cached && cached.expiry > Date.now()) {
-      if (cached.value) {
+      if (cached.allCookies) {
+        headers.Cookie = cached.allCookies;
+      } else if (cached.value) {
         headers.Cookie = `cf_clearance=${cached.value};`;
+      }
+      if (cached.userAgent) {
+        headers["User-Agent"] = cached.userAgent;
+        
+        // Match Cloudflare's strict fingerprinting by syncing sec-ch-ua with the UA
+        const chromeMatch = cached.userAgent.match(/Chrome\/(\d+)/);
+        if (chromeMatch) {
+          const major = chromeMatch[1];
+          headers["sec-ch-ua"] = `"Google Chrome";v="${major}", "Chromium";v="${major}", "Not_A Brand";v="24"`;
+        }
+        
+        if (cached.userAgent.includes("Windows")) {
+          headers["sec-ch-ua-platform"] = '"Windows"';
+        } else if (cached.userAgent.includes("Mac OS X")) {
+          headers["sec-ch-ua-platform"] = '"macOS"';
+        } else if (cached.userAgent.includes("Linux") || cached.userAgent.includes("X11")) {
+          headers["sec-ch-ua-platform"] = '"Linux"';
+        }
       }
     }
   }

@@ -53,11 +53,29 @@ const libsBinDir = path.join(libsDir, "usr/bin");
     }
   }
 
-  // 2. Ensure libs/usr/bin is in PATH
-  if (fs.existsSync(libsBinDir) && !process.env.PATH.includes(libsBinDir)) {
-    process.env.PATH = libsBinDir + ":" + process.env.PATH;
-    console.log(`[CF Bypass] Prepended ${libsBinDir} to PATH.`);
+  // 2. Ensure PATH includes /tmp/bin and all bin dirs in libs/
+  const binDirs = [
+    path.join(libsDir, "bin"),
+    path.join(libsDir, "usr/bin"),
+    path.join(libsDir, "sbin"),
+    path.join(libsDir, "usr/sbin"),
+    "/tmp/bin",
+    "/tmp/xb",
+  ];
+  for (const b of binDirs) {
+    if (fs.existsSync(b) && !process.env.PATH.includes(b)) {
+      process.env.PATH = b + ":" + process.env.PATH;
+    }
   }
+
+  // Create executable /tmp/bin/ps shell wrapper script so spawn('ps') never fails with ENOENT
+  try {
+    fs.mkdirSync("/tmp/bin", { recursive: true });
+    try { fs.unlinkSync("/tmp/bin/ps"); } catch (e) {}
+    const psWrapper = `#!/bin/sh\nfor p in /home/container/libs/bin/ps /home/container/libs/usr/bin/ps /usr/bin/ps /bin/ps; do\n  if [ -x "$p" ]; then exec "$p" "$@"; fi\ndone\nexit 0\n`;
+    fs.writeFileSync("/tmp/bin/ps", psWrapper, { mode: 0o755 });
+    console.log("[CF Bypass] Created /tmp/bin/ps fallback wrapper script.");
+  } catch (e) {}
 
   // 3. Create /tmp/xb/xkbcomp shell wrapper script with full LD_LIBRARY_PATH exported
   const xkbcompSrc = path.join(libsBinDir, "xkbcomp");
@@ -151,8 +169,11 @@ function loadStore() {
         storedCredentials = data;
         return data;
       }
+      // Clean up expired store file
+      try { fs.unlinkSync(STORE_PATH); } catch (e) {}
     }
   } catch (e) {}
+  storedCredentials = null;
   return null;
 }
 
@@ -163,7 +184,7 @@ function saveStore(data) {
   try {
     fs.writeFileSync(STORE_PATH, JSON.stringify(data), "utf8");
     if (data.domain && data.cf_clearance) {
-      saveCookieCredentials(data.domain, data.cf_clearance, data.expiry);
+      saveCookieCredentials(data.domain, data.cf_clearance, data.expiry, data.userAgent, data.allCookies);
     }
   } catch (e) {
     console.error("[CF Bypass] Failed to save store:", e.message);
@@ -248,7 +269,7 @@ function getChromePathCached() {
 // ── Bypass Logic (exact Strawverse pattern) ──
 let bypassInProgress = null;
 
-async function bypassCloudflare(targetSite) {
+async function bypassCloudflare(targetSite, originalUrl) {
   const chromePath = getChromePathCached();
   if (!chromePath || !fs.existsSync(chromePath)) {
     console.warn("[CF Bypass] No valid Chrome/Chromium executable found on system. Skipping browser challenge solver.");
@@ -366,24 +387,63 @@ async function bypassCloudflare(targetSite) {
 
   if (passed && cfClearanceCookie) {
     console.log("[CF Bypass] Challenge solved! Capturing clearance token...");
+
+    // Capture ALL cookies from the browser session (not just cf_clearance)
+    // Cloudflare Bot Management often requires __cf_bm and other cookies alongside cf_clearance
+    let allBrowserCookies = await page.cookies();
+    console.log(`[CF Bypass] Captured ${allBrowserCookies.length} cookies from browser session`);
+
+    // Warm up the original failing path so Cloudflare grants clearance for that route too
+    if (originalUrl) {
+      try {
+        const origParsed = new URL(originalUrl);
+        if (origParsed.pathname && origParsed.pathname !== '/') {
+          const warmupUrl = origParsed.origin + origParsed.pathname;
+          console.log(`[CF Bypass] Warming up route: ${warmupUrl}...`);
+          await page.goto(warmupUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+          await new Promise((r) => setTimeout(r, 2000));
+          // Re-capture cookies after visiting the actual path
+          allBrowserCookies = await page.cookies();
+          const updatedCf = allBrowserCookies.find((c) => c.name === "cf_clearance");
+          if (updatedCf) cfClearanceCookie = updatedCf;
+          console.log(`[CF Bypass] Re-captured ${allBrowserCookies.length} cookies after route warmup`);
+        }
+      } catch (e) {
+        console.log(`[CF Bypass] Route warmup failed (non-fatal): ${e.message}`);
+      }
+    }
+
+    const allCookiesStr = allBrowserCookies
+      .filter((c) => c.name && c.value)
+      .map((c) => `${c.name}=${c.value}`)
+      .join('; ');
+
     const expiry = cfClearanceCookie.expires
       ? cfClearanceCookie.expires * 1000
       : Date.now() + 1000 * 60 * 60 * 2;
 
     const data = {
       cf_clearance: cfClearanceCookie.value,
+      allCookies: allCookiesStr,
       userAgent: userAgent,
       expiry: expiry,
       domain: new URL(siteUrl).hostname,
     };
 
     saveStore(data);
-    console.log(`[CF Bypass] Saved cf_clearance (expires ${new Date(expiry).toISOString()})`);
+    console.log(`[CF Bypass] Saved cf_clearance + ${allBrowserCookies.length} cookies (expires ${new Date(expiry).toISOString()})`);
   } else {
     console.log("[CF Bypass] Failed to solve challenge or browser was closed.");
   }
 
-  await browser.close().catch(() => {});
+  try {
+    if (browser) {
+      if (typeof browser.process === "function" && browser.process()) {
+        browser.process().on("error", () => {});
+      }
+      await browser.close().catch(() => {});
+    }
+  } catch (e) {}
   return passed;
 }
 
@@ -403,12 +463,15 @@ async function cloudflareBypass(url, force = false, referer = "") {
 
   bypassInProgress = (async () => {
     try {
-      let solveSite = "https://weebcentral.com";
-      if (url.includes("animepahe")) {
-        solveSite = "https://animepahe.pw";
+      // Derive solve site from the actual failing URL instead of hardcoding
+      let solveSite;
+      try {
+        solveSite = new URL(url).origin;
+      } catch (e) {
+        solveSite = "https://weebcentral.com";
       }
 
-      const success = await bypassCloudflare(solveSite);
+      const success = await bypassCloudflare(solveSite, url);
       if (!success) return null;
       return getStoredCredentials();
     } finally {
@@ -418,6 +481,15 @@ async function cloudflareBypass(url, force = false, referer = "") {
 
   return bypassInProgress;
 }
+
+// Global process error handler to prevent spawn ps ENOENT from crashing server during cleanup
+process.on("uncaughtException", (err) => {
+  if (err && (err.code === "ENOENT" || err.syscall?.includes("spawn ps") || err.message?.includes("spawn ps"))) {
+    console.warn("[CF Bypass] Handled non-fatal spawn ps error during process cleanup.");
+    return;
+  }
+  console.error("Uncaught Exception:", err);
+});
 
 // Initialize on load
 loadStore();
