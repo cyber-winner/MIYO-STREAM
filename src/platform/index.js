@@ -33,11 +33,30 @@ export function isAndroid() {
 // ---- TMDB API key management (native only; the website uses the server key) ----
 const TMDB_KEY_STORAGE = 'miyo_tmdb_api_key';
 
+// Default key — XOR-obfuscated so it doesn't appear as plaintext in the bundle.
+// This is NOT security — it's just to prevent casual scraping from source.
+const _xk = [0x4d, 0x49, 0x59, 0x4f]; // 'MIYO'
+const _ed = [0x28,0x28,0x6c,0x7f,0x78,0x7f,0x6f,0x77,0x79,0x2c,0x3c,0x2a,0x7c,0x7b,0x60,0x7d,0x28,0x2d,0x3a,0x29,0x7d,0x28,0x6b,0x2c,0x7c,0x7d,0x6a,0x7e,0x7d,0x7e,0x61,0x29];
+function _dk() {
+  return _ed.map((b, i) => String.fromCharCode(b ^ _xk[i % _xk.length])).join('');
+}
+
 export function getTmdbApiKey() {
   try {
-    return localStorage.getItem(TMDB_KEY_STORAGE) || '';
+    const userKey = localStorage.getItem(TMDB_KEY_STORAGE);
+    if (userKey) return userKey;
+  } catch { /* ignore */ }
+  // On native platforms, fall back to the built-in shared key
+  if (isNative()) return _dk();
+  return '';
+}
+
+export function isUsingDefaultTmdbKey() {
+  try {
+    const userKey = localStorage.getItem(TMDB_KEY_STORAGE);
+    return isNative() && !userKey;
   } catch {
-    return '';
+    return isNative();
   }
 }
 
