@@ -32,6 +32,7 @@ const MANGA_NAV = [
 const SECONDARY_NAV = [
   { path: '/changelog', label: 'Timeline', icon: HistoryIcon },
   { path: '/download', label: 'Get the App', icon: DownloadIcon },
+  ...(isNative() ? [{ path: '/downloads', label: 'Downloads', icon: DownloadIcon }] : []),
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
