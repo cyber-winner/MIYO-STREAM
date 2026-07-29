@@ -357,7 +357,7 @@ export function AnimeDetail() {
     setLoadingEpisode(true);
     
     // Check for offline download first
-    if (isNative()) {
+    if (isNative() && !window._miyo_bypass_offline) {
       const downloadId = `${data?.id || id}-${epNum}`;
       const offlineData = getDownloadForEpisode(downloadId);
       if (offlineData) {
@@ -379,6 +379,8 @@ export function AnimeDetail() {
         return; // Skip online fetch
       }
     }
+    // Clear the bypass flag for future clicks
+    window._miyo_bypass_offline = false;
 
     if (anikotoEpId) {
       try {
@@ -450,9 +452,35 @@ export function AnimeDetail() {
         detail: { message: 'Stream failed — switched to fallback player.', type: 'warning' }
       }));
     };
+
+    const onLocalFatal = async () => {
+      if (!isHls || !playerSrc.includes('MIYO')) return;
+      const downloadId = `${data?.id || id}-${activeEpisode}`;
+      const { removeDownloadMetadata } = await import('../lib/downloadsManager.js');
+      removeDownloadMetadata(downloadId);
+      
+      window.dispatchEvent(new CustomEvent('miyo-toast', {
+        detail: { message: 'Local file missing. Falling back to online stream...', type: 'warning' }
+      }));
+      
+      // Re-trigger handleEpisodeClick but bypass the offline check
+      window._miyo_bypass_offline = true;
+      const currentEp = anikotoEpisodes.find(e => e.number === activeEpisode);
+      if (currentEp) {
+        handleEpisodeClick(activeEpisode, currentEp.id);
+      } else {
+        setPlayerSrc(api.getAnimePlayerUrl(data?.id || id, activeEpisode));
+        setIsHls(false);
+      }
+    };
+
     window.addEventListener('miyo-hls-fatal', onHlsFatal);
-    return () => window.removeEventListener('miyo-hls-fatal', onHlsFatal);
-  }, [isHls, data, id, activeEpisode]);
+    window.addEventListener('miyo-local-fatal', onLocalFatal);
+    return () => {
+      window.removeEventListener('miyo-hls-fatal', onHlsFatal);
+      window.removeEventListener('miyo-local-fatal', onLocalFatal);
+    };
+  }, [isHls, data, id, activeEpisode, anikotoEpisodes, playerSrc]);
   const isPlayingTrailer = playerSrc.includes('youtube.com');
   const toggleTrailer = () => {
     if (isPlayingTrailer) {

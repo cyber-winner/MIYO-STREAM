@@ -1,62 +1,5 @@
 import { isNative, getPlatform, platformFetch } from '../platform/index.js';
 import { buildStreamHeaders } from '../platform/referers.js';
-import muxjs from 'mux.js';
-
-// ── TS → MP4 Transmuxer (Strawverse-style, runs entirely on-device) ──
-// Uses mux.js to remux MPEG-TS segments into a fragmented MP4.
-// This is the same tech hls.js uses internally — lightweight, pure JS, no FFmpeg.
-
-function transmuxTsToMp4(tsSegments) {
-  return new Promise((resolve, reject) => {
-    try {
-      const outputSegments = [];
-      let initSegment = null;
-
-      const transmuxer = new muxjs.mp4.Transmuxer({
-        keepOriginalTimestamps: false,
-        remux: true,
-      });
-
-      transmuxer.on('data', (segment) => {
-        if (!initSegment && segment.initSegment) {
-          initSegment = new Uint8Array(segment.initSegment.byteLength);
-          initSegment.set(segment.initSegment);
-        }
-        if (segment.data) {
-          const data = new Uint8Array(segment.data.byteLength);
-          data.set(segment.data);
-          outputSegments.push(data);
-        }
-      });
-
-      transmuxer.on('done', () => {
-        if (!initSegment || outputSegments.length === 0) {
-          reject(new Error('Transmux produced no output'));
-          return;
-        }
-        // Concatenate: init segment + all media segments = valid fMP4 file
-        const totalSize = initSegment.byteLength + outputSegments.reduce((sum, s) => sum + s.byteLength, 0);
-        const mp4 = new Uint8Array(totalSize);
-        let offset = 0;
-        mp4.set(initSegment, offset);
-        offset += initSegment.byteLength;
-        for (const seg of outputSegments) {
-          mp4.set(seg, offset);
-          offset += seg.byteLength;
-        }
-        resolve(mp4);
-      });
-
-      // Feed each TS segment into the transmuxer
-      for (const tsData of tsSegments) {
-        transmuxer.push(tsData);
-      }
-      transmuxer.flush();
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
 
 // ── Helper: Uint8Array → base64 string (for Capacitor Filesystem) ──
 function uint8ToBase64(bytes) {
@@ -101,26 +44,11 @@ async function resolvePlaylist(m3u8Url, fetchTextFn) {
   return { playlistUrl, playlist };
 }
 
-// ── Extract segment URLs from media playlist ──
-function extractSegmentUrls(playlist, playlistUrl) {
-  const lines = playlist.split('\n');
-  const segments = [];
-  const baseUrl = playlistUrl.substring(0, playlistUrl.lastIndexOf('/') + 1);
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (line && !line.startsWith('#')) {
-      segments.push(line.startsWith('http') ? line : baseUrl + line);
-    }
-  }
-  return segments;
-}
-
 // ════════════════════════════════════════════════════════════════════
 //  PUBLIC API
 // ════════════════════════════════════════════════════════════════════
 
-export async function downloadHls(m3u8Url, referer, title, onProgress, subtitleUrl = null) {
-  // Extract referer from URL hash if embedded (e.g. "https://cdn.com/stream.m3u8#referer=https%3A//...")
+export async function downloadHls(m3u8Url, referer, title, epNum, onProgress, subtitleUrl = null) {
   let cleanUrl = m3u8Url;
   let effectiveReferer = referer || '';
   if (m3u8Url.includes('#referer=')) {
@@ -131,94 +59,41 @@ export async function downloadHls(m3u8Url, referer, title, onProgress, subtitleU
     }
   }
 
-  if (isNative()) {
-    return downloadHlsNative(cleanUrl, effectiveReferer, title, onProgress, subtitleUrl);
+  if (!isNative()) {
+    throw new Error('M3U8 Directory downloading is only supported on native apps (Android/Desktop).');
   }
 
-  // ── Web browser path (desktop + mobile browser) ──
-  try {
-    const getProxyUrl = (url) => {
-      if (url.startsWith('/api/proxy')) return url;
-      return `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(effectiveReferer)}`;
-    };
-    const fetchText = async (url) => {
-      const res = await fetch(getProxyUrl(url));
-      if (!res.ok) throw new Error('Network response was not ok');
-      return await res.text();
-    };
+  return downloadHlsNative(cleanUrl, effectiveReferer, title, epNum, onProgress, subtitleUrl);
+}
 
-    // Resolve playlist
-    const { playlistUrl, playlist } = await resolvePlaylist(cleanUrl, fetchText);
-    const chunks = extractSegmentUrls(playlist, playlistUrl);
-    if (chunks.length === 0) throw new Error('No video chunks found in playlist.');
+export async function deleteDownloadFiles(title, epNum) {
+  if (!isNative()) return;
+  const safeTitle = (title || 'Video').replace(/[\\/:*?"<>|]+/g, '_').trim();
+  const safeEpNum = String(epNum).replace(/[\\/:*?"<>|]+/g, '_');
+  const platform = getPlatform();
 
-    // Download all segments
-    const segmentBuffers = [];
-    for (let i = 0; i < chunks.length; i++) {
-      onProgress(Math.round((i / chunks.length) * 95));
-      const res = await fetch(getProxyUrl(chunks[i]));
-      if (!res.ok) throw new Error(`Failed to fetch chunk ${i}`);
-      segmentBuffers.push(new Uint8Array(await res.arrayBuffer()));
-    }
-
-    // Transmux TS → MP4
-    onProgress(96);
-    let outputData;
-    let outputType;
-    let outputExt;
+  if (platform === 'tauri') {
+    const tauriFs = await import('@tauri-apps/plugin-fs');
+    const tauriPath = await import('@tauri-apps/api/path');
+    const docsDir = await tauriPath.documentDir();
+    const dirPath = await tauriPath.join(docsDir, 'MIYO', 'Anime', safeTitle, `Episode_${safeEpNum}`);
     try {
-      outputData = await transmuxTsToMp4(segmentBuffers);
-      outputType = 'video/mp4';
-      outputExt = 'mp4';
-    } catch (transmuxErr) {
-      console.warn('[Download] Transmux failed, falling back to .ts:', transmuxErr.message);
-      // Fallback: concatenate as raw TS
-      const totalSize = segmentBuffers.reduce((s, b) => s + b.byteLength, 0);
-      outputData = new Uint8Array(totalSize);
-      let off = 0;
-      for (const buf of segmentBuffers) { outputData.set(buf, off); off += buf.byteLength; }
-      outputType = 'video/mp2t';
-      outputExt = 'ts';
+      await tauriFs.remove(dirPath, { recursive: true });
+    } catch (e) {
+      console.warn('Failed to remove tauri download directory:', e);
     }
-
-    const safeTitle = (title || 'Video').replace(/[\\/:*?"<>|]+/g, '_');
-
-    // Try File System Access API first (desktop Chrome)
-    if (window.showSaveFilePicker) {
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: `${safeTitle}.${outputExt}`,
-          types: [{
-            description: 'Video File',
-            accept: { [outputType]: [`.${outputExt}`] },
-          }],
-        });
-        const writable = await handle.createWritable();
-        await writable.write(outputData);
-        await writable.close();
-        onProgress(100);
-        return true;
-      } catch (e) {
-        if (e.name === 'AbortError') throw e;
-        // Fall through to blob download
-      }
+  } else if (platform === 'capacitor') {
+    const cap = await import('@capacitor/filesystem');
+    const dirPath = `MIYO/Anime/${safeTitle}/Episode_${safeEpNum}`;
+    try {
+      await cap.Filesystem.rmdir({
+        path: dirPath,
+        directory: cap.Directory.Documents,
+        recursive: true
+      });
+    } catch (e) {
+      console.warn('Failed to remove capacitor download directory:', e);
     }
-
-    // Blob download fallback (mobile browsers)
-    const blob = new Blob([outputData], { type: outputType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${safeTitle}.${outputExt}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    onProgress(100);
-    return true;
-  } catch (err) {
-    console.error('Download error:', err);
-    throw err;
   }
 }
 
@@ -226,7 +101,7 @@ export async function downloadHls(m3u8Url, referer, title, onProgress, subtitleU
 //  NATIVE (Tauri / Capacitor) download path
 // ════════════════════════════════════════════════════════════════════
 
-async function downloadHlsNative(m3u8Url, referer, title, onProgress, subtitleUrl = null) {
+async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, subtitleUrl = null) {
   const fetchNativeText = async (url) => {
     const headers = buildStreamHeaders(url, referer);
     const res = await platformFetch(url, { headers, timeout: 30000 });
@@ -245,7 +120,6 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress, subtitleUr
   if (subtitleUrl) {
     try {
       subtitleData = await fetchNativeText(subtitleUrl);
-      // Ensure it starts with WEBVTT if it's VTT, but generally it's fine to save raw.
     } catch (e) {
       console.warn('[Download] Failed to download subtitle:', e);
     }
@@ -253,136 +127,179 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress, subtitleUr
 
   // Resolve playlist
   const { playlistUrl, playlist } = await resolvePlaylist(m3u8Url, fetchNativeText);
-  const segmentUrls = extractSegmentUrls(playlist, playlistUrl);
-  if (segmentUrls.length === 0) throw new Error('No video chunks found in playlist.');
-
-  const safeTitle = (title || 'Video').replace(/[\\/:*?"<>|]+/g, '_');
+  
+  const safeTitle = (title || 'Video').replace(/[\\/:*?"<>|]+/g, '_').trim();
+  const safeEpNum = String(epNum).replace(/[\\/:*?"<>|]+/g, '_');
   const platform = getPlatform();
 
-  // ── Initialize File Handles ──
-  const fileName = `${safeTitle}.mp4`;
-  const subFileName = subtitleData ? `${safeTitle}.vtt` : null;
-
-  let tauriFile = null;
-  let tauriFilePath = null;
-  
-  let capacitorDirPath = `MIYO/${fileName}`;
-  let capacitorSubDirPath = subtitleData ? `MIYO/${subFileName}` : null;
-  let Filesystem, Directory;
+  let Filesystem, Directory, tauriFs, tauriPath;
+  let dirPath = ''; // Relative or absolute path depending on platform
 
   if (platform === 'tauri') {
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const { open: openFile } = await import('@tauri-apps/plugin-fs');
-    tauriFilePath = await save({
-      defaultPath: fileName,
-      filters: [{ name: 'Video File', extensions: ['mp4'] }],
-    });
-    if (!tauriFilePath) {
-      const err = new Error('Save cancelled');
-      err.name = 'AbortError';
-      throw err;
-    }
-    tauriFile = await openFile(tauriFilePath, { write: true, create: true, truncate: true });
+    tauriFs = await import('@tauri-apps/plugin-fs');
+    tauriPath = await import('@tauri-apps/api/path');
+    const docsDir = await tauriPath.documentDir();
+    dirPath = await tauriPath.join(docsDir, 'MIYO', 'Anime', safeTitle, `Episode_${safeEpNum}`);
+    
+    // Create directory recursively
+    await tauriFs.mkdir(dirPath, { recursive: true });
+    // Save subtitle
     if (subtitleData) {
-      try {
-        const subFilePath = tauriFilePath.replace(/\.[^/.]+$/, "") + '.vtt';
-        const subFile = await openFile(subFilePath, { write: true, create: true, truncate: true });
-        await subFile.write(new TextEncoder().encode(subtitleData));
-        await subFile.close();
-      } catch(e) {
-        console.warn('Failed to save subtitle on Tauri', e);
-      }
+      const subFilePath = await tauriPath.join(dirPath, 'subtitle.vtt');
+      const subFile = await tauriFs.open(subFilePath, { write: true, create: true, truncate: true });
+      await subFile.write(new TextEncoder().encode(subtitleData));
+      await subFile.close();
     }
   } else if (platform === 'capacitor') {
     const cap = await import('@capacitor/filesystem');
     Filesystem = cap.Filesystem;
     Directory = cap.Directory;
-    await Filesystem.writeFile({
-      path: capacitorDirPath,
-      data: '',
-      directory: Directory.Documents,
-      recursive: true,
-    });
+    dirPath = `MIYO/Anime/${safeTitle}/Episode_${safeEpNum}`;
+    
+    // Attempt to make directory, ignore if it exists
+    try {
+      await Filesystem.mkdir({
+        path: dirPath,
+        directory: Directory.Documents,
+        recursive: true
+      });
+    } catch (e) {
+      // Directory might exist, which is fine
+    }
+
+    // Add .nomedia file to hide from gallery
+    try {
+      await Filesystem.writeFile({
+        path: `${dirPath}/.nomedia`,
+        data: '',
+        directory: Directory.Documents,
+      });
+    } catch (e) {}
+
     if (subtitleData) {
-      try {
-        await Filesystem.writeFile({
-          path: capacitorSubDirPath,
-          data: subtitleData,
-          directory: Directory.Documents,
-          recursive: true,
-        });
-      } catch(e) {
-        console.warn('Failed to save subtitle on Capacitor', e);
-      }
+      await Filesystem.writeFile({
+        path: `${dirPath}/subtitle.vtt`,
+        data: subtitleData,
+        directory: Directory.Documents,
+      });
     }
-  } else {
-    throw new Error('Unsupported platform for native download');
   }
 
-  // ── Stream Download, Transmux, and Write ──
-  let initSegmentWritten = false;
-  const transmuxer = new muxjs.mp4.Transmuxer({
-    keepOriginalTimestamps: false,
-    remux: true,
-  });
+  // Parse playlist, identify segments and keys
+  const lines = playlist.split('\n');
+  const segmentUrls = [];
+  let keyUrl = null;
+  const baseUrl = playlistUrl.substring(0, playlistUrl.lastIndexOf('/') + 1);
 
-  let pendingChunks = [];
-  transmuxer.on('data', (segment) => {
-    if (!initSegmentWritten && segment.initSegment) {
-      pendingChunks.push(new Uint8Array(segment.initSegment));
-      initSegmentWritten = true;
+  // First pass: extract all download URLs
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith('#EXT-X-KEY:')) {
+      const uriMatch = line.match(/URI="([^"]+)"/);
+      if (uriMatch) {
+        let uri = uriMatch[1];
+        if (!uri.startsWith('http')) uri = baseUrl + uri;
+        keyUrl = uri;
+      }
+    } else if (!line.startsWith('#')) {
+      segmentUrls.push(line.startsWith('http') ? line : baseUrl + line);
     }
-    if (segment.data) {
-      pendingChunks.push(new Uint8Array(segment.data));
-    }
-  });
+  }
 
+  if (segmentUrls.length === 0) throw new Error('No video chunks found in playlist.');
+
+  // Download key if needed
+  if (keyUrl) {
+    onProgress(0); // Start downloading key
+    const buffer = await fetchNativeBinary(keyUrl);
+    const keyData = new Uint8Array(buffer);
+    if (platform === 'tauri') {
+      const keyFilePath = await tauriPath.join(dirPath, 'key.bin');
+      const keyFile = await tauriFs.open(keyFilePath, { write: true, create: true, truncate: true });
+      await keyFile.write(keyData);
+      await keyFile.close();
+    } else if (platform === 'capacitor') {
+      await Filesystem.writeFile({
+        path: `${dirPath}/key.bin`,
+        data: uint8ToBase64(keyData),
+        directory: Directory.Documents,
+      });
+    }
+  }
+
+  // Download all segments
   for (let i = 0; i < segmentUrls.length; i++) {
-    onProgress(Math.round((i / segmentUrls.length) * 95));
+    onProgress(Math.round(((i + 1) / segmentUrls.length) * 98));
     const buffer = await fetchNativeBinary(segmentUrls[i]);
+    const chunkData = new Uint8Array(buffer);
     
-    transmuxer.push(new Uint8Array(buffer));
-    transmuxer.flush();
-    
-    if (pendingChunks.length > 0) {
-      const totalSize = pendingChunks.reduce((s, b) => s + b.byteLength, 0);
-      const merged = new Uint8Array(totalSize);
-      let off = 0;
-      for (const c of pendingChunks) { merged.set(c, off); off += c.byteLength; }
-      pendingChunks = [];
-      
-      if (platform === 'tauri') {
-        const CHUNK_SIZE = 1024 * 1024;
-        for (let j = 0; j < merged.byteLength; j += CHUNK_SIZE) {
-          const slice = merged.subarray(j, Math.min(j + CHUNK_SIZE, merged.byteLength));
-          await tauriFile.write(slice);
-        }
-      } else if (platform === 'capacitor') {
-        const CHUNK_SIZE = 512 * 1024;
-        for (let j = 0; j < merged.byteLength; j += CHUNK_SIZE) {
-          const slice = merged.subarray(j, Math.min(j + CHUNK_SIZE, merged.byteLength));
-          await Filesystem.appendFile({
-            path: capacitorDirPath,
-            data: uint8ToBase64(slice),
-            directory: Directory.Documents,
-          });
-        }
+    if (platform === 'tauri') {
+      const chunkFilePath = await tauriPath.join(dirPath, `${i}.ts`);
+      const chunkFile = await tauriFs.open(chunkFilePath, { write: true, create: true, truncate: true });
+      await chunkFile.write(chunkData);
+      await chunkFile.close();
+    } else if (platform === 'capacitor') {
+      const CHUNK_SIZE = 512 * 1024;
+      // Truncate file first
+      await Filesystem.writeFile({
+        path: `${dirPath}/${i}.ts`,
+        data: '',
+        directory: Directory.Documents,
+      });
+      // Append in chunks
+      for (let j = 0; j < chunkData.byteLength; j += CHUNK_SIZE) {
+        const slice = chunkData.subarray(j, Math.min(j + CHUNK_SIZE, chunkData.byteLength));
+        await Filesystem.appendFile({
+          path: `${dirPath}/${i}.ts`,
+          data: uint8ToBase64(slice),
+          directory: Directory.Documents,
+        });
       }
     }
   }
 
-  onProgress(100);
+  // Rewrite playlist
+  let rewrittenPlaylist = '';
+  let segmentIndex = 0;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith('#EXT-X-KEY:')) {
+      const replaced = line.replace(/URI="[^"]+"/, 'URI="key.bin"');
+      rewrittenPlaylist += replaced + '\n';
+    } else if (!line.startsWith('#')) {
+      rewrittenPlaylist += `${segmentIndex}.ts\n`;
+      segmentIndex++;
+    } else {
+      rewrittenPlaylist += line + '\n';
+    }
+  }
 
+  // Save index.m3u8
   if (platform === 'tauri') {
-    await tauriFile.close();
-    const subPath = subtitleData ? tauriFilePath.replace(/\.[^/.]+$/, "") + '.vtt' : null;
-    return { videoPath: tauriFilePath, subPath };
+    const m3u8Path = await tauriPath.join(dirPath, 'index.m3u8');
+    const m3u8File = await tauriFs.open(m3u8Path, { write: true, create: true, truncate: true });
+    await m3u8File.write(new TextEncoder().encode(rewrittenPlaylist));
+    await m3u8File.close();
+    
+    onProgress(100);
+    const subPath = subtitleData ? await tauriPath.join(dirPath, 'subtitle.vtt') : null;
+    return { videoPath: m3u8Path, subPath };
   } else if (platform === 'capacitor') {
-    const videoUri = (await Filesystem.getUri({ path: capacitorDirPath, directory: Directory.Documents })).uri;
-    const subUri = subtitleData ? (await Filesystem.getUri({ path: capacitorSubDirPath, directory: Directory.Documents })).uri : null;
+    await Filesystem.writeFile({
+      path: `${dirPath}/index.m3u8`,
+      data: rewrittenPlaylist,
+      directory: Directory.Documents,
+    });
+
+    onProgress(100);
+    const videoUri = (await Filesystem.getUri({ path: `${dirPath}/index.m3u8`, directory: Directory.Documents })).uri;
+    const subUri = subtitleData ? (await Filesystem.getUri({ path: `${dirPath}/subtitle.vtt`, directory: Directory.Documents })).uri : null;
+    
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('miyo-toast', {
-        detail: { message: `Saved to Documents/MIYO/${fileName}`, type: 'success' }
+        detail: { message: `Saved Episode ${epNum} to Downloads`, type: 'success' }
       }));
     }
     return { videoPath: videoUri, subPath: subUri };

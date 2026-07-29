@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getDownloads, removeDownloadMetadata } from '../lib/downloadsManager';
+import { getDownloads, removeDownloadMetadata, getDownloadForEpisode } from '../lib/downloadsManager';
 import { isNative } from '../platform/index';
+import { deleteDownloadFiles } from '../lib/downloader';
 
 export function Downloads() {
   const [downloads, setDownloads] = useState({});
@@ -34,8 +35,12 @@ export function Downloads() {
     e.preventDefault();
     e.stopPropagation();
     if (window.confirm('Are you sure you want to remove this download? The file might remain on your device until manually deleted.')) {
+      const metadata = getDownloadForEpisode(id);
       removeDownloadMetadata(id);
       setDownloads(getDownloads());
+      if (metadata) {
+        await deleteDownloadFiles(metadata.title, metadata.epNum);
+      }
     }
   };
 
@@ -88,57 +93,50 @@ export function Downloads() {
           No downloads match your search.
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+        <div className="flex flex-col gap-4">
           {filtered.map((item) => (
-            <Link
-              key={item.id}
-              to={`/watch/anime/${item.animeId}?ep=${item.epNum}`}
-              className="group flex flex-col gap-3 relative"
-            >
-              <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-surface-light shadow-lg">
-                {item.poster ? (
-                  <img
-                    src={item.poster}
-                    alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-text-muted">
-                    No Image
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80" />
-                
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <div className="bg-accent/90 text-white text-[10px] font-bold px-2 py-1 rounded shadow backdrop-blur-md">
-                    EP {item.epNum}
-                  </div>
-                  <button
-                    onClick={(e) => handleDelete(e, item.id)}
-                    className="bg-black/60 text-white p-1 rounded-full hover:bg-red-500/80 transition-colors backdrop-blur-md"
-                    title="Remove"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+            <div key={item.id} className="group relative flex flex-row items-center gap-4 bg-surface/40 hover:bg-surface/80 border border-white/5 rounded-2xl p-3 transition-colors">
+              <Link
+                to={`/anime/${item.animeId}?ep=${item.epNum}`}
+                className="flex flex-row items-center gap-4 flex-1 min-w-0"
+              >
+                <div className="relative w-24 sm:w-32 aspect-video rounded-xl overflow-hidden bg-surface-light shadow-md flex-shrink-0">
+                  {item.poster ? (
+                    <img
+                      src={item.poster}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-text-muted">
+                      No Image
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
                 </div>
                 
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 bg-black/40 flex items-center justify-center transition-all duration-300">
-                  <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center shadow-[0_0_20px_rgba(var(--color-accent),0.4)] transform scale-75 group-hover:scale-100 transition-all duration-300">
-                    <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </div>
+                <div className="flex flex-col flex-1 min-w-0 pr-4">
+                  <h3 className="font-bold text-sm sm:text-base text-white truncate group-hover:text-accent transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-text-secondary mt-1 flex items-center gap-2">
+                    <span className="bg-white/10 px-2 py-0.5 rounded text-white font-semibold">EP {item.epNum}</span>
+                    <span className="truncate">{new Date(item.downloadedAt || Date.now()).toLocaleDateString()}</span>
+                  </p>
                 </div>
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-white line-clamp-2 leading-snug group-hover:text-accent transition-colors">
-                  {item.title}
-                </h3>
-              </div>
-            </Link>
+              </Link>
+              
+              <button
+                onClick={(e) => handleDelete(e, item.id)}
+                className="p-3 mr-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition-colors flex-shrink-0"
+                title="Remove Download"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           ))}
         </div>
       )}

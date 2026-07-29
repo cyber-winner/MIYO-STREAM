@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '../lib/cn';
-
-const MAX_LOGS = 500;
+import { globalLogs, logListeners } from '../lib/logger';
 
 // Severity → pill color
 const LEVEL_STYLES = {
@@ -12,58 +11,19 @@ const LEVEL_STYLES = {
   debug: 'bg-purple-500/20 text-purple-400',
 };
 
-function formatArg(arg) {
-  if (arg === null) return 'null';
-  if (arg === undefined) return 'undefined';
-  if (arg instanceof Error) return `${arg.name}: ${arg.message}\n${arg.stack || ''}`;
-  if (typeof arg === 'object') {
-    try { return JSON.stringify(arg, null, 2); } catch { return String(arg); }
-  }
-  return String(arg);
-}
-
 export function DevConsole() {
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState([...globalLogs]);
   const [filter, setFilter] = useState('all');
   const bottomRef = useRef(null);
   const autoScroll = useRef(true);
 
-  // Intercept console methods once
+  // Subscribe to new logs
   useEffect(() => {
-    const original = {};
-    const methods = ['log', 'info', 'warn', 'error', 'debug'];
-    const pushLog = (level, args) => {
-      const entry = {
-        id: Date.now() + Math.random(),
-        time: new Date().toLocaleTimeString('en-GB', { hour12: false }),
-        level,
-        message: args.map(formatArg).join(' '),
-      };
-      setLogs(prev => {
-        const next = [...prev, entry];
-        return next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next;
-      });
+    const handleNewLog = (entry) => {
+      setLogs(prev => [...prev, entry]);
     };
-
-    for (const m of methods) {
-      original[m] = console[m];
-      console[m] = (...args) => {
-        original[m].apply(console, args);
-        pushLog(m, args);
-      };
-    }
-
-    // Catch unhandled errors + promise rejections
-    const onError = (e) => pushLog('error', [`[Uncaught] ${e.message || e}`]);
-    const onReject = (e) => pushLog('error', [`[UnhandledRejection] ${e.reason?.message || e.reason || e}`]);
-    window.addEventListener('error', onError);
-    window.addEventListener('unhandledrejection', onReject);
-
-    return () => {
-      for (const m of methods) console[m] = original[m];
-      window.removeEventListener('error', onError);
-      window.removeEventListener('unhandledrejection', onReject);
-    };
+    logListeners.add(handleNewLog);
+    return () => logListeners.delete(handleNewLog);
   }, []);
 
   // Auto-scroll to bottom
