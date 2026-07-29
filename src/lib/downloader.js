@@ -13,7 +13,7 @@ function transmuxTsToMp4(tsSegments) {
       let initSegment = null;
 
       const transmuxer = new muxjs.mp4.Transmuxer({
-        keepOriginalTimestamps: true,
+        keepOriginalTimestamps: false,
         remux: true,
       });
 
@@ -259,105 +259,55 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress, subtitleUr
   const safeTitle = (title || 'Video').replace(/[\\/:*?"<>|]+/g, '_');
   const platform = getPlatform();
 
-  // ── Download all segments into memory ──
-  const segmentBuffers = [];
-  for (let i = 0; i < segmentUrls.length; i++) {
-    onProgress(Math.round((i / segmentUrls.length) * 90));
-    const buffer = await fetchNativeBinary(segmentUrls[i]);
-    segmentBuffers.push(new Uint8Array(buffer));
-  }
-
-  // ── Transmux TS → MP4 ──
-  onProgress(92);
-  let outputData;
-  let outputExt;
-  try {
-    outputData = await transmuxTsToMp4(segmentBuffers);
-    outputExt = 'mp4';
-    console.log(`[Download] Transmuxed to MP4: ${(outputData.byteLength / 1024 / 1024).toFixed(1)} MB`);
-  } catch (transmuxErr) {
-    console.warn('[Download] Transmux failed, falling back to .ts:', transmuxErr.message);
-    const totalSize = segmentBuffers.reduce((s, b) => s + b.byteLength, 0);
-    outputData = new Uint8Array(totalSize);
-    let off = 0;
-    for (const buf of segmentBuffers) { outputData.set(buf, off); off += buf.byteLength; }
-    outputExt = 'ts';
-  }
-
-  const fileName = `${safeTitle}.${outputExt}`;
+  // ── Initialize File Handles ──
+  const fileName = `${safeTitle}.mp4`;
   const subFileName = subtitleData ? `${safeTitle}.vtt` : null;
 
-  // ── Tauri: save via native dialog ──
+  let tauriFile = null;
+  let tauriFilePath = null;
+  
+  let capacitorDirPath = `MIYO/${fileName}`;
+  let capacitorSubDirPath = subtitleData ? `MIYO/${subFileName}` : null;
+  let Filesystem, Directory;
+
   if (platform === 'tauri') {
-    onProgress(95);
     const { save } = await import('@tauri-apps/plugin-dialog');
     const { open: openFile } = await import('@tauri-apps/plugin-fs');
-    const filePath = await save({
+    tauriFilePath = await save({
       defaultPath: fileName,
-      filters: [{ name: 'Video File', extensions: [outputExt] }],
+      filters: [{ name: 'Video File', extensions: ['mp4'] }],
     });
-    if (!filePath) {
+    if (!tauriFilePath) {
       const err = new Error('Save cancelled');
       err.name = 'AbortError';
       throw err;
     }
-    const file = await openFile(filePath, { write: true, create: true, truncate: true });
-    try {
-      // Write in 1MB chunks to avoid memory pressure
-      const CHUNK_SIZE = 1024 * 1024;
-      for (let i = 0; i < outputData.byteLength; i += CHUNK_SIZE) {
-        const chunk = outputData.subarray(i, Math.min(i + CHUNK_SIZE, outputData.byteLength));
-        await file.write(chunk);
-      }
-    } finally {
-      await file.close();
-    }
-    let subPath = null;
+    tauriFile = await openFile(tauriFilePath, { write: true, create: true, truncate: true });
     if (subtitleData) {
       try {
-        const subFilePath = filePath.replace(/\.[^/.]+$/, "") + '.vtt';
+        const subFilePath = tauriFilePath.replace(/\.[^/.]+$/, "") + '.vtt';
         const subFile = await openFile(subFilePath, { write: true, create: true, truncate: true });
         await subFile.write(new TextEncoder().encode(subtitleData));
         await subFile.close();
-        subPath = subFilePath;
       } catch(e) {
         console.warn('Failed to save subtitle on Tauri', e);
       }
     }
-    onProgress(100);
-    return { videoPath: filePath, subPath };
-  }
-
-  // ── Capacitor (Android): save to Documents/MIYO/ ──
-  if (platform === 'capacitor') {
-    onProgress(95);
-    const { Filesystem, Directory } = await import('@capacitor/filesystem');
-    const dirPath = `MIYO/${fileName}`;
-    const subDirPath = subtitleData ? `MIYO/${subFileName}` : null;
-
-    // Write in chunks (Capacitor requires base64)
-    const CHUNK_SIZE = 512 * 1024; // 512KB chunks for base64
-    // Create/truncate file
+  } else if (platform === 'capacitor') {
+    const cap = await import('@capacitor/filesystem');
+    Filesystem = cap.Filesystem;
+    Directory = cap.Directory;
     await Filesystem.writeFile({
-      path: dirPath,
+      path: capacitorDirPath,
       data: '',
       directory: Directory.Documents,
       recursive: true,
     });
-    for (let i = 0; i < outputData.byteLength; i += CHUNK_SIZE) {
-      const chunk = outputData.subarray(i, Math.min(i + CHUNK_SIZE, outputData.byteLength));
-      await Filesystem.appendFile({
-        path: dirPath,
-        data: uint8ToBase64(chunk),
-        directory: Directory.Documents,
-      });
-    }
-
     if (subtitleData) {
       try {
         await Filesystem.writeFile({
-          path: subDirPath,
-          data: subtitleData, // string data is fine
+          path: capacitorSubDirPath,
+          data: subtitleData,
           directory: Directory.Documents,
           recursive: true,
         });
@@ -365,11 +315,71 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress, subtitleUr
         console.warn('Failed to save subtitle on Capacitor', e);
       }
     }
+  } else {
+    throw new Error('Unsupported platform for native download');
+  }
 
-    onProgress(100);
-    const videoUri = (await Filesystem.getUri({ path: dirPath, directory: Directory.Documents })).uri;
-    const subUri = subDirPath ? (await Filesystem.getUri({ path: subDirPath, directory: Directory.Documents })).uri : null;
+  // ── Stream Download, Transmux, and Write ──
+  let initSegmentWritten = false;
+  const transmuxer = new muxjs.mp4.Transmuxer({
+    keepOriginalTimestamps: false,
+    remux: true,
+  });
 
+  let pendingChunks = [];
+  transmuxer.on('data', (segment) => {
+    if (!initSegmentWritten && segment.initSegment) {
+      pendingChunks.push(new Uint8Array(segment.initSegment));
+      initSegmentWritten = true;
+    }
+    if (segment.data) {
+      pendingChunks.push(new Uint8Array(segment.data));
+    }
+  });
+
+  for (let i = 0; i < segmentUrls.length; i++) {
+    onProgress(Math.round((i / segmentUrls.length) * 95));
+    const buffer = await fetchNativeBinary(segmentUrls[i]);
+    
+    transmuxer.push(new Uint8Array(buffer));
+    transmuxer.flush();
+    
+    if (pendingChunks.length > 0) {
+      const totalSize = pendingChunks.reduce((s, b) => s + b.byteLength, 0);
+      const merged = new Uint8Array(totalSize);
+      let off = 0;
+      for (const c of pendingChunks) { merged.set(c, off); off += c.byteLength; }
+      pendingChunks = [];
+      
+      if (platform === 'tauri') {
+        const CHUNK_SIZE = 1024 * 1024;
+        for (let j = 0; j < merged.byteLength; j += CHUNK_SIZE) {
+          const slice = merged.subarray(j, Math.min(j + CHUNK_SIZE, merged.byteLength));
+          await tauriFile.write(slice);
+        }
+      } else if (platform === 'capacitor') {
+        const CHUNK_SIZE = 512 * 1024;
+        for (let j = 0; j < merged.byteLength; j += CHUNK_SIZE) {
+          const slice = merged.subarray(j, Math.min(j + CHUNK_SIZE, merged.byteLength));
+          await Filesystem.appendFile({
+            path: capacitorDirPath,
+            data: uint8ToBase64(slice),
+            directory: Directory.Documents,
+          });
+        }
+      }
+    }
+  }
+
+  onProgress(100);
+
+  if (platform === 'tauri') {
+    await tauriFile.close();
+    const subPath = subtitleData ? tauriFilePath.replace(/\.[^/.]+$/, "") + '.vtt' : null;
+    return { videoPath: tauriFilePath, subPath };
+  } else if (platform === 'capacitor') {
+    const videoUri = (await Filesystem.getUri({ path: capacitorDirPath, directory: Directory.Documents })).uri;
+    const subUri = subtitleData ? (await Filesystem.getUri({ path: capacitorSubDirPath, directory: Directory.Documents })).uri : null;
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('miyo-toast', {
         detail: { message: `Saved to Documents/MIYO/${fileName}`, type: 'success' }
@@ -377,6 +387,4 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress, subtitleUr
     }
     return { videoPath: videoUri, subPath: subUri };
   }
-
-  throw new Error('Unsupported platform for native download');
 }
