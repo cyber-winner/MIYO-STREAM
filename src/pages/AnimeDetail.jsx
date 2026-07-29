@@ -16,7 +16,7 @@ import { cn } from '../lib/cn';
 import { useSEO } from '../hooks/useSEO';
 import { slugify } from '../lib/slugify';
 import { isNative, youTubeEmbedUrl } from '../platform/index.js';
-import { getDownloadForEpisode, saveDownloadMetadata } from '../lib/downloadsManager.js';
+import { getDownloadForEpisode, saveDownloadMetadata, getDownloads } from '../lib/downloadsManager.js';
 export function AnimeDetail() {
   const { id, slug } = useParams();
   const navigate = useNavigate();
@@ -547,7 +547,9 @@ export function AnimeDetail() {
   const description = data?.description?.replace(/<[^>]*>/g, '') || '';
   const cover = data ? (data.coverImage?.extraLarge || data.coverImage?.large) : '';
   // Background trailer: use AniList trailer data (computed before hooks, null-safe)
-  const bgTrailer = (data?.type === 'ANIME' && data?.trailer?.site === 'youtube') ? data.trailer : null;
+  // If we are offline, or if this anime has any downloaded episodes, force "picture mode" by ignoring the trailer
+  const isOfflineMode = !navigator.onLine || Object.values(getDownloads() || {}).some(d => String(d.animeId) === String(id));
+  const bgTrailer = (!isOfflineMode && data?.type === 'ANIME' && data?.trailer?.site === 'youtube') ? data.trailer : null;
   // Load YouTube IFrame API once. All platforms now run on a real HTTP
   // origin (desktop serves from http://localhost via tauri-plugin-localhost),
   // so the standard YT.Player works everywhere — same as Android.
