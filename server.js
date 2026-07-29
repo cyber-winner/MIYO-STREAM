@@ -28,8 +28,9 @@ const require = createRequire(import.meta.url);
 global.axios = axios.create({ timeout: 20000 });
 
 try {
-  const { cloudflareBypass } = require('./utils/cloudflare.cjs');
+  const { cloudflareBypass, getPrefetchedResponse } = require('./utils/cloudflare.cjs');
   global.cloudflarebypass = cloudflareBypass;
+  global.getPrefetchedResponse = getPrefetchedResponse;
 } catch (e) {
   console.warn('Cloudflare bypass module not loaded:', e.message);
 }
@@ -151,7 +152,24 @@ global.axios.interceptors.response.use(
             ...newHeaders,
           };
         }
-        return global.axios(config);
+        return global.axios(config).catch((retryErr) => {
+          // Retry also failed (likely TLS fingerprint mismatch).
+          // Fall back to browser-prefetched response if available.
+          if (global.getPrefetchedResponse) {
+            const prefetched = global.getPrefetchedResponse(config.url);
+            if (prefetched) {
+              console.log(`[CF Bypass] Axios retry failed, using browser-prefetched response (${prefetched.data.length} bytes)`);
+              return {
+                data: prefetched.data,
+                status: prefetched.status || 200,
+                statusText: 'OK (browser-prefetched)',
+                headers: {},
+                config: config,
+              };
+            }
+          }
+          return Promise.reject(error);
+        });
       } catch (bypassErr) {
         console.warn(`[CF Bypass] Bypass error:`, bypassErr.message);
         return Promise.reject(error);
