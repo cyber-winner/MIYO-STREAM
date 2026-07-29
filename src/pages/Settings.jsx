@@ -16,6 +16,9 @@ export function Settings() {
   const [savedKey, setSavedKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState(null); // null | 'testing' | 'valid' | 'invalid' | 'saved'
+  const [devMode, setDevMode] = useState(() => {
+    try { return !!localStorage.getItem('miyo_dev_mode'); } catch { return false; }
+  });
 
   useEffect(() => {
     const existing = getTmdbApiKey();
@@ -354,6 +357,39 @@ export function Settings() {
           </div>
         </dl>
       </section>
+
+      {/* Developer Mode — native apps only */}
+      {native && (
+        <section className="rounded-2xl border border-border bg-surface/60 p-6 mt-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-text-primary">
+                Developer <span className="text-accent animate-rgb-shift">Mode</span>
+              </h2>
+              <p className="text-sm text-text-secondary mt-1 leading-relaxed">
+                Show a <span className="text-text-primary font-semibold">DevConsole</span> tab in the menu to view live errors, warnings, and logs from the app.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const next = !devMode;
+                setDevMode(next);
+                try { localStorage.setItem('miyo_dev_mode', next ? '1' : ''); } catch {}
+                window.dispatchEvent(new CustomEvent('miyo-devmode', { detail: { enabled: next } }));
+              }}
+              className={cn(
+                'relative w-12 h-7 rounded-full transition-colors duration-200 flex-shrink-0 cursor-pointer',
+                devMode ? 'bg-accent' : 'bg-border'
+              )}
+            >
+              <span className={cn(
+                'absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform duration-200',
+                devMode && 'translate-x-5'
+              )} />
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

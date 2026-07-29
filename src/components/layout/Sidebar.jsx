@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../../lib/cn';
 import { useDevice } from '../../context/DeviceContext';
 import { Badge } from '../ui/Badge';
+import { isNative } from '../../platform/index.js';
 const MAIN_NAV = [
   { path: '/', label: 'Home', icon: HomeIcon },
   { path: '/movies', label: 'Movies', icon: FilmIcon },
@@ -35,6 +36,15 @@ const SECONDARY_NAV = [
 ];
 export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
   const location = useLocation();
+  const [devMode, setDevMode] = useState(() => {
+    try { return isNative() && !!localStorage.getItem('miyo_dev_mode'); } catch { return false; }
+  });
+
+  useEffect(() => {
+    const handler = (e) => setDevMode(!!e.detail?.enabled);
+    window.addEventListener('miyo-devmode', handler);
+    return () => window.removeEventListener('miyo-devmode', handler);
+  }, []);
   const renderLinks = (items) => (
     <nav className="space-y-1">
       {items.map((item) => {
@@ -97,6 +107,14 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
         <div className="pt-2 border-t border-border/40">
           {renderLinks(SECONDARY_NAV)}
         </div>
+        {devMode && (
+          <div className="pt-2 border-t border-border/40">
+            <div className="px-3 mb-2">
+              <span className="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] opacity-70">Developer</span>
+            </div>
+            {renderLinks([{ path: '/dev-console', label: 'DevConsole', icon: CodeIcon }])}
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -188,6 +206,13 @@ function SettingsIcon({ className }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+function CodeIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
     </svg>
   );
 }

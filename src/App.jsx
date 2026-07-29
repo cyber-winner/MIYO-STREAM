@@ -24,6 +24,7 @@ const WatchTogether = lazy(() => import('./pages/WatchTogether').then(m => ({ de
 const MangaBrowse = lazy(() => import('./pages/MangaBrowse').then(m => ({ default: m.MangaBrowse })));
 const MangaDetail = lazy(() => import('./pages/MangaDetail').then(m => ({ default: m.MangaDetail })));
 const MangaReader = lazy(() => import('./pages/MangaReader').then(m => ({ default: m.MangaReader })));
+const DevConsole = lazy(() => import('./pages/DevConsole').then(m => ({ default: m.DevConsole })));
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
     <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
@@ -64,6 +65,7 @@ export default function App() {
                       <Route path="/anime/browse" element={<AnimeBrowse />} />
                       <Route path="/anime/:id/:slug?" element={<AnimeDetail />} />
                       <Route path="/settings" element={<Settings />} />
+                      <Route path="/dev-console" element={<DevConsole />} />
                       <Route path="/download" element={<Download />} />
                       <Route path="/manga/browse" element={<MangaBrowse />} />
                       <Route path="/manga/read/:provider/:id/:slug?" element={<MangaDetail />} />

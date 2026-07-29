@@ -55,7 +55,7 @@ async function latestManga(page = 1) {
           latestMangas.push({
             id: id,
             title: title,
-            image: image ? `/api/image?url=${encodeURIComponent(image)}` : null,
+            image: image ? image : null,
           });
         }
       }
@@ -113,7 +113,7 @@ async function searchManga(query, page = 1) {
           results.push({
             id: id,
             title: title,
-            image: image ? `/api/image?url=${encodeURIComponent(image)}` : null,
+            image: image ? image : null,
           });
         }
       }
@@ -163,7 +163,7 @@ async function fetchMangaInfo(mangaId) {
         ?.trim()
         ?.toLowerCase();
       const imgUrl = LeftSections.find("picture > img, img").first().attr("src");
-      mangaInfo.image = imgUrl ? `/api/image?url=${encodeURIComponent(imgUrl)}` : null;
+      mangaInfo.image = imgUrl ? imgUrl : null;
       // extra info
       LeftSections.find("section")
         .eq(2)
@@ -297,7 +297,7 @@ async function fetchChapterPages(chapterId) {
         const src = $(img).attr("src");
         return src ? {
           page: index + 1,
-          img: `/api/image?url=${encodeURIComponent(src)}`,
+          img: src,
         } : null;
       })
       .get()

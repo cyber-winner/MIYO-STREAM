@@ -120,15 +120,26 @@ function extractSegmentUrls(playlist, playlistUrl) {
 // ════════════════════════════════════════════════════════════════════
 
 export async function downloadHls(m3u8Url, referer, title, onProgress) {
+  // Extract referer from URL hash if embedded (e.g. "https://cdn.com/stream.m3u8#referer=https%3A//...")
+  let cleanUrl = m3u8Url;
+  let effectiveReferer = referer || '';
+  if (m3u8Url.includes('#referer=')) {
+    const [url, hash] = m3u8Url.split('#referer=');
+    cleanUrl = url;
+    if (!effectiveReferer && hash) {
+      try { effectiveReferer = decodeURIComponent(hash); } catch { effectiveReferer = hash; }
+    }
+  }
+
   if (isNative()) {
-    return downloadHlsNative(m3u8Url, referer, title, onProgress);
+    return downloadHlsNative(cleanUrl, effectiveReferer, title, onProgress);
   }
 
   // ── Web browser path (desktop + mobile browser) ──
   try {
     const getProxyUrl = (url) => {
       if (url.startsWith('/api/proxy')) return url;
-      return `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`;
+      return `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(effectiveReferer)}`;
     };
     const fetchText = async (url) => {
       const res = await fetch(getProxyUrl(url));
@@ -137,7 +148,7 @@ export async function downloadHls(m3u8Url, referer, title, onProgress) {
     };
 
     // Resolve playlist
-    const { playlistUrl, playlist } = await resolvePlaylist(m3u8Url, fetchText);
+    const { playlistUrl, playlist } = await resolvePlaylist(cleanUrl, fetchText);
     const chunks = extractSegmentUrls(playlist, playlistUrl);
     if (chunks.length === 0) throw new Error('No video chunks found in playlist.');
 
