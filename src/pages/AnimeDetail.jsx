@@ -15,7 +15,7 @@ import watchTogetherClient from '../lib/watchTogetherClient';
 import { cn } from '../lib/cn';
 import { useSEO } from '../hooks/useSEO';
 import { slugify } from '../lib/slugify';
-import { isNative, isAndroid, youTubeEmbedUrl } from '../platform/index.js';
+import { isNative, youTubeEmbedUrl } from '../platform/index.js';
 export function AnimeDetail() {
   const { id, slug } = useParams();
   const navigate = useNavigate();
@@ -845,8 +845,8 @@ export function AnimeDetail() {
                     {wtRoomCode ? 'Room Active' : 'Watch Together'}
                   </span>
                 </button>
-                {/* Download button — Android only */}
-                {isAndroid() && playerSrc && isHls && (
+                {/* Download button — downloads as MP4 on all platforms */}
+                {playerSrc && isHls && (
                   <button
                     onClick={async () => {
                       const { downloadHls } = await import('../lib/downloader.js');
@@ -856,9 +856,11 @@ export function AnimeDetail() {
                       toast(`Downloading "${title}"… keep the app open.`);
                       let lastMilestone = 0;
                       downloadHls(playerSrc, '', title, (progress) => {
-                        // Surface progress at 25/50/75% so users can see it's working
-                        if (progress >= lastMilestone + 25 && progress < 100) {
-                          lastMilestone = Math.floor(progress / 25) * 25;
+                        if (progress >= 92 && lastMilestone < 92) {
+                          lastMilestone = 92;
+                          toast(`Converting to MP4… — ${title}`);
+                        } else if (progress >= lastMilestone + 20 && progress < 92) {
+                          lastMilestone = Math.floor(progress / 20) * 20;
                           toast(`Download ${lastMilestone}% — ${title}`);
                         }
                       }).then(() => {

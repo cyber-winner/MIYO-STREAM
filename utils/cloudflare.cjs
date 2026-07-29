@@ -167,6 +167,73 @@ let storedCredentials = null;
 // while the browser is still open, then serve it as a fallback.
 const prefetchedResponses = new Map();
 
+// ── Persistent Browser Session ──
+// Keep the browser alive after solving a challenge so subsequent requests
+// can reuse it for browser-fetch without re-launching (~8s savings per request)
+let persistentBrowser = null;
+let persistentPage = null;
+let browserCloseTimer = null;
+const BROWSER_IDLE_TTL = 2 * 60 * 1000; // 2 minutes
+
+function scheduleBrowserClose() {
+  if (browserCloseTimer) clearTimeout(browserCloseTimer);
+  browserCloseTimer = setTimeout(async () => {
+    console.log('[CF Bypass] Closing idle browser session...');
+    await closePersistentBrowser();
+  }, BROWSER_IDLE_TTL);
+}
+
+async function closePersistentBrowser() {
+  if (browserCloseTimer) { clearTimeout(browserCloseTimer); browserCloseTimer = null; }
+  try {
+    if (persistentBrowser) {
+      if (typeof persistentBrowser.process === "function" && persistentBrowser.process()) {
+        persistentBrowser.process().on("error", () => {});
+      }
+      await persistentBrowser.close().catch(() => {});
+    }
+  } catch (e) {}
+  persistentBrowser = null;
+  persistentPage = null;
+}
+
+/**
+ * Quick browser-fetch using the persistent browser session.
+ * No challenge solving needed — just uses the already-cleared browser.
+ * Returns { ok, data, status } or null.
+ */
+async function quickBrowserFetch(url) {
+  if (!persistentPage) return null;
+  try {
+    const result = await persistentPage.evaluate(async (fetchUrl) => {
+      try {
+        const resp = await fetch(fetchUrl, {
+          credentials: 'include',
+          headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+        });
+        if (resp.ok || resp.status < 400) {
+          return { ok: true, data: await resp.text(), status: resp.status };
+        }
+        return { ok: false, status: resp.status };
+      } catch (e) { return { ok: false, error: e.message }; }
+    }, url);
+    if (result && result.ok) {
+      scheduleBrowserClose();
+      return result;
+    }
+    // Session expired (403 etc) — need fresh challenge
+    if (result && (result.status === 403 || result.status === 503)) {
+      console.log('[CF Bypass] Persistent session expired, need fresh challenge');
+      await closePersistentBrowser();
+    }
+    return null;
+  } catch (e) {
+    console.log(`[CF Bypass] Quick fetch error: ${e.message}`);
+    await closePersistentBrowser();
+    return null;
+  }
+}
+
 function loadStore() {
   try {
     if (fs.existsSync(STORE_PATH)) {
@@ -394,30 +461,9 @@ async function bypassCloudflare(targetSite, originalUrl) {
   if (passed && cfClearanceCookie) {
     console.log("[CF Bypass] Challenge solved! Capturing clearance token...");
 
-    // Capture ALL cookies from the browser session (not just cf_clearance)
-    // Cloudflare Bot Management often requires __cf_bm and other cookies alongside cf_clearance
-    let allBrowserCookies = await page.cookies();
+    // Capture ALL cookies from the browser session
+    const allBrowserCookies = await page.cookies();
     console.log(`[CF Bypass] Captured ${allBrowserCookies.length} cookies from browser session`);
-
-    // Warm up the original failing path so Cloudflare grants clearance for that route too
-    if (originalUrl) {
-      try {
-        const origParsed = new URL(originalUrl);
-        if (origParsed.pathname && origParsed.pathname !== '/') {
-          const warmupUrl = origParsed.origin + origParsed.pathname;
-          console.log(`[CF Bypass] Warming up route: ${warmupUrl}...`);
-          await page.goto(warmupUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
-          await new Promise((r) => setTimeout(r, 2000));
-          // Re-capture cookies after visiting the actual path
-          allBrowserCookies = await page.cookies();
-          const updatedCf = allBrowserCookies.find((c) => c.name === "cf_clearance");
-          if (updatedCf) cfClearanceCookie = updatedCf;
-          console.log(`[CF Bypass] Re-captured ${allBrowserCookies.length} cookies after route warmup`);
-        }
-      } catch (e) {
-        console.log(`[CF Bypass] Route warmup failed (non-fatal): ${e.message}`);
-      }
-    }
 
     const allCookiesStr = allBrowserCookies
       .filter((c) => c.name && c.value)
@@ -439,9 +485,7 @@ async function bypassCloudflare(targetSite, originalUrl) {
     saveStore(data);
     console.log(`[CF Bypass] Saved cf_clearance + ${allBrowserCookies.length} cookies (expires ${new Date(expiry).toISOString()})`);
 
-    // Use the browser's fetch() to grab the original URL response.
-    // This is the critical fix for TLS fingerprinting: the browser's TLS
-    // handshake matches what Cloudflare expects, so the request succeeds.
+    // Browser-fetch the original URL using Chrome's TLS fingerprint
     if (originalUrl) {
       try {
         console.log(`[CF Bypass] Browser-fetching original URL...`);
@@ -476,18 +520,24 @@ async function bypassCloudflare(targetSite, originalUrl) {
         console.log(`[CF Bypass] Browser fetch failed (non-fatal): ${e.message}`);
       }
     }
+
+    // Keep browser alive for reuse instead of closing
+    await closePersistentBrowser();
+    persistentBrowser = browser;
+    persistentPage = page;
+    scheduleBrowserClose();
+    console.log('[CF Bypass] Browser session kept alive for reuse (2 min idle timeout)');
   } else {
     console.log("[CF Bypass] Failed to solve challenge or browser was closed.");
-  }
-
-  try {
-    if (browser) {
-      if (typeof browser.process === "function" && browser.process()) {
-        browser.process().on("error", () => {});
+    try {
+      if (browser) {
+        if (typeof browser.process === "function" && browser.process()) {
+          browser.process().on("error", () => {});
+        }
+        await browser.close().catch(() => {});
       }
-      await browser.close().catch(() => {});
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
   return passed;
 }
 
@@ -495,6 +545,18 @@ async function bypassCloudflare(targetSite, originalUrl) {
  * Main entry point - called by response interceptor when NEED_CAPTCHA / 403 / 503
  */
 async function cloudflareBypass(url, force = false, referer = "") {
+  // Fast path: reuse persistent browser session (no challenge solve needed)
+  const quickResult = await quickBrowserFetch(url);
+  if (quickResult) {
+    prefetchedResponses.set(url, {
+      data: quickResult.data,
+      status: quickResult.status,
+      timestamp: Date.now(),
+    });
+    console.log(`[CF Bypass] Quick browser-fetch succeeded (${quickResult.data.length} bytes)`);
+    return getStoredCredentials() || { quick: true };
+  }
+
   if (!force) {
     const stored = getStoredCredentials();
     if (stored) return stored;
@@ -507,7 +569,6 @@ async function cloudflareBypass(url, force = false, referer = "") {
 
   bypassInProgress = (async () => {
     try {
-      // Derive solve site from the actual failing URL instead of hardcoding
       let solveSite;
       try {
         solveSite = new URL(url).origin;

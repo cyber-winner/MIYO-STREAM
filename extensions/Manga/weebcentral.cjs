@@ -259,6 +259,9 @@ async function fetchChapters(mangaId) {
       number: chapterLinks.length - idx,
     }));
 
+    // Reverse to oldest-first order
+    chapterLinks.reverse();
+
     return {
       TotalPages: 1,
       total: chapterLinks?.length ?? 0,
