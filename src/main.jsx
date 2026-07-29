@@ -5,7 +5,8 @@ import './index.css';
 import { initLogger } from './lib/logger';
 
 try {
-  if (localStorage.getItem('miyo_dev_mode') === 'true') {
+  const devMode = localStorage.getItem('miyo_dev_mode');
+  if (devMode === 'true' || devMode === '1') {
     initLogger();
   }
 } catch (e) {}
