@@ -119,7 +119,7 @@ function extractSegmentUrls(playlist, playlistUrl) {
 //  PUBLIC API
 // ════════════════════════════════════════════════════════════════════
 
-export async function downloadHls(m3u8Url, referer, title, onProgress) {
+export async function downloadHls(m3u8Url, referer, title, onProgress, subtitleUrl = null) {
   // Extract referer from URL hash if embedded (e.g. "https://cdn.com/stream.m3u8#referer=https%3A//...")
   let cleanUrl = m3u8Url;
   let effectiveReferer = referer || '';
@@ -132,7 +132,7 @@ export async function downloadHls(m3u8Url, referer, title, onProgress) {
   }
 
   if (isNative()) {
-    return downloadHlsNative(cleanUrl, effectiveReferer, title, onProgress);
+    return downloadHlsNative(cleanUrl, effectiveReferer, title, onProgress, subtitleUrl);
   }
 
   // ── Web browser path (desktop + mobile browser) ──
@@ -226,7 +226,7 @@ export async function downloadHls(m3u8Url, referer, title, onProgress) {
 //  NATIVE (Tauri / Capacitor) download path
 // ════════════════════════════════════════════════════════════════════
 
-async function downloadHlsNative(m3u8Url, referer, title, onProgress) {
+async function downloadHlsNative(m3u8Url, referer, title, onProgress, subtitleUrl = null) {
   const fetchNativeText = async (url) => {
     const headers = buildStreamHeaders(url, referer);
     const res = await platformFetch(url, { headers, timeout: 30000 });
@@ -239,6 +239,17 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress) {
     if (!res.ok) throw new Error('Network response was not ok');
     return await res.arrayBuffer();
   };
+
+  // Fetch subtitle if requested
+  let subtitleData = null;
+  if (subtitleUrl) {
+    try {
+      subtitleData = await fetchNativeText(subtitleUrl);
+      // Ensure it starts with WEBVTT if it's VTT, but generally it's fine to save raw.
+    } catch (e) {
+      console.warn('[Download] Failed to download subtitle:', e);
+    }
+  }
 
   // Resolve playlist
   const { playlistUrl, playlist } = await resolvePlaylist(m3u8Url, fetchNativeText);
@@ -274,6 +285,7 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress) {
   }
 
   const fileName = `${safeTitle}.${outputExt}`;
+  const subFileName = subtitleData ? `${safeTitle}.vtt` : null;
 
   // ── Tauri: save via native dialog ──
   if (platform === 'tauri') {
@@ -300,8 +312,20 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress) {
     } finally {
       await file.close();
     }
+    let subPath = null;
+    if (subtitleData) {
+      try {
+        const subFilePath = filePath.replace(/\.[^/.]+$/, "") + '.vtt';
+        const subFile = await openFile(subFilePath, { write: true, create: true, truncate: true });
+        await subFile.write(new TextEncoder().encode(subtitleData));
+        await subFile.close();
+        subPath = subFilePath;
+      } catch(e) {
+        console.warn('Failed to save subtitle on Tauri', e);
+      }
+    }
     onProgress(100);
-    return true;
+    return { videoPath: filePath, subPath };
   }
 
   // ── Capacitor (Android): save to Documents/MIYO/ ──
@@ -309,6 +333,7 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress) {
     onProgress(95);
     const { Filesystem, Directory } = await import('@capacitor/filesystem');
     const dirPath = `MIYO/${fileName}`;
+    const subDirPath = subtitleData ? `MIYO/${subFileName}` : null;
 
     // Write in chunks (Capacitor requires base64)
     const CHUNK_SIZE = 512 * 1024; // 512KB chunks for base64
@@ -328,13 +353,29 @@ async function downloadHlsNative(m3u8Url, referer, title, onProgress) {
       });
     }
 
+    if (subtitleData) {
+      try {
+        await Filesystem.writeFile({
+          path: subDirPath,
+          data: subtitleData, // string data is fine
+          directory: Directory.Documents,
+          recursive: true,
+        });
+      } catch(e) {
+        console.warn('Failed to save subtitle on Capacitor', e);
+      }
+    }
+
     onProgress(100);
+    const videoUri = (await Filesystem.getUri({ path: dirPath, directory: Directory.Documents })).uri;
+    const subUri = subDirPath ? (await Filesystem.getUri({ path: subDirPath, directory: Directory.Documents })).uri : null;
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('miyo-toast', {
         detail: { message: `Saved to Documents/MIYO/${fileName}`, type: 'success' }
       }));
     }
-    return true;
+    return { videoPath: videoUri, subPath: subUri };
   }
 
   throw new Error('Unsupported platform for native download');

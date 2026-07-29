@@ -16,6 +16,7 @@ import { cn } from '../lib/cn';
 import { useSEO } from '../hooks/useSEO';
 import { slugify } from '../lib/slugify';
 import { isNative, youTubeEmbedUrl } from '../platform/index.js';
+import { getDownloadForEpisode, saveDownloadMetadata } from '../lib/downloadsManager.js';
 export function AnimeDetail() {
   const { id, slug } = useParams();
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export function AnimeDetail() {
   const [visibleEpisodeCount, setVisibleEpisodeCount] = useState(100);
   const [isPosterExpanded, setIsPosterExpanded] = useState(false);
   const [timeUntilAiring, setTimeUntilAiring] = useState(0);
+  const [downloadModalData, setDownloadModalData] = useState(null);
   // StrawVerse specific states
   const [anikotoEpisodes, setAnikotoEpisodes] = useState([]);
   const [isHls, setIsHls] = useState(false);
@@ -353,6 +355,31 @@ export function AnimeDetail() {
   const handleEpisodeClick = async (epNum, anikotoEpId = null, prefAudio = audioPreference) => {
     setActiveEpisode(epNum);
     setLoadingEpisode(true);
+    
+    // Check for offline download first
+    if (isNative()) {
+      const downloadId = `${data?.id || id}-${epNum}`;
+      const offlineData = getDownloadForEpisode(downloadId);
+      if (offlineData) {
+        import('@capacitor/core').then(({ Capacitor }) => {
+          let videoUri = offlineData.videoPath;
+          let subUri = offlineData.subPath;
+          if (Capacitor && Capacitor.convertFileSrc) {
+            if (videoUri && !videoUri.startsWith('http')) videoUri = Capacitor.convertFileSrc(videoUri);
+            if (subUri && !subUri.startsWith('http')) subUri = Capacitor.convertFileSrc(subUri);
+          }
+          setPlayerSrc(videoUri);
+          setIsHls(true); // Forces <video> player in VideoPlayer
+          setHlsSubtitles(subUri ? [{ lang: 'Offline', url: subUri }] : []);
+          setLoadingEpisode(false);
+          window.dispatchEvent(new CustomEvent('miyo-toast', {
+            detail: { message: `Playing downloaded episode`, type: 'info' }
+          }));
+        }).catch(err => console.warn('Failed to import Capacitor', err));
+        return; // Skip online fetch
+      }
+    }
+
     if (anikotoEpId) {
       try {
         // Ensure episode ID carries the correct sub/dub preference if it's 'both'
@@ -845,31 +872,18 @@ export function AnimeDetail() {
                     {wtRoomCode ? 'Room Active' : 'Watch Together'}
                   </span>
                 </button>
-                {/* Download button — downloads as MP4 on all platforms */}
-                {playerSrc && isHls && (
+                {/* Download button — downloads as MP4 on native platforms */}
+                {playerSrc && isHls && isNative() && (
                   <button
-                    onClick={async () => {
-                      const { downloadHls } = await import('../lib/downloader.js');
+                    onClick={() => {
                       const title = `${data.title?.english || data.title?.romaji} - EP${activeEpisode}`;
-                      const toast = (message, type = 'info') =>
-                        window.dispatchEvent(new CustomEvent('miyo-toast', { detail: { message, type } }));
-                      toast(`Downloading "${title}"… keep the app open.`);
-                      let lastMilestone = 0;
-                      downloadHls(playerSrc, '', title, (progress) => {
-                        if (progress >= 92 && lastMilestone < 92) {
-                          lastMilestone = 92;
-                          toast(`Converting to MP4… — ${title}`);
-                        } else if (progress >= lastMilestone + 20 && progress < 92) {
-                          lastMilestone = Math.floor(progress / 20) * 20;
-                          toast(`Download ${lastMilestone}% — ${title}`);
-                        }
-                      }).then(() => {
-                        toast(`Download complete: ${title}`, 'success');
-                      }).catch(err => {
-                        if (err.name !== 'AbortError') {
-                          console.error('[Download] Failed:', err);
-                          toast(`Download failed: ${err.message || 'unknown error'}`, 'error');
-                        }
+                      setDownloadModalData({
+                        playerSrc,
+                        title,
+                        subtitles: hlsSubtitles || [],
+                        animeId: data.id || id,
+                        epNum: activeEpisode,
+                        poster: data.coverImage?.extraLarge || data.coverImage?.large
                       });
                     }}
                     className="px-4 py-2 bg-accent/20 border border-accent/40 text-accent rounded-lg text-sm font-bold hover:bg-accent/30 transition-all"
@@ -1167,6 +1181,97 @@ export function AnimeDetail() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+      )}
+      {/* Download Modal */}
+      {downloadModalData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-surface rounded-2xl border border-white/10 w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-white mb-2 line-clamp-1">Download {downloadModalData.title}</h3>
+            <p className="text-sm text-text-muted mb-6">Select a subtitle track to include with your download.</p>
+            
+            <div className="space-y-4 max-h-[40vh] overflow-y-auto mb-6 pr-2 custom-scrollbar">
+              <button
+                onClick={() => {
+                  setDownloadModalData({ ...downloadModalData, selectedSubUrl: null });
+                }}
+                className={cn(
+                  "w-full text-left px-4 py-3 rounded-xl border text-sm font-bold transition-all",
+                  downloadModalData.selectedSubUrl === null
+                    ? "bg-accent/20 border-accent text-accent"
+                    : "bg-black/40 border-white/10 text-white hover:border-white/30"
+                )}
+              >
+                No Subtitles
+              </button>
+              {downloadModalData.subtitles.map((sub, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setDownloadModalData({ ...downloadModalData, selectedSubUrl: sub.url });
+                  }}
+                  className={cn(
+                    "w-full text-left px-4 py-3 rounded-xl border text-sm font-bold transition-all",
+                    downloadModalData.selectedSubUrl === sub.url
+                      ? "bg-accent/20 border-accent text-accent"
+                      : "bg-black/40 border-white/10 text-white hover:border-white/30"
+                  )}
+                >
+                  {sub.lang}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDownloadModalData(null)}
+                className="flex-1 py-3 bg-surface-light hover:bg-white/10 text-white font-bold rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const { playerSrc, title, selectedSubUrl, animeId, epNum, poster } = downloadModalData;
+                  setDownloadModalData(null);
+                  const { downloadHls } = await import('../lib/downloader.js');
+                  const toast = (message, type = 'info') =>
+                    window.dispatchEvent(new CustomEvent('miyo-toast', { detail: { message, type } }));
+                  toast(`Downloading "${title}"… keep the app open.`);
+                  
+                  let lastMilestone = 0;
+                  downloadHls(playerSrc, '', title, (progress) => {
+                    if (progress >= 92 && lastMilestone < 92) {
+                      lastMilestone = 92;
+                      toast(`Converting to MP4… — ${title}`);
+                    } else if (progress >= lastMilestone + 20 && progress < 92) {
+                      lastMilestone = Math.floor(progress / 20) * 20;
+                      toast(`Download ${lastMilestone}% — ${title}`);
+                    }
+                  }, selectedSubUrl).then((paths) => {
+                    if (paths && paths.videoPath) {
+                      saveDownloadMetadata(`${animeId}-${epNum}`, {
+                        animeId,
+                        title,
+                        epNum,
+                        poster,
+                        videoPath: paths.videoPath,
+                        subPath: paths.subPath,
+                      });
+                    }
+                    toast(`Download complete: ${title}`, 'success');
+                  }).catch(err => {
+                    if (err.name !== 'AbortError') {
+                      console.error('[Download] Failed:', err);
+                      toast(`Download failed: ${err.message || 'unknown error'}`, 'error');
+                    }
+                  });
+                }}
+                className="flex-1 py-3 bg-accent hover:bg-accent-hover text-white font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(var(--color-accent),0.3)]"
+              >
+                Start Download
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {/* Watch Together Modal */}

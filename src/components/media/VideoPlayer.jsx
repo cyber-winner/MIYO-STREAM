@@ -21,6 +21,12 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
   }, [src]);
   useEffect(() => {
     if (isHls && cleanSrc && videoRef.current) {
+      // Bypass HLS.js for downloaded local files (mp4/ts)
+      if (cleanSrc.startsWith('http://localhost') || cleanSrc.startsWith('capacitor://') || cleanSrc.startsWith('asset://') || cleanSrc.endsWith('.mp4') || cleanSrc.endsWith('.ts')) {
+        videoRef.current.src = cleanSrc;
+        return;
+      }
+
       if (Hls.isSupported()) {
         let hls;
         let cancelled = false;
@@ -147,22 +153,46 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
       <div className="relative group">
         <div className="player-container">
           {isHls ? (
-            <video
-              ref={videoRef}
-              className="w-full h-full rounded-2xl bg-black outline-none"
-              controls
-              crossOrigin="anonymous"
-            >
-              {subtitles?.map((sub, index) => (
-                <track
-                  key={index}
-                  kind="subtitles"
-                  label={sub.lang}
-                  src={proxySubUrl(sub.url)}
-                  default={index === 0}
-                />
-              ))}
-            </video>
+            <div className="relative w-full h-full group/player">
+              <video
+                ref={videoRef}
+                className="w-full h-full rounded-2xl bg-black outline-none"
+                controls
+                crossOrigin="anonymous"
+              >
+                {subtitles?.map((sub, index) => (
+                  <track
+                    key={index}
+                    kind="subtitles"
+                    label={sub.lang}
+                    src={proxySubUrl(sub.url)}
+                    default={index === 0}
+                  />
+                ))}
+              </video>
+              {/* Custom CC Button overlay */}
+              {subtitles && subtitles.length > 0 && (
+                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover/player:opacity-100 transition-opacity">
+                  <select
+                    className="bg-black/70 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/20 backdrop-blur-md outline-none cursor-pointer appearance-none"
+                    onChange={(e) => {
+                      const idx = parseInt(e.target.value, 10);
+                      const tracks = videoRef.current?.textTracks;
+                      if (!tracks) return;
+                      for (let i = 0; i < tracks.length; i++) {
+                        tracks[i].mode = (i === idx) ? 'showing' : 'disabled';
+                      }
+                    }}
+                    defaultValue="0"
+                  >
+                    <option value="-1">CC: Off</option>
+                    {subtitles.map((sub, i) => (
+                      <option key={i} value={i}>CC: {sub.lang}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           ) : (
             <iframe
               src={src}
