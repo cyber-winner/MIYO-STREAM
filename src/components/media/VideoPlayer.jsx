@@ -21,8 +21,8 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
   }, [src]);
   useEffect(() => {
     if (isHls && cleanSrc && videoRef.current) {
-      // Bypass HLS.js for downloaded local files (mp4/ts)
-      if (cleanSrc.startsWith('http://localhost') || cleanSrc.startsWith('capacitor://') || cleanSrc.startsWith('asset://') || cleanSrc.endsWith('.mp4') || cleanSrc.endsWith('.ts')) {
+      // Bypass HLS.js for direct MP4/WEBM video files
+      if (cleanSrc.endsWith('.mp4') || cleanSrc.endsWith('.webm')) {
         videoRef.current.src = cleanSrc;
         return;
       }
@@ -159,6 +159,13 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
                 className="w-full h-full rounded-2xl bg-black outline-none"
                 controls
                 crossOrigin="anonymous"
+                onError={(e) => {
+                  const srcUrl = cleanSrc || '';
+                  if (srcUrl.startsWith('capacitor://') || srcUrl.startsWith('asset://') || srcUrl.startsWith('http://localhost') || srcUrl.endsWith('.mp4') || srcUrl.endsWith('.ts')) {
+                    console.error('[VideoPlayer] Local file playback failed:', e.target.error);
+                    window.dispatchEvent(new CustomEvent('miyo-local-fatal'));
+                  }
+                }}
               >
                 {subtitles?.map((sub, index) => {
                   const resolvedUrl = proxySubUrl(sub.url);
