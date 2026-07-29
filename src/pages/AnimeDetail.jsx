@@ -216,6 +216,19 @@ export function AnimeDetail() {
       return () => clearInterval(timer);
     }
   }, [data]);
+
+  useEffect(() => {
+    if (data && id) {
+      try {
+        localStorage.setItem(`miyo_anime_cache_${id}`, JSON.stringify({
+          data,
+          anikotoEpisodes,
+          mangaChapters
+        }));
+      } catch(e) {}
+    }
+  }, [data, anikotoEpisodes, mangaChapters, id]);
+
   useEffect(() => {
     const loadDetail = async () => {
       setLoading(true);
@@ -334,6 +347,16 @@ export function AnimeDetail() {
         }
       } catch (err) {
         console.error('Failed to load anime detail:', err);
+        try {
+          const cached = JSON.parse(localStorage.getItem(`miyo_anime_cache_${id}`));
+          if (cached && cached.data) {
+            setData(cached.data);
+            if (cached.anikotoEpisodes) setAnikotoEpisodes(cached.anikotoEpisodes);
+            if (cached.mangaChapters) setMangaChapters(cached.mangaChapters);
+            setError(null);
+            return;
+          }
+        } catch(e) {}
         setError(err.message);
       } finally {
         setLoading(false);
@@ -365,8 +388,8 @@ export function AnimeDetail() {
           let videoUri = offlineData.videoPath;
           let subUri = offlineData.subPath;
           if (Capacitor && Capacitor.convertFileSrc) {
-            if (videoUri && !videoUri.startsWith('http')) videoUri = Capacitor.convertFileSrc(videoUri);
-            if (subUri && !subUri.startsWith('http')) subUri = Capacitor.convertFileSrc(subUri);
+            if (videoUri && !videoUri.startsWith('http')) videoUri = Capacitor.convertFileSrc(videoUri).replace('http://localhost', 'https://localhost');
+            if (subUri && !subUri.startsWith('http')) subUri = Capacitor.convertFileSrc(subUri).replace('http://localhost', 'https://localhost');
           }
           setPlayerSrc(videoUri);
           setIsHls(true); // Forces <video> player in VideoPlayer
