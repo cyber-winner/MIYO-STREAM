@@ -1267,11 +1267,11 @@ export function AnimeDetail() {
                   toast(`Downloading "${title}"… keep the app open.`);
                   
                   let lastMilestone = 0;
-                  downloadHls(playerSrc, '', title, (progress) => {
-                    if (progress >= 92 && lastMilestone < 92) {
-                      lastMilestone = 92;
-                      toast(`Converting to MP4… — ${title}`);
-                    } else if (progress >= lastMilestone + 20 && progress < 92) {
+                  downloadHls(playerSrc, '', title, epNum, (progress) => {
+                    window.dispatchEvent(new CustomEvent('miyo-download-progress', {
+                      detail: { id: `${animeId}-${epNum}`, progress, title, epNum, poster }
+                    }));
+                    if (progress >= lastMilestone + 20 && progress < 100) {
                       lastMilestone = Math.floor(progress / 20) * 20;
                       toast(`Download ${lastMilestone}% — ${title}`);
                     }
@@ -1286,8 +1286,14 @@ export function AnimeDetail() {
                         subPath: paths.subPath,
                       });
                     }
+                    window.dispatchEvent(new CustomEvent('miyo-download-complete', {
+                      detail: { id: `${animeId}-${epNum}` }
+                    }));
                     toast(`Download complete: ${title}`, 'success');
                   }).catch(err => {
+                    window.dispatchEvent(new CustomEvent('miyo-download-error', {
+                      detail: { id: `${animeId}-${epNum}` }
+                    }));
                     if (err.name !== 'AbortError') {
                       console.error('[Download] Failed:', err);
                       toast(`Download failed: ${err.message || 'unknown error'}`, 'error');
