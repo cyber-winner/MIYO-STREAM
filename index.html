@@ -6,6 +6,14 @@
   <title>MIYO-STREAM - Watch Free Movies & TV</title>
   <link rel="icon" type="image/png" href="./logo.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      fetch('/api/discord-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'onerror', msg, url, line, col, stack: error?.stack }) }).catch(()=>console.log("log failed"));
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      fetch('/api/discord-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'unhandledrejection', reason: event.reason?.toString(), stack: event.reason?.stack }) }).catch(()=>console.log("log failed"));
+    });
+  </script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- SEO & Standard Meta Tags -->
   <meta name="title" content="MIYO-STREAM - Watch Free Movies & TV">
@@ -40,7 +48,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div style="padding: 20px; font-family: sans-serif; color: black; background: white; min-height: 100vh;">
+      <h2>App Failed to Load</h2>
+      <p>If you are seeing this, the React application failed to download or execute.</p>
+      <p>This is usually caused by <b>Cloudflare Bot Fight Mode</b> blocking the JavaScript files (MIME type mismatch) because it thinks Discord is a bot.</p>
+      <p>Please disable Bot Fight Mode or add a WAF exception for this domain.</p>
+    </div>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

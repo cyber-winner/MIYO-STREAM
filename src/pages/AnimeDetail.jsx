@@ -545,7 +545,7 @@ export function AnimeDetail() {
   };
   const title = data ? (data.title?.english || data.title?.romaji || data.title?.userPreferred) : '';
   const description = data?.description?.replace(/<[^>]*>/g, '') || '';
-  const cover = data ? (data.coverImage?.extraLarge || data.coverImage?.large) : '';
+  const cover = data ? api.buildProxiedImageUrl(data.coverImage?.extraLarge || data.coverImage?.large) : '';
   // Background trailer: use AniList trailer data (computed before hooks, null-safe)
   // If we are offline, or if this anime has any downloaded episodes, force "picture mode" by ignoring the trailer
   const isOfflineMode = !navigator.onLine || Object.values(getDownloads() || {}).some(d => String(d.animeId) === String(id));
@@ -672,7 +672,7 @@ export function AnimeDetail() {
     url: window.location.href,
   });
   // Compute backdrop early so it persists during loading transitions
-  const backdrop = data?.bannerImage;
+  const backdrop = data?.bannerImage ? api.buildProxiedImageUrl(data.bannerImage) : null;
   const BackgroundLayer = (
     <>
       <div 
@@ -1064,7 +1064,7 @@ export function AnimeDetail() {
                 {characters.slice(0, 15).map(edge => (
                   <div key={edge.node.id} className="w-[140px] flex-shrink-0 bg-surface rounded-xl overflow-hidden border border-surface-light shadow-md hover:shadow-xl transition-all hover:-translate-y-1">
                     <img
-                      src={edge.node.image?.large || edge.node.image?.medium}
+                      src={api.buildProxiedImageUrl(edge.node.image?.large || edge.node.image?.medium)}
                       alt={edge.node.name.full}
                       className="w-full aspect-[4/5] object-cover"
                     />
@@ -1094,7 +1094,7 @@ export function AnimeDetail() {
                     className="w-[160px] flex-shrink-0 bg-surface rounded-xl overflow-hidden border border-surface-light shadow-md hover:shadow-xl transition-all hover:-translate-y-1 group"
                   >
                     <img
-                      src={edge.node.coverImage?.large || edge.node.coverImage?.medium}
+                      src={api.buildProxiedImageUrl(edge.node.coverImage?.large || edge.node.coverImage?.medium)}
                       alt={edge.node.title?.userPreferred}
                       className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-500"
                     />
@@ -1118,7 +1118,7 @@ export function AnimeDetail() {
                 {staff.slice(0, 12).map((edge, i) => (
                   <div key={i} className="w-[140px] flex-shrink-0 bg-surface rounded-xl overflow-hidden border border-surface-light shadow-md">
                     <img
-                      src={edge.node.image?.large || edge.node.image?.medium}
+                      src={api.buildProxiedImageUrl(edge.node.image?.large || edge.node.image?.medium)}
                       alt={edge.node.name.full}
                       className="w-full aspect-[4/5] object-cover"
                     />
@@ -1347,7 +1347,7 @@ export function AnimeDetail() {
       <WatchTogetherModal
         isOpen={wtModalOpen}
         onClose={() => setWtModalOpen(false)}
-        username={localStorage.getItem('miyo_wt_username') || 'Guest'}
+        username={(() => { try { return localStorage.getItem('miyo_wt_username'); } catch { return null; } })() || 'Guest'}
         currentMedia={{
           playerSrc,
           isHls,
@@ -1729,7 +1729,7 @@ function MangaPageImage({ page }) {
   const [isVisible, setIsVisible] = useState(false);
 
   const referer = page.headers?.Referer || '';
-  const imgSrc = api.buildMangaImageUrl(page.img, referer);
+  const imgSrc = api.buildProxiedImageUrl(page.img, referer);
 
   useEffect(() => {
     const el = containerRef.current;

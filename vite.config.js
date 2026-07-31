@@ -8,8 +8,25 @@ import 'dotenv/config';
 // Without the flag, the config is identical to the original website build.
 const isNativeBuild = process.env.VITE_NATIVE === '1';
 
+function requestLoggerPlugin() {
+  return {
+    name: 'request-logger',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        // Rewrite Discord Activity asset requests back to root
+        if (req.url.startsWith('/discord-activity/') && req.url !== '/discord-activity/') {
+          req.url = req.url.replace('/discord-activity', '');
+        }
+        
+        console.log(`[VITE] ${req.method} ${req.url} - UA: ${req.headers['user-agent']}`);
+        next();
+      });
+    }
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), requestLoggerPlugin()],
   base: isNativeBuild ? './' : '/',
   define: {
     // The provider extensions use `global.axios` etc. (Node-style globals)

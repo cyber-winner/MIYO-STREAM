@@ -5,13 +5,14 @@ import { slugify } from '../../lib/slugify';
 import { useDevice } from '../../context/DeviceContext';
 import { Badge } from '../ui/Badge';
 import { anilistApi } from '../../lib/anilistApi';
+import { api } from '../../lib/api';
 export function AnimeCard({ item, className }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const { isMobile, isTv } = useDevice();
   if (!item) return null;
   const title = item.title?.english || item.title?.romaji || item.title?.userPreferred || 'Unknown';
-  const coverUrl = item.coverImage?.extraLarge || item.coverImage?.large;
+  const coverUrl = api.buildProxiedImageUrl(item.coverImage?.extraLarge || item.coverImage?.large);
   const score = item.averageScore;
   const format = anilistApi.formatFormat(item.format);
   const isAiring = item.status === 'RELEASING';

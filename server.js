@@ -215,6 +215,38 @@ app.use('/api/anilist', apiLimiter);
 app.use('/api/anime', apiLimiter);
 app.use('/api/watch', apiLimiter);
 app.use('/api/proxy', proxyLimiter);
+
+// ── Discord Activity: OAuth2 Token Exchange ──
+app.post('/api/discord/token', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: 'Code is required' });
+
+    const clientId = process.env.DISCORD_CLIENT_ID || '1297956800427065475';
+    const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+    if (!clientSecret) {
+      return res.status(500).json({ error: 'DISCORD_CLIENT_SECRET not configured' });
+    }
+
+    const response = await axios({
+      method: 'POST',
+      url: 'https://discord.com/api/oauth2/token',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code,
+      }).toString(),
+    });
+
+    res.json({ access_token: response.data.access_token });
+  } catch (err) {
+    console.error('[Discord OAuth] Token exchange error:', err.response?.data || err.message);
+    res.status(500).json({ error: 'Token exchange failed' });
+  }
+});
+
 app.get('/api/tmdb', async (req, res) => {
   try {
     const targetPath = req.query.path || '/';
@@ -900,9 +932,21 @@ app.get('/api/wt/config', (req, res) => {
   res.json({ wsUrl: `${protocol}://${host}/ws`, port: port });
 });
 
+app.post('/api/discord-log', (req, res) => {
+  console.log('[DISCORD CLIENT ERROR]', req.body);
+  res.sendStatus(200);
+});
+
 // ── Serve static files ──
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
+  // Rewrite Discord Activity asset requests so they match the actual build output
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/discord-activity/') && req.url !== '/discord-activity/') {
+      req.url = req.url.replace('/discord-activity', '');
+    }
+    next();
+  });
   // Automatically fix permissions for the dist directory so express.static can read it
   try {
     exec(`chmod -R 755 "${distPath}"`, (err) => {
@@ -914,7 +958,7 @@ if (fs.existsSync(distPath)) {
   // ── Serve static files ──
   app.use(express.static(distPath));
   // SPA fallback — only for navigation requests, not missing assets
-  app.get('/{*splat}', (req, res) => {
+  app.get(/.*/, (req, res) => {
     // If the request looks like a file (has an extension), return 404 instead of index.html
     if (req.path.match(/\.\w+$/)) {
       return res.status(404).end();
@@ -1048,3 +1092,6 @@ wss.on('connection', (ws) => {
 });
 
 console.log('[MIYO-WT] Watch Together module loaded');
+
+// ── Discord Bot ──
+import './discord-bot.js';

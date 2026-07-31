@@ -54,7 +54,12 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
           hls = new Hls({
             xhrSetup: function(xhr, url) {
               if (url.includes('/api/proxy')) {
-                xhr.open('GET', url, true);
+                const searchIdx = url.indexOf('?');
+                if (searchIdx !== -1) {
+                  xhr.open('GET', '/api/proxy' + url.substring(searchIdx), true);
+                } else {
+                  xhr.open('GET', url, true);
+                }
               } else {
                 const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`;
                 xhr.open('GET', proxyUrl, true);
@@ -153,20 +158,37 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
       <div className="relative group">
         <div className="player-container">
           {isHls ? (
-            <div className="relative w-full h-full group/player">
-              <video
-                ref={videoRef}
-                className="w-full h-full rounded-2xl bg-black outline-none"
-                controls
-                crossOrigin="anonymous"
-                onError={(e) => {
-                  const srcUrl = cleanSrc || '';
-                  if (srcUrl.startsWith('capacitor://') || srcUrl.startsWith('asset://') || srcUrl.startsWith('http://localhost') || srcUrl.endsWith('.mp4') || srcUrl.endsWith('.ts')) {
-                    console.error('[VideoPlayer] Local file playback failed:', e.target.error);
-                    window.dispatchEvent(new CustomEvent('miyo-local-fatal'));
-                  }
-                }}
-              >
+            <div className="relative w-full h-full flex flex-col gap-2">
+              <div className="flex justify-end">
+                <button
+                  onClick={(e) => {
+                    if (sessionStorage.getItem('isDiscordActivity') && window.discordSdk) {
+                      e.preventDefault();
+                      window.discordSdk.commands.openExternalLink({ url: cleanSrc });
+                    } else {
+                      window.open(cleanSrc, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-accent/20 text-accent font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-accent hover:text-black transition-colors border border-accent/30 flex items-center gap-1.5 w-max"
+                >
+                  <ExternalLinkIcon className="w-3.5 h-3.5" />
+                  Blank Player? Open in Browser
+                </button>
+              </div>
+              <div className="flex-1 w-full relative group/player">
+                <video
+                  ref={videoRef}
+                  className="w-full h-full rounded-2xl bg-black outline-none absolute inset-0"
+                  controls
+                  crossOrigin="anonymous"
+                  onError={(e) => {
+                    const srcUrl = cleanSrc || '';
+                    if (srcUrl.startsWith('capacitor://') || srcUrl.startsWith('asset://') || srcUrl.startsWith('http://localhost') || srcUrl.endsWith('.mp4') || srcUrl.endsWith('.ts')) {
+                      console.error('[VideoPlayer] Local file playback failed:', e.target.error);
+                      window.dispatchEvent(new CustomEvent('miyo-local-fatal'));
+                    }
+                  }}
+                >
                 {subtitles?.map((sub, index) => {
                   const resolvedUrl = proxySubUrl(sub.url);
                   return (
@@ -202,23 +224,36 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
                   </select>
                 </div>
               )}
+              </div>
             </div>
           ) : (
-            <iframe
-              src={src}
-              allowFullScreen
-              // Videasy detects the sandbox attribute and refuses to play, so the
-              // provider iframe stays unsandboxed. In the native apps, popups and
-              // redirects are blocked at the webview level instead (Tauri
-              // on_navigation guard + Android WebViewClient) where providers
-              // cannot detect it. YouTube keeps a sandbox since it allows it.
-              {...(isYouTube ? { sandbox: 'allow-same-origin allow-scripts allow-presentation' } : {})}
-              // NOTE: Do NOT add an `allow` attribute here — Videasy detects it
-              // (just like sandbox) and disables its player controls (pause,
-              // seek ±10s, fullscreen). Only `allowFullScreen` is safe.
-              title="Media Player"
-              className="w-full h-full rounded-lg"
-            />
+            <div className="relative w-full h-full flex flex-col gap-2">
+              <div className="flex justify-end">
+                <button
+                  onClick={(e) => {
+                    if (sessionStorage.getItem('isDiscordActivity') && window.discordSdk) {
+                      e.preventDefault();
+                      window.discordSdk.commands.openExternalLink({ url: src });
+                    } else {
+                      window.open(src, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-accent/20 text-accent font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-accent hover:text-black transition-colors border border-accent/30 flex items-center gap-1.5 w-max"
+                >
+                  <ExternalLinkIcon className="w-3.5 h-3.5" />
+                  Blank Player? Open in Browser
+                </button>
+              </div>
+              <div className="flex-1 min-h-[300px] w-full relative">
+                <iframe
+                  src={src}
+                  allowFullScreen
+                  {...(isYouTube ? { sandbox: 'allow-same-origin allow-scripts allow-presentation' } : {})}
+                  title="Media Player"
+                  className="w-full h-full rounded-lg absolute inset-0"
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>

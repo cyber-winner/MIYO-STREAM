@@ -6,6 +6,7 @@ import { useDevice } from '../../context/DeviceContext';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { anilistApi } from '../../lib/anilistApi';
+import { api } from '../../lib/api';
 export function AnimeHero({ items = [] }) {
   const { isMobile, isTv } = useDevice();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -27,7 +28,7 @@ export function AnimeHero({ items = [] }) {
       {items.map((item, index) => {
         const title = item.title?.english || item.title?.romaji || item.title?.userPreferred;
         const desc = item.description?.replace(/<[^>]*>/g, '') || '';
-        const backdrop = item.bannerImage || item.coverImage?.extraLarge;
+        const backdrop = api.buildProxiedImageUrl(item.bannerImage || item.coverImage?.extraLarge);
         const score = item.averageScore;
         const format = anilistApi.formatFormat(item.format);
         const isActive = index === currentIndex;

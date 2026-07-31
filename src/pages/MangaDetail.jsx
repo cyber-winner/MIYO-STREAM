@@ -128,7 +128,7 @@ export function MangaDetail() {
 
   const displayedChapters = chaptersReversed ? [...chapters].reverse() : chapters;
   const visibleChapters = displayedChapters.slice(0, visibleCount);
-  const cover = info?.image ? api.buildMangaImageUrl(info.image, '') : null;
+  const cover = info?.image ? api.buildProxiedImageUrl(info.image, '') : null;
   const activeChapter = activeChapterIdx !== null ? chapters[activeChapterIdx] : null;
 
   if (loading) return <DetailSkeleton />;
@@ -469,7 +469,7 @@ function MangaPage({ page }) {
   const containerRef = useRef(null);
 
   const referer = page.headers?.Referer || '';
-  const imgSrc = api.buildMangaImageUrl(page.img, referer);
+  const imgSrc = api.buildProxiedImageUrl(page.img, referer);
 
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {

@@ -24,7 +24,7 @@ export function WatchTogetherModal({ isOpen, onClose, username = 'Guest', curren
   const [isHost, setIsHost] = useState(watchTogetherClient.isHost);
   const [users, setUsers] = useState(watchTogetherClient.users);
   const [errorMsg, setErrorMsg] = useState('');
-  const [nameInput, setNameInput] = useState(() => localStorage.getItem('miyo-wt-name') || username || '');
+  const [nameInput, setNameInput] = useState(() => { try { return localStorage.getItem('miyo-wt-name') || username || ''; } catch { return username || ''; } });
   const [collapsed, setCollapsed] = useState(false);
   const [step, setStep] = useState('name');
 
@@ -98,7 +98,7 @@ export function WatchTogetherModal({ isOpen, onClose, username = 'Guest', curren
     if (wtCode && !roomCode) {
       const code = wtCode.toUpperCase();
       setJoinCodeInput(code);
-      const savedName = localStorage.getItem('miyo-wt-name') || watchTogetherClient.username;
+      const savedName = (() => { try { return localStorage.getItem('miyo-wt-name'); } catch { return null; } })() || watchTogetherClient.username;
       
       if (isOpen && savedName) {
         // If they already have a name saved, instantly join and navigate

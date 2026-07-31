@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { slugify } from '../lib/slugify';
 import { anilistApi } from '../lib/anilistApi';
+import { api } from '../lib/api';
 import { AnimeHero } from '../components/media/AnimeHero';
 import { AnimeRow } from '../components/media/AnimeRow';
 import { InlineSearchBar } from '../components/ui/InlineSearchBar';
@@ -20,7 +21,7 @@ export function Anime() {
   }, []);
   const renderSearchResult = useCallback((item, clearSearch) => {
     const title = item.title?.english || item.title?.romaji || item.title?.userPreferred;
-    const cover = item.coverImage?.medium || item.coverImage?.large;
+    const cover = api.buildProxiedImageUrl(item.coverImage?.medium || item.coverImage?.large);
     const score = item.averageScore;
     const format = anilistApi.formatFormat(item.format);
     return (

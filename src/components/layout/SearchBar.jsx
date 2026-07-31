@@ -94,7 +94,7 @@ export function SearchBar() {
               {searchResults.map((item) => {
                 if (item._type === 'anime') {
                   const title = item.title?.english || item.title?.romaji || item.title?.userPreferred;
-                  const cover = item.coverImage?.medium || item.coverImage?.large;
+                  const cover = api.buildProxiedImageUrl(item.coverImage?.medium || item.coverImage?.large);
                   const score = item.averageScore;
                   const format = anilistApi.formatFormat(item.format);
                   return (

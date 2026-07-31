@@ -21,7 +21,7 @@ export function WatchTogether() {
 
   const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
   const [pendingJoinCode, setPendingJoinCode] = useState(null);
-  const [tempUsername, setTempUsername] = useState(localStorage.getItem('miyo-wt-name') || '');
+  const [tempUsername, setTempUsername] = useState(() => { try { return localStorage.getItem('miyo-wt-name') || ''; } catch { return ''; } });
 
   const [joinError, setJoinError] = useState(null);
   const [chatMessage, setChatMessage] = useState('');
@@ -63,7 +63,7 @@ export function WatchTogether() {
       const wtCode = params.get('wt');
       if (wtCode) {
         const joinCode = wtCode.toUpperCase();
-        const savedName = localStorage.getItem('miyo-wt-name') || watchTogetherClient.username;
+        const savedName = (() => { try { return localStorage.getItem('miyo-wt-name'); } catch { return null; } })() || watchTogetherClient.username;
         if (savedName) {
           watchTogetherClient.joinRoom(joinCode, savedName).catch((err) => {
             console.error("Failed to auto-join room from URL:", err);

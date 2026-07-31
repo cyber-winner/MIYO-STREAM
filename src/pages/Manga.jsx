@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { slugify } from '../lib/slugify';
 // import { Link } from 'react-router-dom';
 import { anilistApi } from '../lib/anilistApi';
+import { api } from '../lib/api';
 import { AnimeRow } from '../components/media/AnimeRow';
 import { InlineSearchBar } from '../components/ui/InlineSearchBar';
 import { SkeletonRow } from '../components/ui/Skeleton';
@@ -20,7 +21,7 @@ export function Manga() {
   }, []);
   const renderSearchResult = useCallback((item, clearSearch) => {
     const title = item.title?.english || item.title?.romaji || item.title?.userPreferred;
-    const cover = item.coverImage?.medium || item.coverImage?.large;
+    const cover = api.buildProxiedImageUrl(item.coverImage?.medium || item.coverImage?.large);
     const score = item.averageScore;
     const format = anilistApi.formatFormat(item.format);
     return (

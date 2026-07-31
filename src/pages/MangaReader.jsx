@@ -234,7 +234,7 @@ function MangaPage({ page, index }) {
   const containerRef = useRef(null);
 
   const referer = page.headers?.Referer || '';
-  const imgSrc = api.buildMangaImageUrl(page.img, referer);
+  const imgSrc = api.buildProxiedImageUrl(page.img, referer);
 
   // Lazy loading with IntersectionObserver
   const [isVisible, setIsVisible] = useState(false);

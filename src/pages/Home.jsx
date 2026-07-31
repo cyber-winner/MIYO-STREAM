@@ -58,10 +58,13 @@ export function Home() {
   useEffect(() => {
     if (isNative()) return; // No server to warm up in the native apps
     const BUILD_ID = '__miyo_v2__';
-    if (localStorage.getItem('miyo_cache_warmed') !== BUILD_ID) {
-      localStorage.setItem('miyo_cache_warmed', BUILD_ID);
-      fetch('/api/cron/sync').catch(() => {});
-    }
+    try {
+      if (localStorage.getItem('miyo_cache_warmed') !== BUILD_ID) {
+        localStorage.setItem('miyo_cache_warmed', BUILD_ID);
+        // Fire and forget cache warming
+        fetch('/api/home').catch(() => {});
+      }
+    } catch (e) {}
   }, []);
   useEffect(() => {
     const loadData = async () => {

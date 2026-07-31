@@ -83,7 +83,7 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
       )}
     >
       <div className="flex items-center gap-3 px-4 h-[70px] flex-shrink-0">
-        <Link to="/" className="flex items-center gap-2.5 min-w-0">
+        <Link to={sessionStorage.getItem('isDiscordActivity') ? "/anime" : "/"} className="flex items-center gap-2.5 min-w-0">
           <img src="/logo.png" alt="MIYO-STREAM" className="w-8 h-8 rounded-lg flex-shrink-0" />
           <span className="text-lg font-bold text-text-primary whitespace-nowrap">
             MIYO -<span className="text-accent animate-rgb-shift">STREAM</span>
@@ -91,7 +91,11 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
         </Link>
       </div>
       <div className="flex-1 px-2 mt-4 space-y-6 pb-8">
-        {renderLinks(MAIN_NAV)}
+        {(!sessionStorage.getItem('isDiscordActivity')) && (
+          <div>
+            {renderLinks(MAIN_NAV)}
+          </div>
+        )}
         <div className="pt-2">
           <div className="px-3 mb-2 flex items-center justify-between">
              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] opacity-50">Anime</span>

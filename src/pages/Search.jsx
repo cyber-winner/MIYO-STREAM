@@ -187,7 +187,7 @@ function MediaResultCard({ item }) {
 function AnimeResultCard({ item }) {
   const { isTv } = useDevice();
   const title = item.title?.english || item.title?.romaji || item.title?.userPreferred || 'Unknown';
-  const cover = item.coverImage?.large || item.coverImage?.medium;
+  const cover = api.buildProxiedImageUrl(item.coverImage?.large || item.coverImage?.medium);
   const score = item.averageScore;
   const format = anilistApi.formatFormat(item.format);
   const isAnime = item.type === 'ANIME';

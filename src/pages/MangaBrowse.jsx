@@ -217,7 +217,7 @@ export function MangaBrowse() {
 
 function MangaCard({ item, provider }) {
   const imgSrc = item.image
-    ? api.buildMangaImageUrl(item.image, '')
+    ? api.buildProxiedImageUrl(item.image, '')
     : null;
 
   return (

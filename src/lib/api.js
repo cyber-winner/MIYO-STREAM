@@ -102,8 +102,16 @@ export const api = {
     fetchTMDB(`/collection/${id}`, {
       append_to_response: 'images,translations',
     }),
-  getImageUrl: (path, size = 'w500') => path ? `${TMDB_IMAGE_BASE}${size}${path}` : null,
-  getBackdropUrl: (path, size = 'original') => path ? `${TMDB_IMAGE_BASE}${size}${path}` : null,
+  getImageUrl: (path, size = 'w500') => {
+    if (!path) return null;
+    const url = `${TMDB_IMAGE_BASE}${size}${path}`;
+    return isNative() ? url : `/api/image?url=${encodeURIComponent(url)}`;
+  },
+  getBackdropUrl: (path, size = 'original') => {
+    if (!path) return null;
+    const url = `${TMDB_IMAGE_BASE}${size}${path}`;
+    return isNative() ? url : `/api/image?url=${encodeURIComponent(url)}`;
+  },
   getMoviePlayerUrl: (tmdbId, progress = 0) => {
     let url = `${VIDEASY_BASE}/movie/${tmdbId}?color=${ACCENT_COLOR}`;
     if (progress > 0) url += `&progress=${progress}`;
@@ -211,7 +219,7 @@ export const api = {
     }
     return await res.json();
   },
-  buildMangaImageUrl: (imgUrl, referer = '') => {
+  buildProxiedImageUrl: (imgUrl, referer = '') => {
     if (!imgUrl) return '';
     if (isNative()) return imgUrl;
     if (imgUrl.startsWith('/api/image')) return imgUrl;

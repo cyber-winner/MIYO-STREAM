@@ -21,6 +21,7 @@ const NotFound = lazy(() => import('./pages/NotFound').then(m => ({ default: m.N
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Download = lazy(() => import('./pages/Download').then(m => ({ default: m.Download })));
 const WatchTogether = lazy(() => import('./pages/WatchTogether').then(m => ({ default: m.WatchTogether })));
+const DiscordActivity = lazy(() => import('./pages/DiscordActivity').then(m => ({ default: m.DiscordActivity })));
 const MangaBrowse = lazy(() => import('./pages/MangaBrowse').then(m => ({ default: m.MangaBrowse })));
 const MangaDetail = lazy(() => import('./pages/MangaDetail').then(m => ({ default: m.MangaDetail })));
 const MangaReader = lazy(() => import('./pages/MangaReader').then(m => ({ default: m.MangaReader })));
@@ -44,6 +45,8 @@ export default function App() {
               <Routes>
                 {/* Watch Together — renders OUTSIDE AppShell for full immersion */}
                 <Route path="/watch-together" element={<WatchTogether />} />
+                {/* Discord Activity — MIYO player embedded inside Discord */}
+                <Route path="/discord-activity" element={<DiscordActivity />} />
                 {/* Manga Reader — full-screen immersive reading */}
                 <Route path="/manga/reader/:provider/:chapterId" element={<MangaReader />} />
                 {/* All other routes go through the normal AppShell layout */}

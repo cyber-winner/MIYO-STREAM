@@ -78,7 +78,8 @@ class WatchTogetherClient {
 
   /** Derive the WS URL from the server config or localStorage override */
   async _resolveServerUrl() {
-    const stored = localStorage.getItem('miyo_wt_server');
+    let stored;
+    try { stored = localStorage.getItem('miyo_wt_server'); } catch (e) {}
     if (stored) return this._formatUrl(stored);
 
     // On native (Capacitor/Tauri), there's no local Express server.
@@ -89,7 +90,8 @@ class WatchTogetherClient {
     if (isNativePlatform) {
       // Use the production server — same one the website runs on.
       // Users can override this in localStorage('miyo_wt_server').
-      const prodUrl = localStorage.getItem('miyo_wt_prod_server') || 'wss://miyo-stream.cyber-winner.site/ws';
+      let prodUrl = 'wss://miyo-stream.cyber-winner.site/ws';
+      try { prodUrl = localStorage.getItem('miyo_wt_prod_server') || prodUrl; } catch (e) {}
       return prodUrl;
     }
 
