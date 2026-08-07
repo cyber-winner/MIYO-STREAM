@@ -123,6 +123,7 @@ electron/release/
 electron/gui/
 electron/backend/
 electron/node_modules/
+electron/squashfs-root/
 
 # ─────────────────────────────────────────────
 #  Capacitor Build Staging
