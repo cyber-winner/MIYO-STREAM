@@ -1,0 +1,31 @@
+#!/usr/bin/env node
+/**
+ * Orchestrates all capacitor sync steps:
+ *   1. bundle-backend — copies backend files + database into nodejs/
+ *   2. fetch-ffmpeg   — downloads Android NDK ffmpeg binaries
+ */
+
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const steps = [
+  "bundle-backend.mjs",
+  "fetch-ffmpeg.mjs",
+];
+
+const passArgs = process.argv.slice(2);
+
+for (const script of steps) {
+  const scriptPath = path.join(__dirname, script);
+  console.log(`\n▶ Running ${script}...\n`);
+  const extraArgs = script === "fetch-ffmpeg.mjs" ? passArgs : [];
+  execFileSync("node", [scriptPath, ...extraArgs], {
+    cwd: path.resolve(__dirname, ".."),
+    stdio: "inherit",
+  });
+}
+
+console.log("\n✅ All sync steps complete.\n");

@@ -1,7 +1,11 @@
 import { TMDB_IMAGE_BASE, VIDEASY_BASE, ACCENT_COLOR } from './constants';
-import { isNative, platformFetch, getTmdbApiKey, MissingTmdbKeyError } from '../platform/index.js';
+import { isNative, isElectron, platformFetch, getTmdbApiKey, MissingTmdbKeyError } from '../platform/index.js';
 import { getCached, setCached } from './cache.js';
-const TMDB_PROXY = '/api/tmdb';
+
+// In Electron, the GUI loads from file:// so relative /api/ paths resolve to
+// the filesystem root. Route them to the backend running on localhost:3000.
+export const API_BASE = isElectron() ? 'http://localhost:3000' : '';
+const TMDB_PROXY = `${API_BASE}/api/tmdb`;
 const fetchTMDB = async (endpoint, params = {}) => {
   // Cache key includes ALL params (including page). Only the first page of
   // list endpoints is cached to limit cache bloat — but the key must still
@@ -122,33 +126,33 @@ export const api = {
     return url;
   },
   getProviders: async () => {
-    if (isNative()) return (await nativeBackend()).getProviders();
-    const res = await fetch('/api/providers');
+    if (isNative() && !isElectron()) return (await nativeBackend()).getProviders();
+    const res = await fetch(`${API_BASE}/api/providers`);
     return await res.json();
   },
   getProviderRecent: async (provider = 'anikoto', page = 1) => {
-    if (isNative()) return (await nativeBackend()).providerAction(provider, 'recent', { page });
-    const res = await fetch(`/api/anime/${provider}/recent?page=${page}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).providerAction(provider, 'recent', { page });
+    const res = await fetch(`${API_BASE}/api/anime/${provider}/recent?page=${page}`);
     return await res.json();
   },
   getProviderSearch: async (provider = 'anikoto', query, page = 1) => {
-    if (isNative()) return (await nativeBackend()).providerAction(provider, 'search', { query, page });
-    const res = await fetch(`/api/anime/${provider}/search?query=${encodeURIComponent(query)}&page=${page}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).providerAction(provider, 'search', { query, page });
+    const res = await fetch(`${API_BASE}/api/anime/${provider}/search?query=${encodeURIComponent(query)}&page=${page}`);
     return await res.json();
   },
   getProviderInfo: async (provider = 'anikoto', id) => {
-    if (isNative()) return (await nativeBackend()).providerAction(provider, 'info', { id });
-    const res = await fetch(`/api/anime/${provider}/info?id=${encodeURIComponent(id)}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).providerAction(provider, 'info', { id });
+    const res = await fetch(`${API_BASE}/api/anime/${provider}/info?id=${encodeURIComponent(id)}`);
     return await res.json();
   },
   getProviderEpisodes: async (provider = 'anikoto', dataId, page = 1) => {
-    if (isNative()) return (await nativeBackend()).providerAction(provider, 'episodes', { id: dataId, page });
-    const res = await fetch(`/api/anime/${provider}/episodes?id=${encodeURIComponent(dataId)}&page=${page}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).providerAction(provider, 'episodes', { id: dataId, page });
+    const res = await fetch(`${API_BASE}/api/anime/${provider}/episodes?id=${encodeURIComponent(dataId)}&page=${page}`);
     return await res.json();
   },
   getProviderSources: async (provider = 'anikoto', episodeId, subdub = null) => {
-    if (isNative()) return (await nativeBackend()).watch({ ep: episodeId, provider, subdub });
-    const res = await fetch('/api/watch', {
+    if (isNative() && !isElectron()) return (await nativeBackend()).watch({ ep: episodeId, provider, subdub });
+    const res = await fetch(`${API_BASE}/api/watch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ep: episodeId, provider, subdub }),
@@ -157,35 +161,35 @@ export const api = {
   },
   buildProxiedHlsUrl: (m3u8Url, referer = '') => {
     if (!m3u8Url) return '';
-    // Native: keep the raw URL — the video player fetches through the
+    // Native (except Electron): keep the raw URL — the video player fetches through the
     // native HLS loader with the correct Referer (no proxy server needed).
-    if (isNative()) return m3u8Url;
-    return `/api/proxy?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}`;
+    if (isNative() && !isElectron()) return m3u8Url;
+    return `${API_BASE}/api/proxy?url=${encodeURIComponent(m3u8Url)}&referer=${encodeURIComponent(referer)}`;
   },
   // ── Manga API ──
   getMangaProviders: async () => {
-    if (isNative()) return (await nativeBackend()).getMangaProviders?.() || { providers: [] };
-    const res = await fetch('/api/manga/providers');
+    if (isNative() && !isElectron()) return (await nativeBackend()).getMangaProviders?.() || { providers: [] };
+    const res = await fetch(`${API_BASE}/api/manga/providers`);
     return await res.json();
   },
   getMangaLatest: async (provider, page = 1) => {
-    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'latest', { page }) || { results: [] };
-    const res = await fetch(`/api/manga/${provider}/latest?page=${page}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).mangaAction?.(provider, 'latest', { page }) || { results: [] };
+    const res = await fetch(`${API_BASE}/api/manga/${provider}/latest?page=${page}`);
     return await res.json();
   },
   getMangaSearch: async (provider, query, page = 1) => {
-    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'search', { query, page }) || { results: [] };
-    const res = await fetch(`/api/manga/${provider}/search?query=${encodeURIComponent(query)}&page=${page}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).mangaAction?.(provider, 'search', { query, page }) || { results: [] };
+    const res = await fetch(`${API_BASE}/api/manga/${provider}/search?query=${encodeURIComponent(query)}&page=${page}`);
     return await res.json();
   },
   getMangaInfo: async (provider, id) => {
-    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'info', { id }) || null;
-    const res = await fetch(`/api/manga/${provider}/info?id=${encodeURIComponent(id)}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).mangaAction?.(provider, 'info', { id }) || null;
+    const res = await fetch(`${API_BASE}/api/manga/${provider}/info?id=${encodeURIComponent(id)}`);
     return await res.json();
   },
   getMangaChapters: async (provider, id) => {
-    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'chapters', { id }) || { chapters: [] };
-    const res = await fetch(`/api/manga/${provider}/chapters?id=${encodeURIComponent(id)}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).mangaAction?.(provider, 'chapters', { id }) || { chapters: [] };
+    const res = await fetch(`${API_BASE}/api/manga/${provider}/chapters?id=${encodeURIComponent(id)}`);
     if (!res.ok) {
       const text = await res.text();
       try {
@@ -198,8 +202,8 @@ export const api = {
     return await res.json();
   },
   getMangaChapterPages: async (provider, chapterId) => {
-    if (isNative()) return (await nativeBackend()).mangaAction?.(provider, 'pages', { id: chapterId }) || [];
-    const res = await fetch(`/api/manga/${provider}/pages?id=${encodeURIComponent(chapterId)}`);
+    if (isNative() && !isElectron()) return (await nativeBackend()).mangaAction?.(provider, 'pages', { id: chapterId }) || [];
+    const res = await fetch(`${API_BASE}/api/manga/${provider}/pages?id=${encodeURIComponent(chapterId)}`);
     if (!res.ok) {
       const text = await res.text();
       try {
@@ -213,8 +217,8 @@ export const api = {
   },
   buildMangaImageUrl: (imgUrl, referer = '') => {
     if (!imgUrl) return '';
-    if (isNative()) return imgUrl;
-    if (imgUrl.startsWith('/api/image')) return imgUrl;
-    return `/api/image?url=${encodeURIComponent(imgUrl)}&referer=${encodeURIComponent(referer)}`;
+    if (isNative() && !isElectron()) return imgUrl;
+    if (imgUrl.startsWith(`${API_BASE}/api/image`)) return imgUrl;
+    return `${API_BASE}/api/image?url=${encodeURIComponent(imgUrl)}&referer=${encodeURIComponent(referer)}`;
   },
 };

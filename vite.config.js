@@ -2,15 +2,17 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import 'dotenv/config';
 
-// VITE_NATIVE=1 builds the frontend for the native apps (Tauri desktop /
-// Capacitor Android): relative base path so assets load from a custom
-// protocol, and the anikoto provider extension bundled for the browser.
+// VITE_NATIVE=1 or ELECTRON=1 builds the frontend for desktop/mobile apps:
+// relative base path so assets load from file:// or custom protocol,
+// and the anikoto provider extension bundled for the browser.
 // Without the flag, the config is identical to the original website build.
 const isNativeBuild = process.env.VITE_NATIVE === '1';
+const isElectronBuild = process.env.ELECTRON === '1';
+const useRelativeBase = isNativeBuild || isElectronBuild;
 
 export default defineConfig({
   plugins: [react()],
-  base: isNativeBuild ? './' : '/',
+  base: useRelativeBase ? './' : '/',
   define: {
     // The provider extensions use `global.axios` etc. (Node-style globals)
     global: 'globalThis',

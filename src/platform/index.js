@@ -2,6 +2,7 @@
 // Modes:
 //  - 'web'       : the website. Everything goes through the Express server (/api/*). Unchanged behavior.
 //  - 'tauri'     : Windows/Linux desktop app. Direct native HTTP (Rust reqwest).
+//  - 'electron'  : Windows/Linux desktop app via Electron. Backend runs as child process.
 //  - 'capacitor' : Android app. Direct native HTTP (OkHttp).
 
 let cachedPlatform = null;
@@ -11,6 +12,8 @@ export function getPlatform() {
   if (typeof window !== 'undefined') {
     if (window.__TAURI_INTERNALS__ || window.__TAURI__) {
       cachedPlatform = 'tauri';
+    } else if (window.miyo?.isElectron) {
+      cachedPlatform = 'electron';
     } else if (window.Capacitor?.isNativePlatform?.()) {
       cachedPlatform = 'capacitor';
     } else {
@@ -23,7 +26,12 @@ export function getPlatform() {
 }
 
 export function isNative() {
-  return getPlatform() !== 'web';
+  const p = getPlatform();
+  return p !== 'web';
+}
+
+export function isElectron() {
+  return getPlatform() === 'electron';
 }
 
 export function isAndroid() {

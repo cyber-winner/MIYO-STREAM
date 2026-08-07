@@ -1,0 +1,86 @@
+{
+  "name": "miyo-electron",
+  "version": "5.0.0",
+  "description": "MIYO Desktop — Stream, download anime & manga",
+  "main": "main.js",
+  "author": {
+    "name": "CYBER",
+    "email": "contact@cyber-winner.site",
+    "url": "https://cyber-winner.site"
+  },
+  "homepage": "https://miyo-stream.cyber-winner.site",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron . --trace-warnings",
+    "prepare-dist": "node scripts/prepare-dist.js",
+    "prepackage": "npm run prepare-dist",
+    "prepackage:win": "npm run prepare-dist",
+    "prepackage:linux": "npm run prepare-dist",
+    "package": "npm run prepare-dist && electron-builder --win --linux --publish never",
+    "package:win": "npm run prepare-dist && electron-builder --win --publish never",
+    "package:linux": "npm run prepare-dist && electron-builder --linux --publish never"
+  },
+  "build": {
+    "appId": "app.miyo.stream",
+    "productName": "MIYO",
+    "directories": {
+      "output": "release"
+    },
+    "extraResources": [
+      {
+        "from": "backend/",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "gui/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "MIYO.Setup.${version}.exe",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "shortcutName": "MIYO"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "category": "AudioVideo",
+      "icon": "assets/icon.png",
+      "artifactName": "MIYO-${version}.${ext}",
+      "mimeTypes": ["x-scheme-handler/miyo"]
+    },
+    "icon": "assets/icon.png",
+    "compression": "normal",
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**/*"
+    ]
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0"
+  },
+  "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -1,0 +1,122 @@
+#!/usr/bin/env node
+/**
+ * Downloads Android NDK compiled static ffmpeg binaries and installs them as
+ * jniLibs so they ship inside the APK as `libffmpeg.so`.
+ *
+ *   jniLibs/arm64-v8a/libffmpeg.so   <- ffmpeg-android-arm64.zip
+ *   jniLibs/armeabi-v7a/libffmpeg.so <- ffmpeg-android-arm.zip
+ *   jniLibs/x86_64/libffmpeg.so      <- ffmpeg-android-x64.zip
+ *
+ * Usage:
+ *   node capacitor/scripts/fetch-ffmpeg.mjs             # arm64 only (default)
+ *   node capacitor/scripts/fetch-ffmpeg.mjs --all       # all three ABIs
+ *   node capacitor/scripts/fetch-ffmpeg.mjs --force     # re-download
+ */
+
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const jniLibsDir = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "android",
+  "app",
+  "src",
+  "main",
+  "jniLibs",
+);
+
+const BASE = "https://github.com/Tyrrrz/FFmpegBin/releases/latest/download";
+
+const TARGETS = [
+  { abi: "arm64-v8a", archive: "ffmpeg-android-arm64.zip", default: true },
+  { abi: "armeabi-v7a", archive: "ffmpeg-android-arm.zip", default: false },
+  { abi: "x86_64", archive: "ffmpeg-android-x64.zip", default: false },
+];
+
+const args = process.argv.slice(2);
+const all = args.includes("--all");
+const force = args.includes("--force");
+
+async function download(url, dest) {
+  try {
+    execFileSync("curl", ["-L", "-o", dest, url], { stdio: "inherit" });
+    return;
+  } catch (err) {
+    console.warn(`[ffmpeg] curl failed: ${err.message}. Falling back to fetch...`);
+  }
+
+  const res = await fetch(url, { redirect: "follow" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+
+  const contentLength = Number(res.headers.get("content-length")) || 0;
+  const fileStream = fs.createWriteStream(dest);
+  let downloadedBytes = 0;
+  let lastLoggedPercent = -10;
+
+  for await (const chunk of res.body) {
+    fileStream.write(chunk);
+    downloadedBytes += chunk.length;
+    if (contentLength > 0) {
+      const percent = Math.floor((downloadedBytes / contentLength) * 100);
+      if (percent >= lastLoggedPercent + 10) {
+        console.log(`[ffmpeg] Downloaded ${percent}% (${(downloadedBytes / 1024 / 1024).toFixed(1)} / ${(contentLength / 1024 / 1024).toFixed(1)} MB)...`);
+        lastLoggedPercent = percent;
+      }
+    }
+  }
+  fileStream.end();
+}
+
+function extractFfmpeg(archivePath, workDir) {
+  execFileSync("unzip", ["-o", archivePath, "-d", workDir], { stdio: "inherit" });
+  const candidate = path.join(workDir, "ffmpeg");
+  if (fs.existsSync(candidate)) return candidate;
+  for (const entry of fs.readdirSync(workDir)) {
+    const subCandidate = path.join(workDir, entry, "ffmpeg");
+    if (fs.existsSync(subCandidate)) return subCandidate;
+  }
+  throw new Error(`ffmpeg binary not found inside ${archivePath}`);
+}
+
+async function main() {
+  const targets = TARGETS.filter((t) => all || t.default);
+  for (const target of targets) {
+    const outDir = path.join(jniLibsDir, target.abi);
+    const outFile = path.join(outDir, "libffmpeg.so");
+
+    if (fs.existsSync(outFile) && !force) {
+      console.log(`[ffmpeg] ${target.abi}: already present, skipping`);
+      continue;
+    }
+
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "miyo-ffmpeg-"));
+    try {
+      const archivePath = path.join(workDir, target.archive);
+      console.log(`[ffmpeg] ${target.abi}: downloading ${target.archive}...`);
+      await download(`${BASE}/${target.archive}`, archivePath);
+
+      console.log(`[ffmpeg] ${target.abi}: extracting Android NDK build...`);
+      const bin = extractFfmpeg(archivePath, workDir);
+
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.copyFileSync(bin, outFile);
+      fs.chmodSync(outFile, 0o755);
+      const sizeMb = (fs.statSync(outFile).size / 1024 / 1024).toFixed(1);
+      console.log(`[ffmpeg] ${target.abi}: installed libffmpeg.so (${sizeMb} MB)`);
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
+  }
+  console.log("[ffmpeg] Done.");
+}
+
+main().catch((err) => {
+  console.error(`[ffmpeg] FAILED: ${err.message}`);
+  process.exit(1);
+});

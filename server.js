@@ -235,6 +235,104 @@ app.get('/api/tmdb', async (req, res) => {
     res.status(status).json({ error: err.message, data: err.response?.data });
   }
 });
+
+// ── Metadata Database ──
+let metadataDb = null;
+try {
+  metadataDb = require('./utils/database.cjs');
+  console.log('[MIYO] Metadata database module loaded');
+} catch (e) {
+  console.warn('[MIYO] Metadata database not available:', e.message);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── Metadata API Routes (powered by database.db.gz) ──
+// ═══════════════════════════════════════════════════════════════════════
+app.use('/api/metadata', apiLimiter);
+
+// Search anime by title (uses the 616k+ normalized titles index)
+app.get('/api/metadata/anime/search', (req, res) => {
+  if (!metadataDb) return res.status(503).json({ error: 'Metadata database not available' });
+  try {
+    const query = req.query.q || req.query.query || '';
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    if (!query) return res.json({ results: [] });
+    const results = metadataDb.searchAnime(query, limit);
+    res.json({ results });
+  } catch (err) {
+    console.error('[Metadata] Anime search error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get anime metadata by MAL ID
+app.get('/api/metadata/anime/:malid', (req, res) => {
+  if (!metadataDb) return res.status(503).json({ error: 'Metadata database not available' });
+  try {
+    const malid = parseInt(req.params.malid);
+    if (isNaN(malid)) return res.status(400).json({ error: 'Invalid MAL ID' });
+    const anime = metadataDb.getAnimeByMalId(malid);
+    if (!anime) return res.status(404).json({ error: 'Anime not found' });
+    const titles = metadataDb.getAnimeTitles(malid);
+    res.json({ ...anime, titles });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Map MAL ID → provider-specific IDs (anineko, anikoto, pahe)
+app.get('/api/metadata/anime/:malid/map', (req, res) => {
+  if (!metadataDb) return res.status(503).json({ error: 'Metadata database not available' });
+  try {
+    const malid = parseInt(req.params.malid);
+    if (isNaN(malid)) return res.status(400).json({ error: 'Invalid MAL ID' });
+    const mapping = metadataDb.mapAnimeProviders(malid);
+    res.json({ malid, providers: mapping });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Search manga by title
+app.get('/api/metadata/manga/search', (req, res) => {
+  if (!metadataDb) return res.status(503).json({ error: 'Metadata database not available' });
+  try {
+    const query = req.query.q || req.query.query || '';
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    if (!query) return res.json({ results: [] });
+    const results = metadataDb.searchManga(query, limit);
+    res.json({ results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get manga metadata by MAL ID
+app.get('/api/metadata/manga/:malid', (req, res) => {
+  if (!metadataDb) return res.status(503).json({ error: 'Metadata database not available' });
+  try {
+    const malid = parseInt(req.params.malid);
+    if (isNaN(malid)) return res.status(400).json({ error: 'Invalid MAL ID' });
+    const manga = metadataDb.getMangaByMalId(malid);
+    if (!manga) return res.status(404).json({ error: 'Manga not found' });
+    res.json(manga);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Map MAL ID → manga provider IDs (weebcentral, asurascans, comix, mangafire)
+app.get('/api/metadata/manga/:malid/map', (req, res) => {
+  if (!metadataDb) return res.status(503).json({ error: 'Metadata database not available' });
+  try {
+    const malid = parseInt(req.params.malid);
+    if (isNaN(malid)) return res.status(400).json({ error: 'Invalid MAL ID' });
+    const mapping = metadataDb.mapMangaProviders(malid);
+    res.json({ malid, providers: mapping });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 const extensionsDir = path.join(__dirname, 'extensions', 'Anime');
 const providers = {};
 

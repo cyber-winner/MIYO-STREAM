@@ -170,3 +170,30 @@ export function buildSearchQueries(anilistData) {
   }
   return queries;
 }
+
+/**
+ * Fast-path: Try to resolve a direct MAL ID → provider ID mapping
+ * from the metadata database before falling back to fuzzy search.
+ *
+ * @param {number|string} malId - MyAnimeList ID (from AniList's `idMal` field)
+ * @param {string} providerName - Provider name ('anineko', 'anikoto', 'pahe')
+ * @returns {{ providerId: string|null, providerData: object|null }}
+ */
+export async function findProviderIdByMal(malId, providerName) {
+  if (!malId) return { providerId: null, providerData: null };
+  try {
+    const { mapAnimeToProviders } = await import('./metadataDb.js');
+    const mapping = await mapAnimeToProviders(malId);
+    if (!mapping) return { providerId: null, providerData: null };
+
+    const providerId = mapping[providerName] || null;
+    if (providerId) {
+      console.log(`[matchAnime] DB hit: MAL ${malId} → ${providerName} ID: ${providerId}`);
+      return { providerId, providerData: mapping };
+    }
+    return { providerId: null, providerData: mapping };
+  } catch (e) {
+    console.warn('[matchAnime] DB lookup failed:', e.message);
+    return { providerId: null, providerData: null };
+  }
+}

@@ -1,0 +1,92 @@
+name: Build Desktop (Electron)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target platform'
+        required: true
+        type: choice
+        options:
+          - linux
+          - windows
+          - all
+        default: 'all'
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    if: ${{ github.event.inputs.platform == 'linux' || github.event.inputs.platform == 'all' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install Electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Download ffmpeg-static binary
+        working-directory: electron
+        run: node node_modules/ffmpeg-static/install.js
+
+      - name: Build & Package (Linux AppImage)
+        working-directory: electron
+        run: npm run package:linux
+        env:
+          ELECTRON: '1'
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIYO-Linux-AppImage
+          path: electron/release/MIYO-*.AppImage
+          if-no-files-found: error
+
+  build-windows:
+    if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'all' }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install Electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Download ffmpeg-static binary
+        working-directory: electron
+        run: node node_modules/ffmpeg-static/install.js
+
+      - name: Build & Package (Windows NSIS)
+        working-directory: electron
+        run: npm run package:win
+        env:
+          ELECTRON: '1'
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIYO-Windows-Setup
+          path: electron/release/MIYO.Setup.*.exe
+          if-no-files-found: error

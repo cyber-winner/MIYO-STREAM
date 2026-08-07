@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Hls from 'hls.js';
 import { cn } from '../../lib/cn';
-import { isNative } from '../../platform/index.js';
+import { isNative, isElectron } from '../../platform/index.js';
+import { API_BASE } from '../../lib/api.js';
 export function VideoPlayer({ src, isHls, subtitles, className }) {
   const [adWarningVisible, setAdWarningVisible] = useState(true);
   const isYouTube = !isHls && (src?.includes('youtube.com') || src?.includes('youtube-nocookie.com') || src?.includes('youtu.be'));
@@ -30,8 +31,8 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
       if (Hls.isSupported()) {
         let hls;
         let cancelled = false;
-        if (isNative()) {
-          // Native apps: fetch playlists/segments through the native HTTP
+        if (isNative() && !isElectron()) {
+          // Native apps (except Electron): fetch playlists/segments through the native HTTP
           // client with the correct Referer headers (no proxy server).
           import('../../platform/hlsLoader.js').then(({ createNativeHlsLoaderClass }) => {
             if (cancelled || !videoRef.current) return;
@@ -56,7 +57,7 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
               if (url.includes('/api/proxy')) {
                 xhr.open('GET', url, true);
               } else {
-                const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`;
+                const proxyUrl = `${API_BASE}/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`;
                 xhr.open('GET', proxyUrl, true);
               }
             }
@@ -73,10 +74,10 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
       }
     }
   }, [cleanSrc, isHls, referer]);
-  // Native apps: fetch subtitles through the native HTTP client and expose
+  // Native apps (except Electron): fetch subtitles through the native HTTP client and expose
   // them as blob: URLs (the <track> element can't send Referer headers).
   useEffect(() => {
-    if (!isNative() || !subtitles?.length) return;
+    if (!isNative() || isElectron() || !subtitles?.length) return;
     let cancelled = false;
     const created = [];
     import('../../platform/hlsLoader.js').then(async ({ fetchSubtitleAsBlobUrl }) => {
@@ -99,12 +100,12 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
       setNativeSubUrls({});
     };
   }, [subtitles, referer]);
-  // Helper: proxy a subtitle URL through the backend (web) or use the
+  // Helper: proxy a subtitle URL through the backend (web, electron) or use the
   // natively-fetched blob URL (native apps)
   const proxySubUrl = (url) => {
     if (!url) return '';
-    if (isNative()) return nativeSubUrls[url] || '';
-    return `/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`;
+    if (isNative() && !isElectron()) return nativeSubUrls[url] || '';
+    return `${API_BASE}/api/proxy?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(referer)}`;
   };
   return (
     <div className={cn("space-y-4", className)}>

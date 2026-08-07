@@ -115,3 +115,18 @@ android/capacitor-cordova-android-plugins/build/
 # ─────────────────────────────────────────────
 graphify-out/
 .agents/
+
+# ─────────────────────────────────────────────
+#  Electron Build
+# ─────────────────────────────────────────────
+electron/release/
+electron/gui/
+electron/backend/
+electron/node_modules/
+
+# ─────────────────────────────────────────────
+#  Capacitor Build Staging
+# ─────────────────────────────────────────────
+capacitor/nodejs/
+android/app/src/main/jniLibs/
+

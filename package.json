@@ -20,7 +20,15 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "android:sync": "npm run build:native && cap sync android",
-    "android:open": "cap open android"
+    "android:open": "cap open android",
+    "electron:install": "cd electron && npm install",
+    "electron:dev": "concurrently \"node server.js\" \"vite\" \"sleep 2 && cd electron && npx electron . --trace-warnings\"",
+    "electron:build": "cd electron && npm run package",
+    "electron:build:win": "cd electron && npm run package:win",
+    "electron:build:linux": "cd electron && npm run package:linux",
+    "cap:sync": "node capacitor/scripts/sync.mjs",
+    "cap:sync:ffmpeg": "node capacitor/scripts/fetch-ffmpeg.mjs",
+    "cap:build": "npm run build:native && npm run cap:sync && cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
@@ -32,6 +40,7 @@
     "@tauri-apps/plugin-http": "^2.5.9",
     "@vercel/blob": "^2.3.3",
     "axios": "^1.18.0",
+    "better-sqlite3": "^13.0.3",
     "cheerio": "^1.2.0",
     "clsx": "^2.0.0",
     "concurrently": "^10.0.4",

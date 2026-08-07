@@ -132,6 +132,7 @@ const MEDIA_CARD_FRAGMENT = `
 `;
 const MEDIA_DETAIL_FRAGMENT = `
   id
+  idMal
   title {
     romaji
     english

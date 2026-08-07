@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { anilistApi } from '../lib/anilistApi';
 import { api } from '../lib/api';
-import { findBestMatch, buildSearchQueries } from '../lib/matchAnime';
+import { findBestMatch, buildSearchQueries, findProviderIdByMal } from '../lib/matchAnime';
 import { useDevice } from '../context/DeviceContext';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
@@ -237,26 +237,45 @@ export function AnimeDetail() {
         // 1. Get rich metadata from AniList (decorations only)
         const result = await anilistApi.getDetail(id);
         setData(result);
-        // 2. Fetch episodes directly from Anikoto — its search engine is the source of truth
+        // 2. Fetch episodes — fast-path via DB, fallback to fuzzy search
         if (result.type === 'ANIME') {
           try {
-            const searchQueries = buildSearchQueries(result);
             let bestMatch = null;
             let bestScore = 0;
-            for (const query of searchQueries) {
+
+            // ── Fast path: DB-backed MAL ID → provider mapping ──
+            if (result.idMal) {
               try {
-                const providerResults = await api.getProviderSearch(animeProvider, query, 1);
-                const matches = providerResults?.results || [];
-                if (matches.length > 0) {
-                  const { match, score } = findBestMatch(matches, result, 0.4);
-                  if (match && score > bestScore) {
-                    bestMatch = match;
-                    bestScore = score;
-                  }
-                  if (bestScore >= 0.85) break; // confident match
+                const { providerId } = await findProviderIdByMal(result.idMal, animeProvider);
+                if (providerId) {
+                  // We got a direct mapping — use it as the match
+                  bestMatch = { id: providerId, title: result.title?.romaji || '' };
+                  bestScore = 1.0;
+                  console.log(`[DB] Direct MAL mapping: ${result.idMal} → ${providerId}`);
                 }
-              } catch (searchErr) {
-                console.warn(`[${animeProvider}] Search failed for "${query}":`, searchErr.message);
+              } catch (dbErr) {
+                console.warn('[DB] Fast-path failed, falling back to search:', dbErr.message);
+              }
+            }
+
+            // ── Slow path: fuzzy title search (only if DB had no mapping) ──
+            if (!bestMatch) {
+              const searchQueries = buildSearchQueries(result);
+              for (const query of searchQueries) {
+                try {
+                  const providerResults = await api.getProviderSearch(animeProvider, query, 1);
+                  const matches = providerResults?.results || [];
+                  if (matches.length > 0) {
+                    const { match, score } = findBestMatch(matches, result, 0.4);
+                    if (match && score > bestScore) {
+                      bestMatch = match;
+                      bestScore = score;
+                    }
+                    if (bestScore >= 0.85) break; // confident match
+                  }
+                } catch (searchErr) {
+                  console.warn(`[${animeProvider}] Search failed for "${query}":`, searchErr.message);
+                }
               }
             }
             if (bestMatch) {

@@ -1,20 +1,34 @@
-name: Build Android
+name: Build Apps
 
 on:
   workflow_dispatch:
+    inputs:
+      targets:
+        description: 'What to build'
+        required: true
+        type: choice
+        options:
+          - all
+          - android
+          - desktop-linux
+          - desktop-windows
+        default: 'all'
   push:
-    branches:
-      - main
-      - master
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
-      - master
 
+permissions:
+  contents: write
+
+# ═══════════════════════════════════════════════════════════════════
+#  Android APK (Capacitor)
+# ═══════════════════════════════════════════════════════════════════
 jobs:
   build-android:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.inputs.targets == 'all' ||
+      github.event.inputs.targets == 'android'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -55,24 +69,119 @@ jobs:
           name: MIYO-android
           path: MIYO.apk
 
-  publish-release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build-android
+  # ═══════════════════════════════════════════════════════════════════
+  #  Linux AppImage (Electron)
+  # ═══════════════════════════════════════════════════════════════════
+  build-linux:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.inputs.targets == 'all' ||
+      github.event.inputs.targets == 'desktop-linux'
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download APK
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install Electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Download ffmpeg-static binary
+        working-directory: electron
+        run: node node_modules/ffmpeg-static/install.js
+
+      - name: Build & Package (Linux AppImage)
+        working-directory: electron
+        run: npm run package:linux
+
+      - name: Rename artifact
+        run: |
+          VERSION=$(node -p "require('./electron/package.json').version")
+          cp "electron/release/MIYO-${VERSION}.AppImage" MIYO.AppImage
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIYO-linux
+          path: MIYO.AppImage
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  Windows Installer (Electron)
+  # ═══════════════════════════════════════════════════════════════════
+  build-windows:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.inputs.targets == 'all' ||
+      github.event.inputs.targets == 'desktop-windows'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install Electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Download ffmpeg-static binary
+        working-directory: electron
+        run: node node_modules/ffmpeg-static/install.js
+
+      - name: Build & Package (Windows NSIS)
+        working-directory: electron
+        run: npm run package:win
+
+      - name: Rename artifact
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./electron/package.json').version")
+          cp "electron/release/MIYO.Setup.${VERSION}.exe" MIYO.Setup.exe
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MIYO-windows
+          path: MIYO.Setup.exe
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  GitHub Release (on tag push)
+  # ═══════════════════════════════════════════════════════════════════
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-android, build-linux, build-windows]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: MIYO-android
+          path: artifacts/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: MIYO.apk
+          files: |
+            artifacts/MIYO-android/MIYO.apk
+            artifacts/MIYO-linux/MIYO.AppImage
+            artifacts/MIYO-windows/MIYO.Setup.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

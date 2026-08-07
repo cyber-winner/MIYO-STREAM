@@ -3,14 +3,23 @@
   "appName": "MIYO",
   "webDir": "dist-native",
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": true,
+    "webContentsDebuggingEnabled": false
   },
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "http",
+    "allowNavigation": ["*"]
   },
   "plugins": {
+    "CapacitorNodeJS": {
+      "nodeDir": "nodejs"
+    },
     "CapacitorHttp": {
+      "enabled": false
+    },
+    "CapacitorCookies": {
       "enabled": false
     }
   }
 }
+
