@@ -54,26 +54,21 @@ function startBackend() {
     return;
   }
 
-  // Find system `node` — process.execPath is the Electron binary, not node
-  let nodeBin = 'node'; // fallback: assume it's on PATH
-  try {
-    const { execSync } = require('child_process');
-    const which = execSync(process.platform === 'win32' ? 'where node' : 'which node', { encoding: 'utf8' }).trim();
-    if (which) nodeBin = which.split('\n')[0].trim();
-  } catch (e) {
-    console.warn('[MIYO] Could not find system node, using PATH fallback');
-  }
+  // Use Electron's embedded Node.js runtime to avoid depending on system Node
+  const nodeBin = process.execPath;
 
-  console.log(`[MIYO] Starting backend: ${nodeBin} ${serverFile}`);
+  console.log(`[MIYO] Starting backend: ${nodeBin} ${serverFile} (using ELECTRON_RUN_AS_NODE)`);
 
   backendProcess = spawn(nodeBin, [serverFile], {
     cwd: backendDir,
     env: {
       ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
       SERVER_PORT: String(BACKEND_PORT),
       ELECTRON: '1',
       NODE_ENV: 'production',
       FFMPEG_PATH: getFfmpegPath() || '',
+      NODE_PATH: path.join(backendDir, 'backend_modules'),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,

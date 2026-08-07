@@ -84,7 +84,7 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
     >
       <div className="flex items-center gap-3 px-4 h-[70px] flex-shrink-0">
         <Link to="/" className="flex items-center gap-2.5 min-w-0">
-          <img src="/logo.png" alt="MIYO-STREAM" className="w-8 h-8 rounded-lg flex-shrink-0" />
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="MIYO-STREAM" className="w-8 h-8 rounded-lg flex-shrink-0" />
           <span className="text-lg font-bold text-text-primary whitespace-nowrap">
             MIYO -<span className="text-accent animate-rgb-shift">STREAM</span>
           </span>

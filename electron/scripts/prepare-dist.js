@@ -114,7 +114,7 @@ const serverDeps = [
   'axios', 'better-sqlite3', 'cheerio', 'cors', 'dotenv',
   'express', 'express-rate-limit', 'hls-parser', 'node-cache',
   'puppeteer-real-browser', 'ssh2-sftp-client', 'ws', 'xvfb',
-  'jszip', 'iso-639-1',
+  'jszip', 'iso-639-1', 'jsdom', 'crypto-js'
 ];
 for (const dep of serverDeps) {
   if (rootPkg.dependencies?.[dep]) {
@@ -141,11 +141,21 @@ try {
     cwd: backendDest,
     stdio: 'inherit',
   });
-  // Rebuild native modules (better-sqlite3) for the system Node.js
-  execSync('npm rebuild better-sqlite3', {
+  // Rebuild native modules (better-sqlite3) for the Electron Node.js ABI
+  const electronVersion = require(path.join(electronDir, 'node_modules', 'electron', 'package.json')).version;
+  console.log(`\n▶ Rebuilding native modules for Electron v${electronVersion}...`);
+  execSync(`npm rebuild better-sqlite3 --runtime=electron --target=${electronVersion} --dist-url=https://electronjs.org/headers`, {
     cwd: backendDest,
     stdio: 'inherit',
   });
+
+  const backendNodeModules = path.join(backendDest, 'node_modules');
+  const backendModulesRenamed = path.join(backendDest, 'backend_modules');
+  if (fs.existsSync(backendNodeModules)) {
+    console.log('Renaming node_modules to backend_modules to bypass electron-builder ignore...');
+    fs.renameSync(backendNodeModules, backendModulesRenamed);
+  }
+
 } catch (err) {
   console.error('Backend npm install failed:', err.message);
   process.exit(1);

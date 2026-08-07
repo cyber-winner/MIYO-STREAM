@@ -8,51 +8,51 @@ const V6_PANELS = [
   {
     label: '📖 Manga Scraping',
     text: 'Full manga reading experience with WeebCentral & AllManga providers. Browse, search, and read chapters in a vertical scroll reader with lazy-loading and progress tracking.',
-    image: '/mangapanelwebp.webp',
+    image: `${import.meta.env.BASE_URL}mangapanelwebp.webp`,
     accent: '#ff6b9d',
   },
   {
     label: '🎬 Multi-Provider Anime',
     text: 'Added AniNeko and AnimePahe as new anime sources alongside Anikoto. Switch providers anytime from Settings.',
-    image: '/anime-frieren.gif',
+    image: `${import.meta.env.BASE_URL}anime-frieren.gif`,
     accent: '#00f2ff',
   },
   {
     label: '⚙️ Provider Selector',
     text: 'New Settings UI lets you pick your default anime and manga providers. Your choice persists across sessions.',
-    image: '/asuka-anime.gif',
+    image: `${import.meta.env.BASE_URL}asuka-anime.gif`,
     accent: '#a78bfa',
   },
   {
     label: '🖼️ Image Proxy',
     text: 'Smart image proxy handles cross-domain manga images with automatic Referer injection for each provider.',
-    image: '/evil-evil-lums.gif',
+    image: `${import.meta.env.BASE_URL}evil-evil-lums.gif`,
     accent: '#fbbf24',
   },
   {
     label: '🔐 AES Decryption',
     text: 'AllManga chapter pages use AES-256-GCM encrypted URLs. Built-in decryption engine handles this transparently.',
-    image: '/oshi-no-ko-onk.gif',
+    image: `${import.meta.env.BASE_URL}oshi-no-ko-onk.gif`,
     accent: '#34d399',
   },
   {
     label: '📱 Full-Screen Reader',
     text: 'Immersive manga reader renders outside the AppShell. Keyboard shortcuts, chapter navigation, and a floating progress bar.',
-    image: '/marin-marin-kitagawa.gif',
+    image: `${import.meta.env.BASE_URL}marin-marin-kitagawa.gif`,
     accent: '#f472b6',
   },
 ];
 
 /* ─── Floating decorations config ─── */
 const FLOATERS = [
-  { src: '/anime-dance.gif', top: '5%', left: '2%', size: 80, delay: 0, rotate: -12 },
-  { src: '/cute-pokemon.webp', top: '15%', right: '3%', size: 70, delay: 0.5, rotate: 8 },
-  { src: '/anime-snow.gif', top: '35%', left: '1%', size: 90, delay: 1, rotate: -5 },
-  { src: '/rem-transparent.gif', top: '50%', right: '2%', size: 85, delay: 1.5, rotate: 15 },
-  { src: '/shigure-ui-dance.gif', top: '70%', left: '3%', size: 75, delay: 2, rotate: -8 },
-  { src: '/dance-cute.gif', top: '85%', right: '4%', size: 65, delay: 0.8, rotate: 10 },
-  { src: '/transparent-hunni-hime.gif', top: '25%', right: '1%', size: 80, delay: 1.2, rotate: -15 },
-  { src: '/anime-transparent.gif', top: '60%', left: '2%', size: 70, delay: 0.3, rotate: 6 },
+  { src: `${import.meta.env.BASE_URL}anime-dance.gif`, top: '5%', left: '2%', size: 80, delay: 0, rotate: -12 },
+  { src: `${import.meta.env.BASE_URL}cute-pokemon.webp`, top: '15%', right: '3%', size: 70, delay: 0.5, rotate: 8 },
+  { src: `${import.meta.env.BASE_URL}anime-snow.gif`, top: '35%', left: '1%', size: 90, delay: 1, rotate: -5 },
+  { src: `${import.meta.env.BASE_URL}rem-transparent.gif`, top: '50%', right: '2%', size: 85, delay: 1.5, rotate: 15 },
+  { src: `${import.meta.env.BASE_URL}shigure-ui-dance.gif`, top: '70%', left: '3%', size: 75, delay: 2, rotate: -8 },
+  { src: `${import.meta.env.BASE_URL}dance-cute.gif`, top: '85%', right: '4%', size: 65, delay: 0.8, rotate: 10 },
+  { src: `${import.meta.env.BASE_URL}transparent-hunni-hime.gif`, top: '25%', right: '1%', size: 80, delay: 1.2, rotate: -15 },
+  { src: `${import.meta.env.BASE_URL}anime-transparent.gif`, top: '60%', left: '2%', size: 70, delay: 0.3, rotate: 6 },
 ];
 
 /* ─── Old changelog data (pre-6.0) ─── */
@@ -61,7 +61,7 @@ const CHANGELOGS = [
     date: 'JULY 21, 2026',
     featured: true,
     variant: 'core',
-    decoration: '/logo.png',
+    decoration: `${import.meta.env.BASE_URL}logo.png`,
     title: 'v5.0.0: New Logo & Mobile App',
     description: 'Fresh new logo for MIYO — the M-play icon with the play button built in. Updated it everywhere including the favicon, app icons, and social previews. Also officially releasing the Android app, you can now sideload the APK and stream on your phone.',
     highlights: [
@@ -75,42 +75,42 @@ const CHANGELOGS = [
   {
     date: 'JUNE 23, 2026',
     title: 'UI Parity & Cinematic Backgrounds',
-    decoration: '/oshi-no-ko-onk.gif',
+    decoration: `${import.meta.env.BASE_URL}oshi-no-ko-onk.gif`,
     description: "Turned off the smart TV detection because it was causing massive lag when navigating. TVs now get the exact same smooth UI as desktop users. Also fixed the background images on detail pages so the anime/movie backdrop covers the whole screen while you scroll.",
     tags: ['UI', 'Performance', 'Aesthetics']
   },
   {
     date: 'JUNE 20, 2026',
     title: 'v2.0.0: StrawVerse Integration & Cloudflare Tunnels',
-    decoration: '/one-piece-hat-luffy-hat.gif',
+    decoration: `${import.meta.env.BASE_URL}one-piece-hat-luffy-hat.gif`,
     description: 'Massive infrastructure rewrite. Migrated Anime scraping to a robust Express backend powered by StrawVerse architecture. Added Cloudflare Tunnel deployment support and disk-based caching for AniList GraphQL queries.',
     tags: ['Architecture', 'Cloudflare', 'StrawVerse']
   },
   {
     date: 'MAY 14, 2026',
     title: 'Manual Season Selector',
-    decoration: '/anime-frieren.gif',
+    decoration: `${import.meta.env.BASE_URL}anime-frieren.gif`,
     description: 'Added a manual season and episode selector. Users can now choose the correct TMDB source to fix mapping issues for some series.',
     tags: ['UI', 'Player', 'UX']
   },
   {
     date: 'MAY 14, 2026',
     title: 'Sync Engine Updates',
-    decoration: '/cute-angry.gif',
+    decoration: `${import.meta.env.BASE_URL}cute-angry.gif`,
     description: 'Updated the matching system that links AniList episode names with TMDB metadata to calculate offsets for split-cours and sequels.',
     tags: ['Sync', 'Engine', 'Backend']
   },
   {
     date: 'MAY 14, 2026',
     title: 'Hide Unaired Episodes',
-    decoration: '/akane-shinjo-anime.gif',
+    decoration: `${import.meta.env.BASE_URL}akane-shinjo-anime.gif`,
     description: 'Added a check for real-time airing schedules so that unaired episodes are hidden from the UI.',
     tags: ['UI', 'Airing', 'Logic']
   },
   {
     date: 'MAY 14, 2026',
     title: 'Asset Path Fixes',
-    decoration: '/anime-transparent.gif',
+    decoration: `${import.meta.env.BASE_URL}anime-transparent.gif`,
     description: 'Fixed root-path issues for public assets like logo.png so they load correctly across the site.',
     tags: ['Fix', 'Asset', 'Branding']
   },
@@ -118,7 +118,7 @@ const CHANGELOGS = [
     date: 'MAY 04, 2026',
     featured: true,
     variant: 'core',
-    decoration: '/transparent-hunni-hime.gif',
+    decoration: `${import.meta.env.BASE_URL}transparent-hunni-hime.gif`,
     title: 'Vercel Blob Caching',
     description: 'Removed MongoDB, YouTube integration, and user authentication. Switched to a Vercel Blob caching layer that proxies TMDB and AniList API calls to improve load speeds and prevent rate limits.',
     highlights: [
@@ -133,7 +133,7 @@ const CHANGELOGS = [
   {
     date: 'MAY 04, 2026',
     title: 'Removed Features',
-    decoration: '/one-piece.gif',
+    decoration: `${import.meta.env.BASE_URL}one-piece.gif`,
     description: 'Removed YouTube integration, curated lists, user profiles, and TMDB watchlists to reduce complexity and focus on the main catalog features.',
     tags: ['Optimization', 'System', 'Cleanup']
   },
@@ -141,7 +141,7 @@ const CHANGELOGS = [
     date: 'APR 27, 2026',
     featured: true,
     variant: 'core',
-    decoration: '/frieren-popsicle.gif',
+    decoration: `${import.meta.env.BASE_URL}frieren-popsicle.gif`,
     title: 'Navigation and API Routing',
     description: 'Made navigation consistent across desktop, mobile, and TV. Improved how AniList queries are routed to TMDB, and added UI messages for API rate limits.',
     highlights: [
@@ -156,7 +156,7 @@ const CHANGELOGS = [
     date: 'APR 24, 2026',
     featured: true,
     variant: 'core',
-    decoration: '/sad-eyes-sad.gif',
+    decoration: `${import.meta.env.BASE_URL}sad-eyes-sad.gif`,
     title: 'Ad-Supported Player',
     description: 'Updated video player sources. Due to provider restrictions, the current video player includes pop-up ads when clicked.',
     highlights: [
@@ -169,27 +169,27 @@ const CHANGELOGS = [
   {
     date: 'APR 24, 2026',
     title: 'TV Search Portal',
-    decoration: '/dance-cute.gif',
+    decoration: `${import.meta.env.BASE_URL}dance-cute.gif`,
     description: 'Added a search page to the main navigation for users on TV devices.',
     tags: ['TV', 'Discovery', 'UX']
   },
   {
     date: 'APR 24, 2026',
     title: 'System Cleanup',
-    decoration: '/mol7ot-mol7.gif',
+    decoration: `${import.meta.env.BASE_URL}mol7ot-mol7.gif`,
     description: 'Removed old maintenance scripts and cleaned up internal code to improve performance.',
     tags: ['Optimization', 'System', 'Performance']
   },
   {
     date: 'APR 21, 2026',
     title: 'YouTube Updates',
-    decoration: '/anime-couple.webp',
+    decoration: `${import.meta.env.BASE_URL}anime-couple.webp`,
     description: 'Updated the YouTube integration to sync data with the local database and match the layout of the main site.',
     tags: ['YouTube', 'Persistence', 'UI/UX', 'System']
   },
   {
     date: 'APR 21, 2026',
-    decoration: '/marin-marin-kitagawa.gif',
+    decoration: `${import.meta.env.BASE_URL}marin-marin-kitagawa.gif`,
     title: 'Privacy Policy and Sync Updates',
     description: 'Added a Privacy Policy page and updated the user identity sync features.',
     tags: ['Security', 'Identity', 'Privacy', 'System']
@@ -197,7 +197,7 @@ const CHANGELOGS = [
   {
     date: 'APR 21, 2026',
     title: 'YouTube Quota Limits',
-    decoration: '/shigure-ui-dance.gif',
+    decoration: `${import.meta.env.BASE_URL}shigure-ui-dance.gif`,
     description: 'Added error messages to tell users when the shared YouTube API quota has been reached.',
     tags: ['Bug Fix', 'System', 'YouTube']
   },
@@ -205,7 +205,7 @@ const CHANGELOGS = [
     date: 'APR 21, 2026',
     featured: true,
     variant: 'core',
-    decoration: '/shinepost-anime.gif',
+    decoration: `${import.meta.env.BASE_URL}shinepost-anime.gif`,
     title: 'UI Updates',
     description: 'Updated the interface layout for mobile, desktop, and smart TVs to make navigation easier.',
     highlights: [
@@ -219,7 +219,7 @@ const CHANGELOGS = [
   {
     date: 'APR 20, 2026',
     title: 'Changelog Design',
-    decoration: '/rem-transparent.gif',
+    decoration: `${import.meta.env.BASE_URL}rem-transparent.gif`,
     description: 'Redesigned the changelog page with a new layout and typography.',
     tags: ['UI/UX', 'System', 'Editorial']
   },
@@ -227,7 +227,7 @@ const CHANGELOGS = [
     date: 'APR 20, 2026',
     featured: true,
     variant: 'youtube',
-    decoration: '/anime-snow.gif',
+    decoration: `${import.meta.env.BASE_URL}anime-snow.gif`,
     title: 'YouTube Features',
     description: 'Updated the YouTube player and added Google OAuth for profile syncing. Also added recommended videos and infinite scrolling.',
     highlights: [
@@ -241,35 +241,35 @@ const CHANGELOGS = [
   {
     date: 'APR 20, 2026',
     title: 'Backend Changes',
-    decoration: '/anime-dance.gif',
+    decoration: `${import.meta.env.BASE_URL}anime-dance.gif`,
     description: 'Updated the backend database structure for syncing user lists.',
     tags: ['Migration', 'Systems', 'Backend']
   },
   {
     date: 'APR 20, 2026',
     title: 'Automated Sync',
-    decoration: '/ramen-cute-ramen.webp',
+    decoration: `${import.meta.env.BASE_URL}ramen-cute-ramen.webp`,
     description: 'Added a script to run every 6 hours to sync services in the background.',
     tags: ['Systems', 'Relay', 'Persistence']
   },
   {
     date: 'APR 20, 2026',
     title: 'UI Adjustments',
-    decoration: '/anime-dancing.gif',
+    decoration: `${import.meta.env.BASE_URL}anime-dancing.gif`,
     description: 'Fixed API endpoints for production and updated the mobile header design.',
     tags: ['UI', 'Branding', 'Systems']
   },
   {
     date: 'APR 19, 2026',
     title: 'Terms of Service',
-    decoration: '/among-us-imposter.gif',
+    decoration: `${import.meta.env.BASE_URL}among-us-imposter.gif`,
     description: 'Added a Terms of Service page and links to the footer.',
     tags: ['Legal', 'System', 'Compliance']
   },
   {
     date: 'APR 19, 2026',
     title: 'Login Redirects',
-    decoration: '/owo-what.webp',
+    decoration: `${import.meta.env.BASE_URL}owo-what.webp`,
     description: 'Users are now redirected to the login page if they try to save favorites while logged out.',
     tags: ['UX', 'System', 'Improvement']
   },
@@ -277,7 +277,7 @@ const CHANGELOGS = [
     date: 'APR 19, 2026',
     featured: true,
     variant: 'auth',
-    decoration: '/kawaii-anime.webp',
+    decoration: `${import.meta.env.BASE_URL}kawaii-anime.webp`,
     title: 'TMDB Authentication',
     description: 'Switched to TMDB OAuth for user login and favorite syncing.',
     highlights: [
@@ -290,7 +290,7 @@ const CHANGELOGS = [
   {
     date: 'APR 19, 2026',
     title: 'Trailers and Watchlists',
-    decoration: '/oshi-no-ko-ruby.gif',
+    decoration: `${import.meta.env.BASE_URL}oshi-no-ko-ruby.gif`,
     description: 'Added features to watch trailers and save items to a TMDB watchlist.',
     tags: ['Features', 'TMDB', 'UI']
   },
@@ -298,7 +298,7 @@ const CHANGELOGS = [
     date: 'APR 19, 2026',
     featured: true,
     variant: 'tmdb',
-    decoration: '/asuka-anime.gif',
+    decoration: `${import.meta.env.BASE_URL}asuka-anime.gif`,
     title: 'Detail Page Layout',
     description: 'Updated the design of the detail pages and added horizontal scrolling lists for media.',
     highlights: [
@@ -311,7 +311,7 @@ const CHANGELOGS = [
   {
     date: 'APR 19, 2026',
     title: 'Changelog Added',
-    decoration: '/jump-happy.webp',
+    decoration: `${import.meta.env.BASE_URL}jump-happy.webp`,
     description: 'Created this changelog to track site updates.',
     tags: ['Launch', 'System']
   }
@@ -558,7 +558,7 @@ function MangaHeroSection() {
           <div className="relative w-full lg:w-[45%] max-w-lg">
             <div className="manga-panel-card rounded-2xl p-1" style={{ '--panel-accent': '#ff6b9d' }}>
               <img
-                src="/mangapanelwebp.webp"
+                src={`${import.meta.env.BASE_URL}mangapanelwebp.webp`}
                 alt="Manga Panel"
                 className="panel-image w-full rounded-xl"
                 style={{ aspectRatio: '4/5', objectFit: 'cover' }}
@@ -573,13 +573,13 @@ function MangaHeroSection() {
             </div>
             {/* Corner gifs */}
             <img
-              src="/frieren-popsicle.gif"
+              src={`${import.meta.env.BASE_URL}frieren-popsicle.gif`}
               alt=""
               className="absolute -top-6 -left-6 w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-lg"
               style={{ animation: 'manga-drift 5s ease-in-out infinite' }}
             />
             <img
-              src="/one-piece-hat-luffy-hat.gif"
+              src={`${import.meta.env.BASE_URL}one-piece-hat-luffy-hat.gif`}
               alt=""
               className="absolute -bottom-4 -right-4 w-14 h-14 md:w-16 md:h-16 object-contain drop-shadow-lg"
               style={{ animation: 'manga-drift 4s ease-in-out infinite', animationDelay: '1s' }}
@@ -691,31 +691,31 @@ function MangaHeroSection() {
           <div className="manga-marquee-track">
             {Array.from({ length: 4 }).map((_, rep) => (
               <div key={rep} className="flex items-center gap-8 px-8 shrink-0">
-                <img src="/cute-pokemon.webp" alt="" className="w-8 h-8 object-contain" />
+                <img src={`${import.meta.env.BASE_URL}cute-pokemon.webp`} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
                   MANGA READER
                 </span>
-                <img src="/oshi-no-ko-ruby.gif" alt="" className="w-8 h-8 object-contain" />
+                <img src={`${import.meta.env.BASE_URL}oshi-no-ko-ruby.gif`} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
                   MULTI-PROVIDER
                 </span>
-                <img src="/kawaii-anime.webp" alt="" className="w-8 h-8 object-contain" />
+                <img src={`${import.meta.env.BASE_URL}kawaii-anime.webp`} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
                   WEEBCENTRAL
                 </span>
-                <img src="/jump-happy.webp" alt="" className="w-8 h-8 object-contain" />
+                <img src={`${import.meta.env.BASE_URL}jump-happy.webp`} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
                   ALLMANGA
                 </span>
-                <img src="/ramen-cute-ramen.webp" alt="" className="w-8 h-8 object-contain" />
+                <img src={`${import.meta.env.BASE_URL}ramen-cute-ramen.webp`} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
                   ANINEKO
                 </span>
-                <img src="/cute-angry.gif" alt="" className="w-8 h-8 object-contain" />
+                <img src={`${import.meta.env.BASE_URL}cute-angry.gif`} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
                   ANIMEPAHE
                 </span>
-                <img src="/owo-what.webp" alt="" className="w-8 h-8 object-contain" />
+                <img src={`${import.meta.env.BASE_URL}owo-what.webp`} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-white/10 text-sm font-black tracking-[0.3em] uppercase font-sans whitespace-nowrap">
                   ANIKOTO
                 </span>
@@ -730,10 +730,10 @@ function MangaHeroSection() {
           visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
         )}>
           {[
-            { img: '/shinepost-anime.gif', label: 'Browse', sub: 'Discover manga' },
-            { img: '/anime-dancing.gif', label: 'Search', sub: 'Find anything' },
-            { img: '/akane-shinjo-anime.gif', label: 'Read', sub: 'Full-screen reader' },
-            { img: '/sad-eyes-sad.gif', label: 'Switch', sub: 'Change providers' },
+            { img: `${import.meta.env.BASE_URL}shinepost-anime.gif`, label: 'Browse', sub: 'Discover manga' },
+            { img: `${import.meta.env.BASE_URL}anime-dancing.gif`, label: 'Search', sub: 'Find anything' },
+            { img: `${import.meta.env.BASE_URL}akane-shinjo-anime.gif`, label: 'Read', sub: 'Full-screen reader' },
+            { img: `${import.meta.env.BASE_URL}sad-eyes-sad.gif`, label: 'Switch', sub: 'Change providers' },
           ].map((feat, i) => (
             <div key={i} className="manga-panel-card rounded-xl overflow-hidden group" style={{ '--panel-accent': ['#ff6b9d','#00f2ff','#a78bfa','#fbbf24'][i] }}>
               <div className="relative h-28 md:h-36 overflow-hidden">

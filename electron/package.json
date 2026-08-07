@@ -21,6 +21,7 @@
     "package:linux": "npm run prepare-dist && electron-builder --linux --publish never"
   },
   "build": {
+    "publish": null,
     "appId": "app.miyo.stream",
     "productName": "MIYO",
     "directories": {
@@ -30,7 +31,10 @@
       {
         "from": "backend/",
         "to": "backend",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*",
+          "node_modules/**/*"
+        ]
       }
     ],
     "files": [
@@ -45,7 +49,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "MIYO.Setup.${version}.exe",
@@ -62,13 +68,17 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "category": "AudioVideo",
       "icon": "assets/icon.png",
       "artifactName": "MIYO-${version}.${ext}",
-      "mimeTypes": ["x-scheme-handler/miyo"]
+      "mimeTypes": [
+        "x-scheme-handler/miyo"
+      ]
     },
     "icon": "assets/icon.png",
     "compression": "normal",
@@ -77,6 +87,7 @@
     ]
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "ffmpeg-static": "^5.3.0"
   },
   "devDependencies": {

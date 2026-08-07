@@ -185,7 +185,7 @@ const __dirname = path.dirname(__filename);
 const setupScript = path.join(__dirname, 'setup.cjs');
 if (fs.existsSync(setupScript)) {
   try {
-    execSync('node setup.cjs', { stdio: 'inherit' });
+    execSync(`"${process.execPath}" "${setupScript}"`, { stdio: 'inherit' });
   } catch (e) {
     console.warn('[MIYO] Auto setup warning:', e.message);
   }
