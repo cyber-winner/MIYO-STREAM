@@ -40,6 +40,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "hls.js": "^1.6.16",
+    "mongoose": "^9.9.2",
     "mux.js": "^6.3.0",
     "puppeteer-real-browser": "^1.4.4",
     "react": "^18.2.0",

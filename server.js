@@ -11,6 +11,21 @@ import child_process, { exec, execSync, spawn } from 'child_process';
 import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 
+// ── Database Layer ──
+const dbReady = import('./utils/db.js').then(m => m.default || m).catch(() => null);
+let db = null;
+(async () => {
+  const dbModule = await dbReady;
+  if (dbModule) {
+    db = dbModule;
+    await db.connectDB();
+    // Initial ban cache load
+    await db.refreshBanCache();
+    // Refresh ban cache every 60s
+    setInterval(() => { db.refreshBanCache(); }, 60000);
+  }
+})();
+
 // Protect against unhandled ENOENT error events on spawned child processes (e.g. ps, xvfb)
 const rawSpawn = child_process.spawn;
 child_process.spawn = function (...args) {
@@ -195,7 +210,53 @@ const app = express();
 const port = process.env.SERVER_PORT || process.env.PORT || 3000;
 app.set('trust proxy', 1);
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+// ═══════════════════════════════════════════════════════════════
+// ── Ban Enforcement Middleware (runs on ALL routes) ──
+// ═══════════════════════════════════════════════════════════════
+app.use((req, res, next) => {
+  if (!db || !db.isDBConnected()) return next();
+  const clientIP = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
+  if (db.isIPBanned(clientIP)) {
+    return res.status(403).json({ error: 'Access denied.' });
+  }
+  // Check fingerprint ban via cookie/header
+  const fpId = req.headers['x-fingerprint-id'] || '';
+  if (fpId && db.isFingerprintBanned(fpId)) {
+    return res.status(403).json({ error: 'Access denied.' });
+  }
+  next();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ── Analytics Tracking Middleware (tracks all /api/* requests) ──
+// ═══════════════════════════════════════════════════════════════
+app.use('/api', (req, res, next) => {
+  if (!db || !db.isDBConnected()) return next();
+  const startTime = Date.now();
+  const clientIP = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
+  const fpId = req.headers['x-fingerprint-id'] || '';
+
+  const originalEnd = res.end;
+  res.end = function (...args) {
+    const responseTime = Date.now() - startTime;
+    // Fire-and-forget analytics write
+    db.Analytics.create({
+      ip: clientIP,
+      fingerprintId: fpId,
+      endpoint: req.path,
+      method: req.method,
+      statusCode: res.statusCode,
+      responseTime,
+      userAgent: req.headers['user-agent'] || '',
+      rateLimited: res.statusCode === 429,
+    }).catch(() => {});
+    originalEnd.apply(this, args);
+  };
+  next();
+});
+
 const apiLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 150,
@@ -898,6 +959,391 @@ app.get('/api/wt/config', (req, res) => {
   const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
   const host = req.headers.host;
   res.json({ wsUrl: `${protocol}://${host}/ws`, port: port });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── Device Fingerprint Collection Endpoint ──
+// ═══════════════════════════════════════════════════════════════════════
+app.post('/api/fingerprint', async (req, res) => {
+  if (!db || !db.isDBConnected()) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { id, components, collectedAt } = req.body;
+    if (!id || !components) return res.status(400).json({ error: 'Invalid fingerprint data' });
+
+    const clientIP = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
+    const ua = req.headers['user-agent'] || '';
+
+    // Parse browser/OS summary from UA
+    const uaParts = ua.match(/(Chrome|Firefox|Safari|Edge|Opera)\/(\d+)/) || [];
+    const osParts = ua.match(/(Windows NT \d+\.\d+|Mac OS X [\d_]+|Linux|Android [\d.]+|iPhone OS [\d_]+)/) || [];
+    const browserName = uaParts[1] || 'Unknown';
+    const osName = osParts[1]?.replace(/_/g, '.') || 'Unknown';
+
+    const summary = {
+      browser: `${browserName} ${uaParts[2] || ''}`.trim(),
+      os: osName,
+      gpu: components.webgl?.renderer || 'Unknown',
+      screen: components.hardware?.screen ? `${components.hardware.screen.width}x${components.hardware.screen.height}` : 'Unknown',
+      cpuCores: components.hardware?.cpuCores || null,
+      deviceMemory: components.hardware?.deviceMemory || null,
+      timezone: components.locale?.timezone || null,
+      language: components.locale?.language || null,
+      fontCount: components.fonts?.length || 0,
+      voiceCount: components.voices?.length || 0,
+    };
+
+    // Upsert fingerprint
+    await db.Fingerprint.findOneAndUpdate(
+      { fingerprintId: id },
+      {
+        $set: { components, summary, lastSeen: new Date() },
+        $addToSet: { ips: clientIP, userAgents: ua },
+        $inc: { visitCount: 1 },
+        $setOnInsert: { firstSeen: new Date() },
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error('[MIYO-FP] Fingerprint save error:', err.message);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── Admin Authentication & API ──
+// ═══════════════════════════════════════════════════════════════════════
+
+// Google ID Token verification (without googleapis library — uses tokeninfo endpoint)
+async function verifyGoogleToken(idToken) {
+  try {
+    const response = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    const payload = response.data;
+    if (payload.aud !== process.env.GOOGLE_CLIENT_ID) return null;
+    return {
+      email: payload.email,
+      name: payload.name || payload.email,
+      picture: payload.picture || '',
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Generate admin session token
+function generateSessionToken() {
+  return crypto.randomBytes(48).toString('hex');
+}
+
+// Admin auth middleware
+async function requireAdmin(req, res, next) {
+  if (!db || !db.isDBConnected()) return res.status(503).json({ error: 'Database unavailable' });
+  const token = req.headers.authorization?.replace('Bearer ', '') || req.query.token;
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+  try {
+    const session = await db.AdminSession.findOne({ token, expiresAt: { $gt: new Date() } });
+    if (!session) return res.status(401).json({ error: 'Session expired or invalid' });
+    if (session.email !== process.env.ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' });
+    req.adminUser = { email: session.email, name: session.name, picture: session.picture };
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Auth check failed' });
+  }
+}
+
+// ── Auth endpoints ──
+app.post('/api/admin/auth/google', async (req, res) => {
+  if (!db || !db.isDBConnected()) return res.status(503).json({ error: 'Database unavailable' });
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Missing credential' });
+
+    const user = await verifyGoogleToken(credential);
+    if (!user) return res.status(401).json({ error: 'Invalid Google token' });
+
+    // Check if email matches admin
+    if (user.email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'You are not authorized to access the admin panel.' });
+    }
+
+    // Create session
+    const token = generateSessionToken();
+    await db.AdminSession.create({
+      token,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
+
+    res.json({ token, user });
+  } catch (err) {
+    console.error('[MIYO-ADMIN] Auth error:', err.message);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+app.get('/api/admin/auth/verify', async (req, res) => {
+  if (!db || !db.isDBConnected()) return res.status(503).json({ error: 'Database unavailable' });
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'No token' });
+
+  try {
+    const session = await db.AdminSession.findOne({ token, expiresAt: { $gt: new Date() } });
+    if (!session || session.email !== process.env.ADMIN_EMAIL) {
+      return res.status(401).json({ error: 'Invalid session' });
+    }
+    res.json({ user: { email: session.email, name: session.name, picture: session.picture } });
+  } catch (err) {
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+app.post('/api/admin/auth/logout', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token && db?.isDBConnected()) {
+    await db.AdminSession.deleteOne({ token }).catch(() => {});
+  }
+  res.json({ ok: true });
+});
+
+// ── Admin: Dashboard Stats ──
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const hourAgo = new Date(now - 60 * 60 * 1000);
+
+    const [totalDevices, totalBans, requestsToday, requestsHour, rateLimitHitsToday, uniqueIpsToday] = await Promise.all([
+      db.Fingerprint.countDocuments(),
+      db.Ban.countDocuments({ active: true }),
+      db.Analytics.countDocuments({ timestamp: { $gte: todayStart } }),
+      db.Analytics.countDocuments({ timestamp: { $gte: hourAgo } }),
+      db.Analytics.countDocuments({ timestamp: { $gte: todayStart }, rateLimited: true }),
+      db.Analytics.distinct('ip', { timestamp: { $gte: todayStart } }).then(ips => ips.length),
+    ]);
+
+    res.json({
+      totalDevices,
+      totalBans,
+      requestsToday,
+      requestsPerHour: requestsHour,
+      rateLimitHitsToday,
+      uniqueIpsToday,
+      serverUptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Devices (Fingerprints) ──
+app.get('/api/admin/devices', requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, search = '', sort = '-lastSeen' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = search ? {
+      $or: [
+        { fingerprintId: { $regex: search, $options: 'i' } },
+        { ips: { $regex: search, $options: 'i' } },
+        { 'summary.browser': { $regex: search, $options: 'i' } },
+        { 'summary.os': { $regex: search, $options: 'i' } },
+        { 'summary.gpu': { $regex: search, $options: 'i' } },
+        { 'summary.timezone': { $regex: search, $options: 'i' } },
+      ]
+    } : {};
+
+    const [devices, total] = await Promise.all([
+      db.Fingerprint.find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      db.Fingerprint.countDocuments(query),
+    ]);
+
+    res.json({ devices, total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/devices/:id', requireAdmin, async (req, res) => {
+  try {
+    const device = await db.Fingerprint.findOne({ fingerprintId: req.params.id }).lean();
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+
+    // Also get recent request analytics for this device
+    const recentRequests = await db.Analytics.find({ fingerprintId: req.params.id })
+      .sort('-timestamp')
+      .limit(100)
+      .lean();
+
+    // Check if banned
+    const ban = await db.Ban.findOne({ type: 'fingerprint', value: req.params.id, active: true });
+
+    res.json({ device, recentRequests, banned: !!ban, banDetails: ban });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Analytics ──
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
+  try {
+    const { hours = 24 } = req.query;
+    const since = new Date(Date.now() - parseInt(hours) * 60 * 60 * 1000);
+
+    // Top endpoints
+    const topEndpoints = await db.Analytics.aggregate([
+      { $match: { timestamp: { $gte: since } } },
+      { $group: { _id: '$endpoint', count: { $sum: 1 }, avgResponseTime: { $avg: '$responseTime' } } },
+      { $sort: { count: -1 } },
+      { $limit: 20 },
+    ]);
+
+    // Top IPs
+    const topIPs = await db.Analytics.aggregate([
+      { $match: { timestamp: { $gte: since } } },
+      { $group: { _id: '$ip', count: { $sum: 1 }, rateLimitHits: { $sum: { $cond: ['$rateLimited', 1, 0] } } } },
+      { $sort: { count: -1 } },
+      { $limit: 20 },
+    ]);
+
+    // Requests per hour (for chart)
+    const requestsPerHour = await db.Analytics.aggregate([
+      { $match: { timestamp: { $gte: since } } },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%dT%H:00:00', date: '$timestamp' },
+          },
+          count: { $sum: 1 },
+          rateLimited: { $sum: { $cond: ['$rateLimited', 1, 0] } },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    res.json({ topEndpoints, topIPs, requestsPerHour });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Abuse Detection ──
+app.get('/api/admin/analytics/abuse', requireAdmin, async (req, res) => {
+  try {
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    // IPs with most rate limit hits in last hour
+    const rateLimitAbusers = await db.Analytics.aggregate([
+      { $match: { timestamp: { $gte: hourAgo }, rateLimited: true } },
+      { $group: { _id: '$ip', hits: { $sum: 1 } } },
+      { $sort: { hits: -1 } },
+      { $limit: 20 },
+    ]);
+
+    // Burst detection: IPs with >100 requests in last 5 minutes
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const burstAbusers = await db.Analytics.aggregate([
+      { $match: { timestamp: { $gte: fiveMinAgo } } },
+      { $group: { _id: '$ip', count: { $sum: 1 }, endpoints: { $addToSet: '$endpoint' } } },
+      { $match: { count: { $gt: 100 } } },
+      { $sort: { count: -1 } },
+    ]);
+
+    // Scraping indicators: IPs hitting many unique endpoints
+    const scrapers = await db.Analytics.aggregate([
+      { $match: { timestamp: { $gte: hourAgo } } },
+      { $group: { _id: '$ip', uniqueEndpoints: { $addToSet: '$endpoint' }, totalRequests: { $sum: 1 } } },
+      { $project: { _id: 1, endpointCount: { $size: '$uniqueEndpoints' }, totalRequests: 1 } },
+      { $match: { endpointCount: { $gt: 30 } } },
+      { $sort: { endpointCount: -1 } },
+      { $limit: 20 },
+    ]);
+
+    res.json({ rateLimitAbusers, burstAbusers, scrapers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Bans ──
+app.get('/api/admin/bans', requireAdmin, async (req, res) => {
+  try {
+    const bans = await db.Ban.find().sort('-bannedAt').lean();
+    res.json({ bans });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/ban', requireAdmin, async (req, res) => {
+  try {
+    const { type, value, reason, expiresAt } = req.body;
+    if (!type || !value) return res.status(400).json({ error: 'Type and value are required' });
+    if (!['ip', 'fingerprint'].includes(type)) return res.status(400).json({ error: 'Type must be ip or fingerprint' });
+
+    // Check if already banned
+    const existing = await db.Ban.findOne({ type, value, active: true });
+    if (existing) return res.status(409).json({ error: 'Already banned' });
+
+    const ban = await db.Ban.create({
+      type,
+      value,
+      reason: reason || '',
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      bannedBy: req.adminUser?.email || 'admin',
+    });
+
+    db.invalidateBanCache();
+    await db.refreshBanCache();
+
+    res.json({ ok: true, ban });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/ban/:id', requireAdmin, async (req, res) => {
+  try {
+    const ban = await db.Ban.findByIdAndUpdate(req.params.id, { active: false }, { new: true });
+    if (!ban) return res.status(404).json({ error: 'Ban not found' });
+
+    db.invalidateBanCache();
+    await db.refreshBanCache();
+
+    res.json({ ok: true, ban });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Live Request Log ──
+app.get('/api/admin/requests', requireAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 100, ip, endpoint, fingerprintId } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = {};
+    if (ip) query.ip = ip;
+    if (endpoint) query.endpoint = { $regex: endpoint, $options: 'i' };
+    if (fingerprintId) query.fingerprintId = fingerprintId;
+
+    const [requests, total] = await Promise.all([
+      db.Analytics.find(query).sort('-timestamp').skip(skip).limit(parseInt(limit)).lean(),
+      db.Analytics.countDocuments(query),
+    ]);
+
+    res.json({ requests, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Serve static files ──

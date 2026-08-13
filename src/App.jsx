@@ -26,6 +26,7 @@ const MangaDetail = lazy(() => import('./pages/MangaDetail').then(m => ({ defaul
 const MangaReader = lazy(() => import('./pages/MangaReader').then(m => ({ default: m.MangaReader })));
 const DevConsole = lazy(() => import('./pages/DevConsole').then(m => ({ default: m.DevConsole })));
 const Downloads = lazy(() => import('./pages/Downloads').then(m => ({ default: m.Downloads })));
+const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
     <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
@@ -46,6 +47,8 @@ export default function App() {
                 <Route path="/watch-together" element={<WatchTogether />} />
                 {/* Manga Reader — full-screen immersive reading */}
                 <Route path="/manga/reader/:provider/:chapterId" element={<MangaReader />} />
+                {/* Admin Panel — hidden route, NOT linked from navigation */}
+                <Route path="/admin" element={<Admin />} />
                 {/* All other routes go through the normal AppShell layout */}
                 <Route path="*" element={
                   <AppShell>

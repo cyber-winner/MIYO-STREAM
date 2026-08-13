@@ -18,11 +18,59 @@ export function Privacy() {
       content: "For non-anime content, MIYO-STREAM does not host any video content. All video playback is handled via embedded iframes from third-party providers. When you stream an embedded video, the player provider may collect IP addresses, device information, or utilize cookies to deliver the stream."
     },
     {
-      title: "5. Analytics and Server Logs",
-      content: "Because MIYO-STREAM is deployed via an Express backend to proxy video segments, standard server logs (such as IP addresses, browser types, and timestamped requests) may be temporarily captured by the hosting provider for security and rate-limiting purposes. We do not use this data for marketing."
+      title: "5. Device Fingerprinting & Anti-Abuse Data Collection",
+      content: "To protect the platform from abuse, automated scraping, and denial-of-service attacks, MIYO-STREAM collects anonymous device fingerprint data. This fingerprint is a non-reversible hash generated from your browser and hardware characteristics. It does not identify you personally — it identifies your device configuration. The following categories of technical data are collected:"
     },
     {
-      title: "6. Contact Us",
+      title: "5.1 Graphics & Hardware Rendering Data",
+      content: "We collect a hash of how your browser renders 2D canvas elements and 3D WebGL scenes. Sub-pixel rendering differences caused by GPU drivers, anti-aliasing implementations, and graphics hardware yield a distinct signature. We also collect your GPU vendor name, renderer identifier, and supported WebGL capabilities and extensions."
+    },
+    {
+      title: "5.2 Audio Processing Characteristics",
+      content: "We generate an audio fingerprint by processing a test signal through your browser's AudioContext pipeline (oscillator → compressor → analyser). Subtle differences in DSP implementations across browsers and operating systems produce a unique hash. We also record audio sample rate and channel count."
+    },
+    {
+      title: "5.3 Hardware Architecture & System Specs",
+      content: "We collect CPU core count (navigator.hardwareConcurrency), device memory (navigator.deviceMemory), screen resolution, color depth, device pixel ratio, color gamut support (sRGB/P3/Rec2020), HDR capability, and touch point count. Battery status may be queried where supported."
+    },
+    {
+      title: "5.4 Installed System Fonts & Speech Engines",
+      content: "We detect which system fonts are installed by measuring text rendering dimensions against baseline fonts. We also enumerate available text-to-speech voices via the Web Speech API. The specific combination of installed fonts and TTS engines is highly unique to each system."
+    },
+    {
+      title: "5.5 Browser Environment & Execution Quirks",
+      content: "We collect your User-Agent string, platform identifier, PDF viewer status, plugin count, cookie enablement status, Do Not Track setting, JavaScript engine type (detected via error stack format differences), and supported media codec profiles for audio and video formats."
+    },
+    {
+      title: "5.6 Time, Locale & Internationalization",
+      content: "We collect your IANA timezone identifier, UTC offset, daylight saving time configuration, preferred language(s), and Intl API formatting rules for numbers, dates, and currency. These locale signals are combined with other attributes to strengthen the fingerprint."
+    },
+    {
+      title: "5.7 Accessibility & System Preferences",
+      content: "We detect your operating system's accessibility preferences including color scheme (dark/light), reduced motion, reduced transparency, high contrast mode, and forced colors settings. These are queried via CSS media queries and are never used to discriminate — only to differentiate device configurations."
+    },
+    {
+      title: "5.8 Network & Transport Information",
+      content: "We collect network connection type (WiFi/cellular), effective bandwidth, round-trip time (RTT), and data saver status via the Network Information API where available. On the server side, we record your IP address, TLS handshake metadata, and Cloudflare security headers."
+    },
+    {
+      title: "6. Purpose of Device Fingerprinting",
+      content: "Device fingerprints are used exclusively for: (a) detecting and blocking automated scrapers and bots, (b) enforcing API rate limits and preventing abuse, (c) identifying and banning devices engaged in denial-of-service patterns, and (d) platform security monitoring. Fingerprints are anonymous device identifiers — they do not link to any personal identity, email, or account."
+    },
+    {
+      title: "7. Data Retention & Storage",
+      content: "Fingerprint data is stored in a secured MongoDB database. Request analytics logs are automatically deleted after 30 days via TTL indexes. Device fingerprint records are retained as long as the device continues to visit the platform. Admin session tokens expire after 7 days. All data is encrypted in transit via TLS."
+    },
+    {
+      title: "8. Analytics and Server Logs",
+      content: "MIYO-STREAM logs API requests including endpoint, HTTP method, response status code, response time, IP address, and device fingerprint ID. These logs are used for platform monitoring, abuse detection, and performance optimization. They are retained for 30 days and then automatically purged."
+    },
+    {
+      title: "9. Administrative Access",
+      content: "Platform administration is restricted to a single authorized administrator authenticated via Google OAuth 2.0. The admin panel provides access to aggregated device fingerprints, request analytics, ban management, and abuse detection reports. No personal user data is accessible through the admin panel."
+    },
+    {
+      title: "10. Contact Us",
       content: "If you have any questions about this Privacy Policy or how we handle data, please open an issue on our official GitHub repository."
     }
   ];
@@ -34,7 +82,7 @@ export function Privacy() {
             Privacy <span className="text-accent animate-rgb-shift">Policy</span>
           </h1>
           <p className="text-text-secondary text-sm font-bold uppercase tracking-widest opacity-60">
-            Last Updated: June 2026
+            Last Updated: August 2026
           </p>
         </div>
         <div className="space-y-12">
