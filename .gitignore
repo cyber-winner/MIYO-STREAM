@@ -1,32 +1,22 @@
-# ─────────────────────────────────────────────
-#  Dependencies
-# ─────────────────────────────────────────────
+# Dependencies
 node_modules/
 
-# ─────────────────────────────────────────────
-#  Production / Build Output
-# ─────────────────────────────────────────────
+# Production / Build Output
 dist/
 dist-ssr/
 dist-native/
 build/
 
-# ─────────────────────────────────────────────
-#  Vite / Bundler
-# ─────────────────────────────────────────────
+# Vite / Bundler
 .vite/
 *.local
 
-# ─────────────────────────────────────────────
-#  Environment Variables
-# ─────────────────────────────────────────────
+# Environment Variables
 .env
 .env.*
 !.env.example
 
-# ─────────────────────────────────────────────
-#  Logs
-# ─────────────────────────────────────────────
+# Logs
 logs/
 *.log
 npm-debug.log*
@@ -35,9 +25,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# ─────────────────────────────────────────────
-#  Editor / IDE
-# ─────────────────────────────────────────────
+# Editor / IDE
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
@@ -49,9 +37,7 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# ─────────────────────────────────────────────
-#  OS Generated Files
-# ─────────────────────────────────────────────
+# OS Generated Files
 .DS_Store
 Thumbs.db
 ehthumbs.db
@@ -63,44 +49,30 @@ Icon
 .Trashes
 desktop.ini
 
-# ─────────────────────────────────────────────
-#  Cloudflare Bypass Runtime
-# ─────────────────────────────────────────────
+# Cloudflare Bypass Runtime
 .cf-store.json
 .local-browsers/
 libs/
 
-# ─────────────────────────────────────────────
-#  Cache / Runtime Data
-# ─────────────────────────────────────────────
+# Cache / Runtime Data
 .cache/
 
-# ─────────────────────────────────────────────
-#  Deploy Scripts (local-only)
-# ─────────────────────────────────────────────
+# Deploy Scripts (local-only)
 deploy.js
 fast_deploy.js
 
-# ─────────────────────────────────────────────
-#  Internal References
-# ─────────────────────────────────────────────
+# Internal References
 .strawverse-ref/
 
-# ─────────────────────────────────────────────
-#  Watch Together — Go Server
-# ─────────────────────────────────────────────
+# Watch Together — Go Server
 wt-server-bin
 wt-server/go.sum
 
-# ─────────────────────────────────────────────
-#  Tauri (Rust) Build
-# ─────────────────────────────────────────────
+# Tauri (Rust) Build
 src-tauri/target/
 src-tauri/gen/schemas/
 
-# ─────────────────────────────────────────────
-#  Android / Capacitor Build
-# ─────────────────────────────────────────────
+# Android / Capacitor Build
 android/.gradle/
 android/build/
 android/app/build/
@@ -110,8 +82,12 @@ android/capacitor-cordova-android-plugins/build/
 *.keystore
 !debug.keystore
 
-# ─────────────────────────────────────────────
-#  Agent / AI Tools
-# ─────────────────────────────────────────────
+# Agent / AI Tools
 graphify-out/
 .agents/
+
+# Electron Backend
+backend_modules/
+*.db.gz
+electron/release/
+electron/squashfs-root/
