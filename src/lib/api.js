@@ -74,11 +74,27 @@ export const api = {
     }
     return fetchTMDB(`/search/${type}`, params);
   },
-  getPopularMovies: (page = 1) => fetchTMDB('/movie/popular', { page }),
-  getNowPlayingMovies: (page = 1) => fetchTMDB('/movie/now_playing', { page }),
-  getTopRatedMovies: (page = 1) => fetchTMDB('/movie/top_rated', { page }),
+  getPopularMovies: async (page = 1) => {
+    const data = await fetchTMDB('/movie/popular', { page });
+    data.results = filterAnime(data.results);
+    return data;
+  },
+  getNowPlayingMovies: async (page = 1) => {
+    const data = await fetchTMDB('/movie/now_playing', { page });
+    data.results = filterAnime(data.results);
+    return data;
+  },
+  getTopRatedMovies: async (page = 1) => {
+    const data = await fetchTMDB('/movie/top_rated', { page });
+    data.results = filterAnime(data.results);
+    return data;
+  },
   getMovieGenres: () => fetchTMDB('/genre/movie/list'),
-  getMoviesByGenre: (genreId, page = 1) => fetchTMDB('/discover/movie', { with_genres: genreId, page, without_genres: '16' }),
+  getMoviesByGenre: async (genreId, page = 1) => {
+    const data = await fetchTMDB('/discover/movie', { with_genres: genreId, page });
+    data.results = filterAnime(data.results);
+    return data;
+  },
   getMovieDetails: (id) =>
     fetchTMDB(`/movie/${id}`, {
       append_to_response:
