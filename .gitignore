@@ -91,3 +91,4 @@ backend_modules/
 *.db.gz
 electron/release/
 electron/squashfs-root/
+electron/
