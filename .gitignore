@@ -61,6 +61,7 @@ libs/
 deploy.js
 fast_deploy.js
 .deploy.env
+.deploy-hashes.json
 
 # Internal References
 .strawverse-ref/

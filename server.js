@@ -19,12 +19,35 @@ let db = null;
   if (dbModule) {
     db = dbModule;
     await db.connectDB();
-    // Initial ban cache load
+    // Initial cache load
     await db.refreshBanCache();
-    // Refresh ban cache every 60s
-    setInterval(() => { db.refreshBanCache(); }, 60000);
+    await db.refreshIpFpCache();
+    // Refresh caches periodically
+    setInterval(() => { db.refreshBanCache(); }, 30000);
+    setInterval(() => { db.refreshIpFpCache(); }, 120000);
   }
 })();
+
+// ── IP Geolocation Helper ──
+async function lookupIPGeo(ip) {
+  if (!db || !db.isDBConnected() || !ip || ip === '::1' || ip === '127.0.0.1') return null;
+  // Check cache first
+  try {
+    const cached = await db.GeoCache.findOne({ ip }).lean();
+    if (cached) return cached;
+  } catch (e) {}
+  // Lookup via ip-api.com (free, no key, 45 req/min)
+  try {
+    const resp = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,mobile,proxy,hosting`, { timeout: 5000 });
+    if (resp.data?.status === 'success') {
+      const geo = { ip, ...resp.data };
+      delete geo.status; delete geo.query;
+      await db.GeoCache.findOneAndUpdate({ ip }, geo, { upsert: true }).catch(() => {});
+      return geo;
+    }
+  } catch (e) {}
+  return null;
+}
 
 // Protect against unhandled ENOENT error events on spawned child processes (e.g. ps, xvfb)
 const rawSpawn = child_process.spawn;
@@ -218,14 +241,36 @@ app.use(express.json({ limit: '1mb' }));
 app.use((req, res, next) => {
   if (!db || !db.isDBConnected()) return next();
   const clientIP = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
+  
+  // 1. Direct IP ban check
   if (db.isIPBanned(clientIP)) {
     return res.status(403).json({ error: 'Access denied.' });
   }
-  // Check fingerprint ban via cookie/header
+  
+  // 2. Check fingerprint ban via header OR cookie
   const fpId = req.headers['x-fingerprint-id'] || '';
   if (fpId && db.isFingerprintBanned(fpId)) {
     return res.status(403).json({ error: 'Access denied.' });
   }
+  
+  // 3. Cross-check: if this IP is associated with a banned fingerprint
+  const linkedFps = db.getFingerprintsForIP(clientIP);
+  for (const linkedFp of linkedFps) {
+    if (db.isFingerprintBanned(linkedFp)) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+  }
+  
+  // 4. Cross-check: if this fingerprint's other IPs are banned
+  if (fpId) {
+    const linkedIPs = db.getIPsForFingerprint(fpId);
+    for (const linkedIP of linkedIPs) {
+      if (db.isIPBanned(linkedIP)) {
+        return res.status(403).json({ error: 'Access denied.' });
+      }
+    }
+  }
+  
   next();
 });
 
@@ -252,6 +297,29 @@ app.use('/api', (req, res, next) => {
       userAgent: req.headers['user-agent'] || '',
       rateLimited: res.statusCode === 429,
     }).catch(() => {});
+
+    // Content access tracking (fire-and-forget)
+    try {
+      const fullPath = req.query?.path || req.path;
+      // TMDB movie/tv detail pages
+      const tmdbMovie = fullPath.match(/^\/movie\/(\d+)$/);
+      const tmdbTv = fullPath.match(/^\/tv\/(\d+)$/);
+      if (req.path === '/tmdb' && tmdbMovie) {
+        db.ContentAccess.create({ contentType: 'movie', contentId: tmdbMovie[1], ip: clientIP, fingerprintId: fpId }).catch(() => {});
+      } else if (req.path === '/tmdb' && tmdbTv) {
+        db.ContentAccess.create({ contentType: 'tv', contentId: tmdbTv[1], ip: clientIP, fingerprintId: fpId }).catch(() => {});
+      }
+      // Anime info pages
+      const animeInfo = req.path.match(/^\/anime\/[^/]+\/info/);
+      if (animeInfo && req.query?.id) {
+        db.ContentAccess.create({ contentType: 'anime', contentId: req.query.id, ip: clientIP, fingerprintId: fpId }).catch(() => {});
+      }
+      // Watch endpoint (anime streaming)
+      if (req.path === '/watch' && req.method === 'POST') {
+        db.ContentAccess.create({ contentType: 'anime', contentId: req.body?.ep || 'unknown', ip: clientIP, fingerprintId: fpId }).catch(() => {});
+      }
+    } catch (e) {}
+
     originalEnd.apply(this, args);
   };
   next();
@@ -973,11 +1041,18 @@ app.post('/api/fingerprint', async (req, res) => {
     const clientIP = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || '';
     const ua = req.headers['user-agent'] || '';
 
-    // Parse browser/OS summary from UA
-    const uaParts = ua.match(/(Chrome|Firefox|Safari|Edge|Opera)\/(\d+)/) || [];
-    const osParts = ua.match(/(Windows NT \d+\.\d+|Mac OS X [\d_]+|Linux|Android [\d.]+|iPhone OS [\d_]+)/) || [];
-    const browserName = uaParts[1] || 'Unknown';
+    // Parse browser/OS summary from UA (enhanced detection)
+    const uaParts = ua.match(/(Chrome|Firefox|Safari|Edge|Opera|OPR|Brave|Vivaldi|SamsungBrowser)\/(\d+)/) || [];
+    const osParts = ua.match(/(Windows NT [\d.]+|Mac OS X [\d_]+|Linux|Android [\d.]+|iPhone OS [\d_]+|CrOS|Ubuntu|Fedora)/) || [];
+    let browserName = uaParts[1] || 'Unknown';
+    if (browserName === 'OPR') browserName = 'Opera';
     const osName = osParts[1]?.replace(/_/g, '.') || 'Unknown';
+    
+    // Detect device type from UA
+    let deviceType = 'Desktop';
+    if (/Mobile|Android.*Mobile|iPhone|iPod/.test(ua)) deviceType = 'Mobile';
+    else if (/iPad|Android(?!.*Mobile)|Tablet/.test(ua)) deviceType = 'Tablet';
+    else if (/Smart-?TV|TV|CrKey|BRAVIA|AppleTV/.test(ua)) deviceType = 'TV';
 
     const summary = {
       browser: `${browserName} ${uaParts[2] || ''}`.trim(),
@@ -990,7 +1065,19 @@ app.post('/api/fingerprint', async (req, res) => {
       language: components.locale?.language || null,
       fontCount: components.fonts?.length || 0,
       voiceCount: components.voices?.length || 0,
+      deviceType,
     };
+
+    // IP Geolocation enrichment (async, non-blocking)
+    const geoUpdate = {};
+    lookupIPGeo(clientIP).then(geo => {
+      if (geo) {
+        db.Fingerprint.findOneAndUpdate(
+          { fingerprintId: id },
+          { $set: { geo: { country: geo.country, countryCode: geo.countryCode, region: geo.regionName, city: geo.city, isp: geo.isp, org: geo.org, as: geo.as, lat: geo.lat, lon: geo.lon } } }
+        ).catch(() => {});
+      }
+    }).catch(() => {});
 
     // Upsert fingerprint
     await db.Fingerprint.findOneAndUpdate(
@@ -1285,11 +1372,10 @@ app.get('/api/admin/bans', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/ban', requireAdmin, async (req, res) => {
   try {
-    const { type, value, reason, expiresAt } = req.body;
+    const { type, value, reason, expiresAt, crossBan } = req.body;
     if (!type || !value) return res.status(400).json({ error: 'Type and value are required' });
     if (!['ip', 'fingerprint'].includes(type)) return res.status(400).json({ error: 'Type must be ip or fingerprint' });
 
-    // Check if already banned
     const existing = await db.Ban.findOne({ type, value, active: true });
     if (existing) return res.status(409).json({ error: 'Already banned' });
 
@@ -1301,10 +1387,34 @@ app.post('/api/admin/ban', requireAdmin, async (req, res) => {
       bannedBy: req.adminUser?.email || 'admin',
     });
 
+    // Auto cross-ban: if banning an IP, also ban all associated fingerprints
+    const crossBans = [];
+    if (crossBan !== false) {
+      if (type === 'ip') {
+        const linkedFps = db.getFingerprintsForIP(value);
+        for (const fp of linkedFps) {
+          const exists = await db.Ban.findOne({ type: 'fingerprint', value: fp, active: true });
+          if (!exists) {
+            const cb = await db.Ban.create({ type: 'fingerprint', value: fp, reason: `Auto: linked to banned IP ${value}`, bannedBy: 'auto-crossban' });
+            crossBans.push(cb);
+          }
+        }
+      } else if (type === 'fingerprint') {
+        const linkedIPs = db.getIPsForFingerprint(value);
+        for (const ip of linkedIPs) {
+          const exists = await db.Ban.findOne({ type: 'ip', value: ip, active: true });
+          if (!exists) {
+            const cb = await db.Ban.create({ type: 'ip', value: ip, reason: `Auto: linked to banned device ${value.slice(0, 12)}...`, bannedBy: 'auto-crossban' });
+            crossBans.push(cb);
+          }
+        }
+      }
+    }
+
     db.invalidateBanCache();
     await db.refreshBanCache();
 
-    res.json({ ok: true, ban });
+    res.json({ ok: true, ban, crossBans });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1341,6 +1451,167 @@ app.get('/api/admin/requests', requireAdmin, async (req, res) => {
     ]);
 
     res.json({ requests, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Top Visited Routes ──
+app.get('/api/admin/routes/top', requireAdmin, async (req, res) => {
+  try {
+    const { hours = 24 } = req.query;
+    const since = new Date(Date.now() - parseInt(hours) * 60 * 60 * 1000);
+    const routes = await db.Analytics.aggregate([
+      { $match: { timestamp: { $gte: since }, endpoint: { $not: /^\/admin/ } } },
+      { $group: { _id: '$endpoint', count: { $sum: 1 }, uniqueIPs: { $addToSet: '$ip' }, avgResponseTime: { $avg: '$responseTime' } } },
+      { $project: { _id: 1, count: 1, uniqueIPCount: { $size: '$uniqueIPs' }, avgResponseTime: 1 } },
+      { $sort: { count: -1 } },
+      { $limit: 30 },
+    ]);
+    res.json({ routes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Top Content (Most Accessed Movies/TV/Anime) ──
+app.get('/api/admin/content/top', requireAdmin, async (req, res) => {
+  try {
+    const { hours = 168, type } = req.query; // default 7 days
+    const since = new Date(Date.now() - parseInt(hours) * 60 * 60 * 1000);
+    const match = { timestamp: { $gte: since } };
+    if (type) match.contentType = type;
+
+    const content = await db.ContentAccess.aggregate([
+      { $match: match },
+      { $group: { _id: { contentType: '$contentType', contentId: '$contentId' }, count: { $sum: 1 }, uniqueViewers: { $addToSet: '$fingerprintId' }, title: { $first: '$title' }, lastAccessed: { $max: '$timestamp' } } },
+      { $project: { _id: 1, count: 1, viewerCount: { $size: '$uniqueViewers' }, title: 1, lastAccessed: 1 } },
+      { $sort: { count: -1 } },
+      { $limit: 50 },
+    ]);
+    res.json({ content });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Linked Devices (same person detection) ──
+app.get('/api/admin/devices/:id/linked', requireAdmin, async (req, res) => {
+  try {
+    const device = await db.Fingerprint.findOne({ fingerprintId: req.params.id }).lean();
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+
+    const linkedDevices = [];
+    const seen = new Set([req.params.id]);
+
+    // 1. Devices sharing any IP address (strong link)
+    if (device.ips?.length) {
+      const ipLinked = await db.Fingerprint.find({
+        fingerprintId: { $ne: req.params.id },
+        ips: { $in: device.ips },
+      }).lean();
+      for (const d of ipLinked) {
+        if (!seen.has(d.fingerprintId)) {
+          const sharedIPs = d.ips.filter(ip => device.ips.includes(ip));
+          linkedDevices.push({ ...d, linkType: 'shared_ip', confidence: 95, sharedIPs, reason: `Shares ${sharedIPs.length} IP(s)` });
+          seen.add(d.fingerprintId);
+        }
+      }
+    }
+
+    // 2. Devices with similar hardware profile (medium link)
+    if (device.summary) {
+      const hardwareMatch = {
+        fingerprintId: { $nin: Array.from(seen) },
+        'summary.gpu': device.summary.gpu,
+        'summary.screen': device.summary.screen,
+        'summary.cpuCores': device.summary.cpuCores,
+      };
+      if (device.summary.gpu && device.summary.gpu !== 'Unknown') {
+        const hwLinked = await db.Fingerprint.find(hardwareMatch).limit(10).lean();
+        for (const d of hwLinked) {
+          let confidence = 40;
+          if (d.summary?.timezone === device.summary.timezone) confidence += 20;
+          if (d.summary?.language === device.summary.language) confidence += 10;
+          if (d.summary?.deviceMemory === device.summary.deviceMemory) confidence += 10;
+          if (d.summary?.fontCount === device.summary.fontCount) confidence += 10;
+          linkedDevices.push({ ...d, linkType: 'hardware_match', confidence, reason: `Same GPU + screen + CPU (${confidence}%)` });
+          seen.add(d.fingerprintId);
+        }
+      }
+    }
+
+    // 3. Devices with same timezone + language + OS (weak link)
+    if (device.summary?.timezone && device.summary?.language) {
+      const localeMatch = await db.Fingerprint.find({
+        fingerprintId: { $nin: Array.from(seen) },
+        'summary.timezone': device.summary.timezone,
+        'summary.language': device.summary.language,
+        'summary.os': device.summary.os,
+      }).limit(5).lean();
+      for (const d of localeMatch) {
+        linkedDevices.push({ ...d, linkType: 'locale_match', confidence: 25, reason: 'Same timezone + language + OS' });
+        seen.add(d.fingerprintId);
+      }
+    }
+
+    // Sort by confidence
+    linkedDevices.sort((a, b) => b.confidence - a.confidence);
+
+    res.json({ linkedDevices, sourceDevice: device });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: IP Geolocation ──
+app.get('/api/admin/geo/:ip', requireAdmin, async (req, res) => {
+  try {
+    const geo = await lookupIPGeo(req.params.ip);
+    res.json({ geo: geo || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Bulk IP Geo for a device ──
+app.get('/api/admin/devices/:id/geo', requireAdmin, async (req, res) => {
+  try {
+    const device = await db.Fingerprint.findOne({ fingerprintId: req.params.id }).lean();
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+    const geoResults = {};
+    for (const ip of (device.ips || []).slice(0, 10)) {
+      geoResults[ip] = await lookupIPGeo(ip);
+    }
+    res.json({ geoResults });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Enhanced Stats ──
+app.get('/api/admin/stats/extended', requireAdmin, async (req, res) => {
+  try {
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const [countries, topRoutes, topContent, deviceTypes] = await Promise.all([
+      db.Fingerprint.distinct('geo.country').then(c => c.filter(Boolean)),
+      db.Analytics.aggregate([
+        { $match: { timestamp: { $gte: todayStart }, endpoint: { $not: /^\/admin/ } } },
+        { $group: { _id: '$endpoint', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+      ]),
+      db.ContentAccess.aggregate([
+        { $match: { timestamp: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } },
+        { $group: { _id: { type: '$contentType', id: '$contentId' }, count: { $sum: 1 }, title: { $first: '$title' } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+      ]),
+      db.Fingerprint.aggregate([
+        { $group: { _id: '$summary.deviceType', count: { $sum: 1 } } },
+      ]),
+    ]);
+    res.json({ countries, countryCount: countries.length, topRoutes, topContent, deviceTypes });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

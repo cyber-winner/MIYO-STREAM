@@ -64,163 +64,645 @@ function LoginScreen({ onLogin }) {
       });
       if (btnRef.current) {
         window.google.accounts.id.renderButton(btnRef.current, {
-          theme: 'filled_black',
-          size: 'large',
-          shape: 'pill',
-          text: 'signin_with',
-          width: 300,
+          theme: 'filled_black', size: 'large', width: 300, text: 'signin_with',
         });
       }
     }
+  }, []);
 
-    async function handleCredentialResponse(response) {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await fetch('/api/admin/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credential: response.credential }),
-        });
-        const data = await res.json();
-        if (!res.ok) { setError(data.error || 'Authentication failed'); setLoading(false); return; }
+  async function handleCredentialResponse(response) {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
         setToken(data.token);
-        onLogin(data.user);
-      } catch (e) {
-        setError('Network error. Please try again.');
-        setLoading(false);
+        onLogin(data);
+      } else {
+        setError(data.error || 'Authentication failed');
       }
+    } catch (e) {
+      setError('Network error');
     }
-  }, [onLogin]);
+    setLoading(false);
+  }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
-      <div style={{
-        background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 24, padding: 48,
-        maxWidth: 420, width: '90%', textAlign: 'center',
-      }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>🛡️</div>
-        <h1 style={{ color: '#f0f2f5', fontSize: 28, fontWeight: 800, fontFamily: 'Outfit, Inter, sans-serif', margin: '0 0 8px', letterSpacing: -1 }}>
-          MIYO <span style={{ color: '#00f2ff' }}>Admin</span>
-        </h1>
-        <p style={{ color: '#6b7280', fontSize: 14, margin: '0 0 32px' }}>Restricted access. Sign in with your authorized Google account.</p>
-        {error && <div style={{ background: 'rgba(255,60,60,0.1)', border: '1px solid rgba(255,60,60,0.3)', borderRadius: 12, padding: '10px 16px', color: '#ff6b6b', fontSize: 13, marginBottom: 20, fontWeight: 600 }}>{error}</div>}
-        <div ref={btnRef} style={{ display: 'flex', justifyContent: 'center', opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto' }} />
-        {loading && <p style={{ color: '#00f2ff', fontSize: 13, marginTop: 16 }}>Verifying identity...</p>}
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a' }}>
+      <div style={{ textAlign: 'center', background: '#111', borderRadius: 24, padding: '60px 48px', border: '1px solid #222', maxWidth: 420 }}>
+        <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
+        <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: '0 0 8px' }}>MIYO <span style={{ color: '#00d4aa' }}>Admin</span></h1>
+        <p style={{ color: '#888', fontSize: 14, margin: '0 0 32px' }}>Restricted access — authorized personnel only</p>
+        {error && <div style={{ background: '#ff000020', border: '1px solid #ff000040', borderRadius: 12, padding: '12px', marginBottom: 20, color: '#ff6b6b', fontSize: 13 }}>{error}</div>}
+        <div ref={btnRef} style={{ display: 'flex', justifyContent: 'center' }} />
+        {loading && <p style={{ color: '#888', fontSize: 13, marginTop: 16 }}>Authenticating...</p>}
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════
-// STAT CARD
+// MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════
-const StatCard = ({ label, value, icon, accent }) => (
-  <div style={{
-    background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, padding: '20px 24px',
-    flex: '1 1 180px', minWidth: 160, transition: 'border-color 0.2s',
-  }}
-    onMouseEnter={e => e.currentTarget.style.borderColor = accent || '#00f2ff'}
-    onMouseLeave={e => e.currentTarget.style.borderColor = '#1c1c1f'}
-  >
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-      <span style={{ fontSize: 20 }}>{icon}</span>
-      <span style={{ color: '#6b7280', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
-    </div>
-    <div style={{ color: '#f0f2f5', fontSize: 28, fontWeight: 800, fontFamily: 'Outfit, monospace' }}>{value ?? '—'}</div>
-  </div>
-);
+const TABS = [
+  { id: 'overview', icon: '📊', label: 'Overview' },
+  { id: 'devices', icon: '📱', label: 'Devices' },
+  { id: 'analytics', icon: '📈', label: 'Analytics' },
+  { id: 'content', icon: '🎬', label: 'Content' },
+  { id: 'abuse', icon: '⚠️', label: 'Abuse' },
+  { id: 'bans', icon: '🚫', label: 'Bans' },
+  { id: 'requests', icon: '📋', label: 'Requests' },
+];
 
-// ═══════════════════════════════════════════════════════════════
-// MINI BAR CHART (CSS only)
-// ═══════════════════════════════════════════════════════════════
-const MiniBarChart = ({ data, label = 'count', maxBars = 24 }) => {
-  if (!data?.length) return <div style={{ color: '#6b7280', fontSize: 13, padding: 16 }}>No data</div>;
-  const sliced = data.slice(-maxBars);
-  const max = Math.max(...sliced.map(d => d[label] || d.count || 0), 1);
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 80, padding: '8px 0' }}>
-      {sliced.map((d, i) => {
-        const val = d[label] || d.count || 0;
-        const h = Math.max((val / max) * 70, 2);
-        return (
-          <div key={i} title={`${d._id || ''}: ${val}`} style={{
-            flex: 1, height: h, background: 'linear-gradient(to top, #00f2ff, #0066ff)',
-            borderRadius: '3px 3px 0 0', minWidth: 4, transition: 'height 0.3s',
-          }} />
-        );
-      })}
-    </div>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════════
-// TABLE COMPONENT
-// ═══════════════════════════════════════════════════════════════
-const Table = ({ columns, data, onRowClick, emptyMsg = 'No data' }) => (
-  <div style={{ overflowX: 'auto' }}>
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-      <thead>
-        <tr>{columns.map((c, i) => (
-          <th key={i} style={{ textAlign: 'left', padding: '10px 12px', color: '#6b7280', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, borderBottom: '1px solid #1c1c1f', whiteSpace: 'nowrap' }}>{c.label}</th>
-        ))}</tr>
-      </thead>
-      <tbody>
-        {(!data || data.length === 0) ? (
-          <tr><td colSpan={columns.length} style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>{emptyMsg}</td></tr>
-        ) : data.map((row, ri) => (
-          <tr key={ri} style={{ cursor: onRowClick ? 'pointer' : 'default', transition: 'background 0.15s' }}
-            onClick={() => onRowClick?.(row)}
-            onMouseEnter={e => e.currentTarget.style.background = '#141416'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            {columns.map((c, ci) => (
-              <td key={ci} style={{ padding: '10px 12px', color: '#f0f2f5', borderBottom: '1px solid #0d0d0e', whiteSpace: 'nowrap', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {c.render ? c.render(row) : (row[c.key] ?? '—')}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-// ═══════════════════════════════════════════════════════════════
-// BAN MODAL
-// ═══════════════════════════════════════════════════════════════
-function BanModal({ type = 'ip', value = '', onClose, onBan }) {
-  const [reason, setReason] = useState('');
-  const [expiry, setExpiry] = useState('');
+function Dashboard({ user, onLogout }) {
+  const [tab, setTab] = useState('overview');
+  const [stats, setStats] = useState(null);
+  const [extStats, setExtStats] = useState(null);
+  const [devices, setDevices] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [abuse, setAbuse] = useState([]);
+  const [bans, setBans] = useState([]);
+  const [requests, setRequests] = useState(null);
+  const [topRoutes, setTopRoutes] = useState([]);
+  const [topContent, setTopContent] = useState([]);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [deviceGeo, setDeviceGeo] = useState({});
+  const [linkedDevices, setLinkedDevices] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [banModal, setBanModal] = useState(null);
+  const [reqFilters, setReqFilters] = useState({ ip: '', endpoint: '' });
   const [loading, setLoading] = useState(false);
 
-  const handleBan = async () => {
-    setLoading(true);
+  const fetchStats = useCallback(async () => {
     try {
-      const res = await adminFetch('/api/admin/ban', {
-        method: 'POST',
-        body: JSON.stringify({ type, value, reason, expiresAt: expiry || null }),
-      });
-      const data = await res.json();
-      if (res.ok) { onBan(data.ban); onClose(); }
-    } catch (e) {} finally { setLoading(false); }
+      const [r1, r2] = await Promise.all([
+        adminFetch('/api/admin/stats'),
+        adminFetch('/api/admin/stats/extended'),
+      ]);
+      if (r1.ok) setStats(await r1.json());
+      if (r2.ok) setExtStats(await r2.json());
+    } catch (e) {}
+  }, []);
+
+  const fetchDevices = useCallback(async () => {
+    try {
+      const r = await adminFetch('/api/admin/devices');
+      if (r.ok) setDevices((await r.json()).devices || []);
+    } catch (e) {}
+  }, []);
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      const r = await adminFetch('/api/admin/analytics');
+      if (r.ok) setAnalytics(await r.json());
+    } catch (e) {}
+  }, []);
+
+  const fetchAbuse = useCallback(async () => {
+    try {
+      const r = await adminFetch('/api/admin/analytics/abuse');
+      if (r.ok) setAbuse((await r.json()).abusers || []);
+    } catch (e) {}
+  }, []);
+
+  const fetchBans = useCallback(async () => {
+    try {
+      const r = await adminFetch('/api/admin/bans');
+      if (r.ok) setBans((await r.json()).bans || []);
+    } catch (e) {}
+  }, []);
+
+  const fetchRequests = useCallback(async () => {
+    try {
+      const q = new URLSearchParams();
+      if (reqFilters.ip) q.set('ip', reqFilters.ip);
+      if (reqFilters.endpoint) q.set('endpoint', reqFilters.endpoint);
+      const r = await adminFetch(`/api/admin/requests?${q}`);
+      if (r.ok) setRequests(await r.json());
+    } catch (e) {}
+  }, [reqFilters]);
+
+  const fetchTopRoutes = useCallback(async () => {
+    try {
+      const r = await adminFetch('/api/admin/routes/top');
+      if (r.ok) setTopRoutes((await r.json()).routes || []);
+    } catch (e) {}
+  }, []);
+
+  const fetchTopContent = useCallback(async () => {
+    try {
+      const r = await adminFetch('/api/admin/content/top');
+      if (r.ok) setTopContent((await r.json()).content || []);
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+    const iv = setInterval(fetchStats, 30000);
+    return () => clearInterval(iv);
+  }, [fetchStats]);
+
+  useEffect(() => {
+    if (tab === 'devices') fetchDevices();
+    if (tab === 'analytics') { fetchAnalytics(); fetchTopRoutes(); }
+    if (tab === 'content') fetchTopContent();
+    if (tab === 'abuse') fetchAbuse();
+    if (tab === 'bans') fetchBans();
+    if (tab === 'requests') fetchRequests();
+    if (tab === 'overview') { fetchStats(); fetchTopRoutes(); fetchTopContent(); }
+  }, [tab]);
+
+  const openDeviceDetail = async (device) => {
+    setSelectedDevice(device);
+    setLinkedDevices([]);
+    setDeviceGeo({});
+    // Load geo data for device IPs
+    try {
+      const r = await adminFetch(`/api/admin/devices/${device.fingerprintId}/geo`);
+      if (r.ok) setDeviceGeo((await r.json()).geoResults || {});
+    } catch (e) {}
+    // Load linked devices
+    try {
+      const r = await adminFetch(`/api/admin/devices/${device.fingerprintId}/linked`);
+      if (r.ok) setLinkedDevices((await r.json()).linkedDevices || []);
+    } catch (e) {}
   };
 
+  const doBan = async (type, value, reason = '') => {
+    try {
+      const r = await adminFetch('/api/admin/ban', {
+        method: 'POST',
+        body: JSON.stringify({ type, value, reason }),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const crossCount = data.crossBans?.length || 0;
+        alert(`Banned! ${crossCount > 0 ? `+ ${crossCount} cross-ban(s) created` : ''}`);
+        fetchBans();
+      } else {
+        const d = await r.json();
+        alert(d.error || 'Ban failed');
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  };
+
+  const doUnban = async (id) => {
+    try {
+      await adminFetch(`/api/admin/ban/${id}`, { method: 'DELETE' });
+      fetchBans();
+    } catch (e) {}
+  };
+
+  const refresh = () => {
+    if (tab === 'overview') { fetchStats(); fetchTopRoutes(); fetchTopContent(); }
+    if (tab === 'devices') fetchDevices();
+    if (tab === 'analytics') { fetchAnalytics(); fetchTopRoutes(); }
+    if (tab === 'content') fetchTopContent();
+    if (tab === 'abuse') fetchAbuse();
+    if (tab === 'bans') fetchBans();
+    if (tab === 'requests') fetchRequests();
+  };
+
+  const filteredDevices = devices.filter(d => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      d.fingerprintId?.toLowerCase().includes(q) ||
+      d.ips?.some(ip => ip.includes(q)) ||
+      d.summary?.browser?.toLowerCase().includes(q) ||
+      d.summary?.os?.toLowerCase().includes(q) ||
+      d.summary?.gpu?.toLowerCase().includes(q) ||
+      d.geo?.country?.toLowerCase().includes(q) ||
+      d.geo?.city?.toLowerCase().includes(q) ||
+      d.geo?.isp?.toLowerCase().includes(q)
+    );
+  });
+
+  const S = styles;
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }} onClick={onClose}>
-      <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 20, padding: 32, maxWidth: 440, width: '90%' }} onClick={e => e.stopPropagation()}>
-        <h3 style={{ color: '#f0f2f5', fontSize: 20, fontWeight: 800, margin: '0 0 4px' }}>🚫 Ban {type === 'ip' ? 'IP' : 'Device'}</h3>
-        <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 20px' }}>{value}</p>
-        <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (optional)"
-          style={{ width: '100%', padding: '10px 14px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 10, color: '#f0f2f5', fontSize: 14, marginBottom: 12, outline: 'none', boxSizing: 'border-box' }} />
-        <input type="datetime-local" value={expiry} onChange={e => setExpiry(e.target.value)}
-          style={{ width: '100%', padding: '10px 14px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 10, color: '#f0f2f5', fontSize: 14, marginBottom: 20, outline: 'none', boxSizing: 'border-box' }} />
-        <p style={{ color: '#6b7280', fontSize: 11, marginTop: -12, marginBottom: 16 }}>Leave empty for permanent ban</p>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '10px 0', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 10, color: '#9ca3af', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-          <button onClick={handleBan} disabled={loading} style={{ flex: 1, padding: '10px 0', background: '#ff4444', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.5 : 1 }}>{loading ? 'Banning...' : 'Ban'}</button>
+    <div style={S.shell}>
+      {/* Sidebar */}
+      <aside style={S.sidebar}>
+        <div style={S.logo}>🔮 <span style={{ color: '#00d4aa' }}>MIYO</span> <span style={{ color: '#fff' }}>Admin</span></div>
+        <nav style={S.nav}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{ ...S.navBtn, ...(tab === t.id ? S.navBtnActive : {}) }}>
+              <span style={{ marginRight: 10, fontSize: 16 }}>{t.icon}</span> {t.label}
+            </button>
+          ))}
+        </nav>
+        <div style={S.userBox}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {user.picture && <img src={user.picture} style={{ width: 32, height: 32, borderRadius: '50%' }} alt="" />}
+            <span style={{ color: '#aaa', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</span>
+          </div>
+          <button onClick={onLogout} style={S.logoutBtn}>Sign Out</button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main style={S.main}>
+        <div style={S.header}>
+          <h1 style={S.headerTitle}>{TABS.find(t => t.id === tab)?.icon} {TABS.find(t => t.id === tab)?.label}</h1>
+          <button onClick={refresh} style={S.refreshBtn}>🔄 Refresh</button>
+        </div>
+
+        {tab === 'overview' && <OverviewTab stats={stats} extStats={extStats} topRoutes={topRoutes} topContent={topContent} setTab={setTab} setBanModal={setBanModal} />}
+        {tab === 'devices' && <DevicesTab devices={filteredDevices} searchQuery={searchQuery} setSearchQuery={setSearchQuery} openDeviceDetail={openDeviceDetail} doBan={doBan} />}
+        {tab === 'analytics' && <AnalyticsTab analytics={analytics} topRoutes={topRoutes} />}
+        {tab === 'content' && <ContentTab content={topContent} fetchTopContent={fetchTopContent} />}
+        {tab === 'abuse' && <AbuseTab abuse={abuse} doBan={doBan} />}
+        {tab === 'bans' && <BansTab bans={bans} doUnban={doUnban} />}
+        {tab === 'requests' && <RequestsTab data={requests} filters={reqFilters} setFilters={setReqFilters} fetch={fetchRequests} doBan={doBan} />}
+      </main>
+
+      {/* Device Detail Modal */}
+      {selectedDevice && <DeviceModal device={selectedDevice} geo={deviceGeo} linked={linkedDevices} onClose={() => setSelectedDevice(null)} doBan={doBan} />}
+
+      {/* Quick Ban Modal */}
+      {banModal && <BanModal initial={banModal} onBan={doBan} onClose={() => setBanModal(null)} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB: OVERVIEW
+// ═══════════════════════════════════════════════════════════════
+function OverviewTab({ stats, extStats, topRoutes, topContent, setTab, setBanModal }) {
+  if (!stats) return <div style={styles.loading}>Loading...</div>;
+  const cards = [
+    { icon: '📱', label: 'TOTAL DEVICES', value: stats.totalDevices, color: '#00d4aa' },
+    { icon: '🌍', label: 'UNIQUE IPS TODAY', value: stats.uniqueIPsToday, color: '#4ecdc4' },
+    { icon: '📋', label: 'REQUESTS TODAY', value: stats.requestsToday, color: '#45b7d1' },
+    { icon: '⚡', label: 'REQUESTS/HOUR', value: stats.requestsPerHour, color: '#f9ca24' },
+    { icon: '🔴', label: 'RATE LIMITS HIT', value: stats.rateLimitsHit, color: '#ff6b6b' },
+    { icon: '🚫', label: 'ACTIVE BANS', value: stats.activeBans, color: '#e74c3c' },
+  ];
+  if (extStats?.countryCount) cards.push({ icon: '🌐', label: 'COUNTRIES', value: extStats.countryCount, color: '#a29bfe' });
+
+  return (
+    <div>
+      <div style={styles.cardGrid}>{cards.map((c, i) => (
+        <div key={i} style={styles.statCard}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 14 }}>{c.icon}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: c.color, letterSpacing: 1, textTransform: 'uppercase' }}>{c.label}</span>
+          </div>
+          <div style={{ fontSize: 32, fontWeight: 900, color: '#fff' }}>{c.value ?? 0}</div>
+        </div>
+      ))}</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+        {/* Server Info */}
+        <div style={styles.panel}>
+          <h3 style={styles.panelTitle}>Server</h3>
+          <div style={styles.infoRow}><span>Uptime</span><span>{formatUptime(stats.uptime)}</span></div>
+          <div style={styles.infoRow}><span>Heap Used</span><span>{formatBytes(stats.memory?.heapUsed)}</span></div>
+          <div style={styles.infoRow}><span>RSS</span><span>{formatBytes(stats.memory?.rss)}</span></div>
+          {extStats?.deviceTypes?.length > 0 && (
+            <>
+              <h4 style={{ ...styles.panelTitle, fontSize: 12, marginTop: 16 }}>Device Types</h4>
+              {extStats.deviceTypes.map((dt, i) => (
+                <div key={i} style={styles.infoRow}>
+                  <span>{dt._id || 'Unknown'}</span><span style={{ color: '#00d4aa', fontWeight: 700 }}>{dt.count}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* Quick Actions */}
+        <div style={styles.panel}>
+          <h3 style={styles.panelTitle}>Quick Actions</h3>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <button onClick={() => setTab('devices')} style={{ ...styles.actionBtn, background: '#00d4aa20', color: '#00d4aa' }}>📱 View Devices</button>
+            <button onClick={() => setBanModal({ type: 'ip', value: '' })} style={{ ...styles.actionBtn, background: '#ff6b6b20', color: '#ff6b6b' }}>🚫 Ban IP</button>
+            <button onClick={() => setTab('abuse')} style={{ ...styles.actionBtn, background: '#f9ca2420', color: '#f9ca24' }}>⚠️ Check Abuse</button>
+            <button onClick={() => setTab('content')} style={{ ...styles.actionBtn, background: '#a29bfe20', color: '#a29bfe' }}>🎬 Top Content</button>
+          </div>
+
+          {/* Top Routes Preview */}
+          {topRoutes?.length > 0 && (
+            <>
+              <h4 style={{ ...styles.panelTitle, fontSize: 12, marginTop: 12 }}>Top Routes Today</h4>
+              {topRoutes.slice(0, 5).map((r, i) => (
+                <div key={i} style={{ ...styles.infoRow, fontSize: 12 }}>
+                  <span style={{ color: '#ccc', maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r._id}</span>
+                  <span style={{ color: '#00d4aa', fontWeight: 700 }}>{r.count}x</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Top Content Preview */}
+          {topContent?.length > 0 && (
+            <>
+              <h4 style={{ ...styles.panelTitle, fontSize: 12, marginTop: 12 }}>Trending Content (7d)</h4>
+              {topContent.slice(0, 5).map((c, i) => (
+                <div key={i} style={{ ...styles.infoRow, fontSize: 12 }}>
+                  <span style={{ color: '#ccc' }}>
+                    <span style={{ ...styles.badge, background: c._id?.contentType === 'movie' ? '#e74c3c40' : c._id?.contentType === 'tv' ? '#3498db40' : '#2ecc7140', color: c._id?.contentType === 'movie' ? '#ff6b6b' : c._id?.contentType === 'tv' ? '#5dade2' : '#00d4aa', marginRight: 6 }}>
+                      {c._id?.contentType?.toUpperCase()}
+                    </span>
+                    ID: {c._id?.contentId}
+                  </span>
+                  <span style={{ color: '#f9ca24', fontWeight: 700 }}>{c.count} views</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB: DEVICES
+// ═══════════════════════════════════════════════════════════════
+function DevicesTab({ devices, searchQuery, setSearchQuery, openDeviceDetail, doBan }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by IP, browser, OS, GPU, country, ISP..." style={styles.input} />
+      </div>
+      <div style={styles.table}>
+        <div style={styles.tableHeader}>
+          <span style={{ flex: 2 }}>FINGERPRINT ID</span>
+          <span style={{ flex: 1 }}>IP</span>
+          <span style={{ flex: 1 }}>BROWSER</span>
+          <span style={{ flex: 1 }}>OS</span>
+          <span style={{ flex: 1 }}>LOCATION</span>
+          <span style={{ flex: 1 }}>ISP</span>
+          <span style={{ flex: 0.5 }}>TYPE</span>
+          <span style={{ flex: 0.7 }}>SCREEN</span>
+          <span style={{ flex: 0.5 }}>VISITS</span>
+          <span style={{ flex: 0.7 }}>LAST SEEN</span>
+          <span style={{ flex: 0.5 }}>ACTIONS</span>
+        </div>
+        {devices.map(d => (
+          <div key={d.fingerprintId} style={styles.tableRow} onClick={() => openDeviceDetail(d)}>
+            <span style={{ flex: 2, color: '#00d4aa', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }}>{truncate(d.fingerprintId, 14)}</span>
+            <span style={{ flex: 1, fontFamily: 'monospace', fontSize: 11 }}>{d.ips?.[0] || '—'}</span>
+            <span style={{ flex: 1, fontSize: 12 }}>{d.summary?.browser || '—'}</span>
+            <span style={{ flex: 1, fontSize: 12 }}>{truncate(d.summary?.os, 14)}</span>
+            <span style={{ flex: 1, fontSize: 12 }}>
+              {d.geo?.country ? `${d.geo.countryCode || ''} ${d.geo.city || ''}`.trim() : '—'}
+            </span>
+            <span style={{ flex: 1, fontSize: 11, color: '#888' }}>{truncate(d.geo?.isp, 16) || '—'}</span>
+            <span style={{ flex: 0.5 }}>
+              <span style={{ ...styles.badge, background: d.summary?.deviceType === 'Mobile' ? '#e74c3c30' : d.summary?.deviceType === 'Tablet' ? '#f39c1230' : '#00d4aa20', color: d.summary?.deviceType === 'Mobile' ? '#ff6b6b' : d.summary?.deviceType === 'Tablet' ? '#f39c12' : '#00d4aa' }}>
+                {d.summary?.deviceType || '?'}
+              </span>
+            </span>
+            <span style={{ flex: 0.7, fontSize: 12 }}>{d.summary?.screen || '—'}</span>
+            <span style={{ flex: 0.5, fontSize: 12 }}>{d.visitCount || 1}</span>
+            <span style={{ flex: 0.7, fontSize: 11, color: '#888' }}>{timeAgo(d.lastSeen)}</span>
+            <span style={{ flex: 0.5 }}>
+              <button onClick={e => { e.stopPropagation(); doBan('fingerprint', d.fingerprintId, 'Admin ban'); }} style={styles.banBtn}>Ban</button>
+            </span>
+          </div>
+        ))}
+        {devices.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#666' }}>No devices found</div>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB: ANALYTICS
+// ═══════════════════════════════════════════════════════════════
+function AnalyticsTab({ analytics, topRoutes }) {
+  if (!analytics) return <div style={styles.loading}>Loading...</div>;
+  const maxBar = Math.max(...(analytics.requestsPerHour || []).map(h => h.count), 1);
+
+  return (
+    <div>
+      {/* Hourly Chart */}
+      <div style={styles.panel}>
+        <h3 style={styles.panelTitle}>Requests (Last 24h)</h3>
+        <div style={{ display: 'flex', alignItems: 'end', gap: 2, height: 80 }}>
+          {(analytics.requestsPerHour || []).map((h, i) => (
+            <div key={i} style={{ flex: 1, background: `linear-gradient(to top, #00d4aa, #4ecdc4)`, borderRadius: '4px 4px 0 0', height: `${Math.max((h.count / maxBar) * 100, 2)}%`, transition: 'height 0.3s' }} title={`${h._id}:00 — ${h.count} requests`} />
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+        {/* Top Endpoints */}
+        <div style={styles.panel}>
+          <h3 style={styles.panelTitle}>Top Endpoints</h3>
+          <div style={styles.table}>
+            <div style={styles.tableHeader}>
+              <span style={{ flex: 3 }}>ENDPOINT</span>
+              <span style={{ flex: 0.7 }}>REQUESTS</span>
+              <span style={{ flex: 0.7 }}>UNIQUE IPs</span>
+              <span style={{ flex: 0.7 }}>AVG RESPONSE</span>
+            </div>
+            {topRoutes.map((r, i) => (
+              <div key={i} style={styles.tableRow}>
+                <span style={{ flex: 3, fontFamily: 'monospace', fontSize: 11, color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r._id}</span>
+                <span style={{ flex: 0.7, color: '#00d4aa', fontWeight: 700 }}>{r.count}</span>
+                <span style={{ flex: 0.7, color: '#a29bfe' }}>{r.uniqueIPCount || '—'}</span>
+                <span style={{ flex: 0.7, color: '#f9ca24' }}>{Math.round(r.avgResponseTime || 0)}ms</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top IPs */}
+        <div style={styles.panel}>
+          <h3 style={styles.panelTitle}>Top IPs</h3>
+          <div style={styles.table}>
+            <div style={styles.tableHeader}>
+              <span style={{ flex: 2 }}>IP ADDRESS</span>
+              <span style={{ flex: 1 }}>REQUESTS</span>
+              <span style={{ flex: 1 }}>RATE LIMITED</span>
+            </div>
+            {(analytics.topIPs || []).map((ip, i) => (
+              <div key={i} style={styles.tableRow}>
+                <span style={{ flex: 2, fontFamily: 'monospace', fontSize: 12 }}>{ip._id}</span>
+                <span style={{ flex: 1 }}>{ip.count}</span>
+                <span style={{ flex: 1 }}>
+                  {ip.rateLimited > 0 ? <span style={{ ...styles.badge, background: '#ff6b6b30', color: '#ff6b6b' }}>⚠ {ip.rateLimited}</span> : <span style={{ color: '#666' }}>0</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB: CONTENT (NEW)
+// ═══════════════════════════════════════════════════════════════
+function ContentTab({ content, fetchTopContent }) {
+  const [typeFilter, setTypeFilter] = useState('');
+  const filtered = typeFilter ? content.filter(c => c._id?.contentType === typeFilter) : content;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {['', 'movie', 'tv', 'anime'].map(t => (
+          <button key={t} onClick={() => setTypeFilter(t)} style={{ ...styles.filterBtn, ...(typeFilter === t ? styles.filterBtnActive : {}) }}>
+            {t ? t.toUpperCase() : 'ALL'}
+          </button>
+        ))}
+      </div>
+
+      <div style={styles.panel}>
+        <h3 style={styles.panelTitle}>Most Accessed Content (Last 7 Days)</h3>
+        <div style={styles.table}>
+          <div style={styles.tableHeader}>
+            <span style={{ flex: 0.5 }}>#</span>
+            <span style={{ flex: 0.7 }}>TYPE</span>
+            <span style={{ flex: 1.5 }}>CONTENT ID</span>
+            <span style={{ flex: 2 }}>TITLE</span>
+            <span style={{ flex: 0.7 }}>VIEWS</span>
+            <span style={{ flex: 0.7 }}>VIEWERS</span>
+            <span style={{ flex: 1 }}>LAST ACCESSED</span>
+          </div>
+          {filtered.map((c, i) => (
+            <div key={i} style={styles.tableRow}>
+              <span style={{ flex: 0.5, color: i < 3 ? '#f9ca24' : '#666', fontWeight: i < 3 ? 900 : 400 }}>#{i + 1}</span>
+              <span style={{ flex: 0.7 }}>
+                <span style={{ ...styles.badge, background: c._id?.contentType === 'movie' ? '#e74c3c40' : c._id?.contentType === 'tv' ? '#3498db40' : '#2ecc7140', color: c._id?.contentType === 'movie' ? '#ff6b6b' : c._id?.contentType === 'tv' ? '#5dade2' : '#00d4aa' }}>
+                  {c._id?.contentType?.toUpperCase()}
+                </span>
+              </span>
+              <span style={{ flex: 1.5, fontFamily: 'monospace', fontSize: 12, color: '#aaa' }}>{c._id?.contentId}</span>
+              <span style={{ flex: 2, fontSize: 12, color: '#fff' }}>{c.title || '—'}</span>
+              <span style={{ flex: 0.7, color: '#00d4aa', fontWeight: 700 }}>{c.count}</span>
+              <span style={{ flex: 0.7, color: '#a29bfe' }}>{c.viewerCount}</span>
+              <span style={{ flex: 1, fontSize: 11, color: '#888' }}>{timeAgo(c.lastAccessed)}</span>
+            </div>
+          ))}
+          {filtered.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#666' }}>No content data yet — data populates as users browse movies/shows</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB: ABUSE
+// ═══════════════════════════════════════════════════════════════
+function AbuseTab({ abuse, doBan }) {
+  return (
+    <div style={styles.panel}>
+      <h3 style={styles.panelTitle}>Suspected Abuse (High Request Volume)</h3>
+      <div style={styles.table}>
+        <div style={styles.tableHeader}>
+          <span style={{ flex: 2 }}>IP ADDRESS</span>
+          <span style={{ flex: 1 }}>REQUESTS (24H)</span>
+          <span style={{ flex: 1 }}>RATE LIMITED</span>
+          <span style={{ flex: 1 }}>UNIQUE ENDPOINTS</span>
+          <span style={{ flex: 0.5 }}>ACTION</span>
+        </div>
+        {abuse.map((a, i) => (
+          <div key={i} style={styles.tableRow}>
+            <span style={{ flex: 2, fontFamily: 'monospace', fontSize: 12 }}>{a._id}</span>
+            <span style={{ flex: 1, color: a.count > 500 ? '#ff6b6b' : a.count > 100 ? '#f9ca24' : '#ccc', fontWeight: 700 }}>{a.count}</span>
+            <span style={{ flex: 1, color: a.rateLimited > 0 ? '#ff6b6b' : '#666' }}>{a.rateLimited}</span>
+            <span style={{ flex: 1 }}>{a.endpoints}</span>
+            <span style={{ flex: 0.5 }}>
+              <button onClick={() => doBan('ip', a._id, `Abuse: ${a.count} requests`)} style={styles.banBtn}>Ban</button>
+            </span>
+          </div>
+        ))}
+        {abuse.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#666' }}>No suspicious activity detected 🎉</div>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB: BANS
+// ═══════════════════════════════════════════════════════════════
+function BansTab({ bans, doUnban }) {
+  return (
+    <div style={styles.panel}>
+      <h3 style={styles.panelTitle}>Active Bans ({bans.filter(b => b.active).length})</h3>
+      <div style={styles.table}>
+        <div style={styles.tableHeader}>
+          <span style={{ flex: 0.5 }}>TYPE</span>
+          <span style={{ flex: 2 }}>VALUE</span>
+          <span style={{ flex: 2 }}>REASON</span>
+          <span style={{ flex: 1 }}>BANNED BY</span>
+          <span style={{ flex: 1 }}>BANNED AT</span>
+          <span style={{ flex: 0.7 }}>EXPIRES</span>
+          <span style={{ flex: 0.5 }}>STATUS</span>
+          <span style={{ flex: 0.5 }}>ACTION</span>
+        </div>
+        {bans.map(b => (
+          <div key={b._id} style={styles.tableRow}>
+            <span style={{ flex: 0.5 }}>
+              <span style={{ ...styles.badge, background: b.type === 'ip' ? '#e74c3c30' : '#a29bfe30', color: b.type === 'ip' ? '#ff6b6b' : '#a29bfe' }}>{b.type.toUpperCase()}</span>
+            </span>
+            <span style={{ flex: 2, fontFamily: 'monospace', fontSize: 11, color: '#ccc' }}>{b.type === 'fingerprint' ? truncate(b.value, 20) : b.value}</span>
+            <span style={{ flex: 2, fontSize: 12, color: '#aaa' }}>{b.reason || '—'}</span>
+            <span style={{ flex: 1, fontSize: 11, color: '#888' }}>{b.bannedBy || 'admin'}</span>
+            <span style={{ flex: 1, fontSize: 11, color: '#888' }}>{timeAgo(b.bannedAt)}</span>
+            <span style={{ flex: 0.7, fontSize: 11, color: b.expiresAt ? '#f9ca24' : '#ff6b6b' }}>{b.expiresAt ? timeAgo(b.expiresAt) : 'Never'}</span>
+            <span style={{ flex: 0.5 }}>
+              <span style={{ ...styles.badge, background: b.active ? '#ff6b6b20' : '#66666620', color: b.active ? '#ff6b6b' : '#666' }}>{b.active ? 'ACTIVE' : 'LIFTED'}</span>
+            </span>
+            <span style={{ flex: 0.5 }}>
+              {b.active && <button onClick={() => doUnban(b._id)} style={{ ...styles.banBtn, background: '#00d4aa20', color: '#00d4aa' }}>Unban</button>}
+            </span>
+          </div>
+        ))}
+        {bans.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#666' }}>No bans</div>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB: REQUESTS
+// ═══════════════════════════════════════════════════════════════
+function RequestsTab({ data, filters, setFilters, fetch: doFetch, doBan }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <input value={filters.ip} onChange={e => setFilters(f => ({ ...f, ip: e.target.value }))} placeholder="Filter by IP..." style={{ ...styles.input, flex: 1 }} />
+        <input value={filters.endpoint} onChange={e => setFilters(f => ({ ...f, endpoint: e.target.value }))} placeholder="Filter by endpoint..." style={{ ...styles.input, flex: 1 }} />
+        <button onClick={doFetch} style={styles.refreshBtn}>Filter</button>
+      </div>
+      <div style={styles.table}>
+        <div style={styles.tableHeader}>
+          <span style={{ flex: 0.8 }}>TIME</span>
+          <span style={{ flex: 0.5 }}>METHOD</span>
+          <span style={{ flex: 3 }}>ENDPOINT</span>
+          <span style={{ flex: 1.2 }}>IP</span>
+          <span style={{ flex: 0.5 }}>STATUS</span>
+          <span style={{ flex: 0.5 }}>TIME</span>
+          <span style={{ flex: 1.2 }}>FP</span>
+          <span style={{ flex: 0.5 }}>RATE LIM</span>
+        </div>
+        {(data?.requests || []).map((r, i) => (
+          <div key={i} style={styles.tableRow}>
+            <span style={{ flex: 0.8, fontSize: 11, color: '#888' }}>{new Date(r.timestamp).toLocaleTimeString()}</span>
+            <span style={{ flex: 0.5 }}><span style={{ ...styles.badge, background: r.method === 'GET' ? '#00d4aa20' : '#f9ca2420', color: r.method === 'GET' ? '#00d4aa' : '#f9ca24' }}>{r.method}</span></span>
+            <span style={{ flex: 3, fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#ccc' }}>{r.endpoint}</span>
+            <span style={{ flex: 1.2, fontFamily: 'monospace', fontSize: 11 }}>{r.ip}</span>
+            <span style={{ flex: 0.5, color: r.statusCode < 300 ? '#00d4aa' : r.statusCode < 400 ? '#f9ca24' : '#ff6b6b', fontWeight: 700 }}>{r.statusCode}</span>
+            <span style={{ flex: 0.5, fontSize: 11, color: '#888' }}>{r.responseTime ? `${r.responseTime}ms` : '—'}</span>
+            <span style={{ flex: 1.2, fontFamily: 'monospace', fontSize: 10, color: '#555' }}>{r.fingerprintId ? truncate(r.fingerprintId, 12) : '—'}</span>
+            <span style={{ flex: 0.5 }}>{r.rateLimited ? <span style={{ color: '#ff6b6b' }}>⚠️</span> : <span style={{ color: '#444' }}>—</span>}</span>
+          </div>
+        ))}
+      </div>
+      {data && <div style={{ color: '#666', fontSize: 12, marginTop: 8, textAlign: 'right' }}>Page {data.page}/{data.pages} — {data.total} total</div>}
     </div>
   );
 }
@@ -228,489 +710,274 @@ function BanModal({ type = 'ip', value = '', onClose, onBan }) {
 // ═══════════════════════════════════════════════════════════════
 // DEVICE DETAIL MODAL
 // ═══════════════════════════════════════════════════════════════
-function DeviceDetailModal({ device, onClose, onBan }) {
-  if (!device) return null;
-  const { components = {}, summary = {} } = device;
+function DeviceModal({ device, geo, linked, onClose, doBan }) {
+  const c = device.components || {};
+  const s = device.summary || {};
 
-  const Section = ({ title, children }) => (
-    <div style={{ marginBottom: 16 }}>
-      <h4 style={{ color: '#00f2ff', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px', borderBottom: '1px solid #1c1c1f', paddingBottom: 6 }}>{title}</h4>
+  return (
+    <div style={styles.overlay} onClick={onClose}>
+      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 900, margin: 0 }}>🔍 Device Details</h2>
+            <p style={{ color: '#555', fontFamily: 'monospace', fontSize: 11, margin: '4px 0 0' }}>{device.fingerprintId}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => doBan('fingerprint', device.fingerprintId, 'Admin ban')} style={{ ...styles.banBtn, fontSize: 14, padding: '8px 20px' }}>Ban Device</button>
+            <button onClick={onClose} style={{ ...styles.banBtn, background: '#33333350', color: '#888' }}>✕</button>
+          </div>
+        </div>
+
+        <div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: 8 }}>
+          {/* Overview */}
+          <Section title="📋 OVERVIEW">
+            <InfoRow label="First Seen" value={new Date(device.firstSeen).toLocaleString()} />
+            <InfoRow label="Last Seen" value={timeAgo(device.lastSeen)} />
+            <InfoRow label="Visit Count" value={device.visitCount} />
+            <InfoRow label="Device Type" value={s.deviceType || '—'} valueColor={s.deviceType === 'Mobile' ? '#ff6b6b' : '#00d4aa'} />
+            <InfoRow label="Known IPs" value={(device.ips || []).join(', ')} />
+          </Section>
+
+          {/* Network & ISP */}
+          <Section title="🌐 NETWORK & ISP">
+            {Object.entries(geo).length > 0 ? Object.entries(geo).map(([ip, g]) => (
+              <div key={ip} style={{ marginBottom: 12, padding: 12, background: '#0a0a0a', borderRadius: 12, border: '1px solid #1a1a1a' }}>
+                <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#00d4aa', marginBottom: 8 }}>{ip}</div>
+                {g ? (
+                  <>
+                    <InfoRow label="Country" value={`${g.country} (${g.countryCode})`} />
+                    <InfoRow label="Region" value={g.regionName || g.region} />
+                    <InfoRow label="City" value={g.city} />
+                    <InfoRow label="ISP" value={g.isp} valueColor="#f9ca24" />
+                    <InfoRow label="Organization" value={g.org} />
+                    <InfoRow label="AS Number" value={g.as} />
+                    <InfoRow label="Timezone" value={g.timezone} />
+                    <InfoRow label="Coordinates" value={g.lat && g.lon ? `${g.lat}, ${g.lon}` : '—'} />
+                    <InfoRow label="Mobile" value={g.mobile ? '✅ Yes' : '❌ No'} />
+                    <InfoRow label="Proxy/VPN" value={g.proxy ? '⚠️ Yes' : '❌ No'} valueColor={g.proxy ? '#ff6b6b' : '#00d4aa'} />
+                    <InfoRow label="Hosting/DC" value={g.hosting ? '⚠️ Yes' : '❌ No'} valueColor={g.hosting ? '#f9ca24' : '#00d4aa'} />
+                    <button onClick={() => doBan('ip', ip, `Admin ban from device detail`)} style={{ ...styles.banBtn, marginTop: 4, fontSize: 10 }}>Ban this IP</button>
+                  </>
+                ) : <div style={{ color: '#666', fontSize: 12 }}>Geo lookup unavailable</div>}
+              </div>
+            )) : <div style={{ color: '#666', fontSize: 12 }}>Loading geo data...</div>}
+          </Section>
+
+          {/* Graphics */}
+          <Section title="🎨 LAYER 1: GRAPHICS">
+            <InfoRow label="GPU Vendor" value={c.webgl?.vendor} />
+            <InfoRow label="GPU Renderer" value={c.webgl?.renderer} />
+            <InfoRow label="Max Texture Size" value={c.webgl?.maxTextureSize} />
+            <InfoRow label="WebGL Version" value={c.webgl?.version} />
+            <InfoRow label="Extensions" value={c.webgl?.extensions ? `${c.webgl.extensions.length} extensions` : '—'} />
+            <InfoRow label="Render Hash" value={c.webgl?.renderHash || '—'} />
+            <InfoRow label="Canvas Hash" value={truncate(c.canvas?.hash, 40)} />
+          </Section>
+
+          {/* Audio */}
+          <Section title="🔊 LAYER 2: AUDIO">
+            <InfoRow label="Audio Hash" value={c.audio?.hash} />
+            <InfoRow label="Sample Rate" value={c.audio?.sampleRate} />
+            <InfoRow label="Channel Count" value={c.audio?.channelCount} />
+            <InfoRow label="Max Channels" value={c.audio?.maxChannels} />
+          </Section>
+
+          {/* Hardware */}
+          <Section title="⚙️ LAYER 3: HARDWARE">
+            <InfoRow label="CPU Cores" value={c.hardware?.cpuCores} />
+            <InfoRow label="Device Memory" value={c.hardware?.deviceMemory ? `${c.hardware.deviceMemory} GB` : '—'} />
+            <InfoRow label="Screen" value={c.hardware?.screen ? `${c.hardware.screen.width}x${c.hardware.screen.height}` : '—'} />
+            <InfoRow label="Color Depth" value={c.hardware?.screen?.colorDepth} />
+            <InfoRow label="Pixel Ratio" value={c.hardware?.screen?.pixelRatio} />
+            <InfoRow label="Color Gamut" value={c.hardware?.colorGamut} />
+            <InfoRow label="HDR Support" value={c.hardware?.hdr?.toString()} />
+            <InfoRow label="Touch Points" value={c.hardware?.touchPoints} />
+          </Section>
+
+          {/* Fonts & Voices */}
+          <Section title="🔤 LAYER 4: FONTS & VOICES">
+            <InfoRow label="Detected Fonts" value={`${c.fonts?.length || 0} fonts`} />
+            <InfoRow label="TTS Voices" value={`${c.voices?.length || 0} voices`} />
+            {c.fonts?.length > 0 && <div style={{ fontSize: 10, color: '#555', marginTop: 4, wordBreak: 'break-all' }}>{c.fonts.slice(0, 20).join(', ')}{c.fonts.length > 20 ? ` +${c.fonts.length - 20} more` : ''}</div>}
+          </Section>
+
+          {/* Browser */}
+          <Section title="🌐 LAYER 5: BROWSER">
+            <InfoRow label="User Agent" value={truncate(c.browser?.userAgent, 60)} />
+            <InfoRow label="Platform" value={c.browser?.platform} />
+            <InfoRow label="PDF Viewer" value={c.browser?.pdfViewer?.toString()} />
+            <InfoRow label="Cookies Enabled" value={c.browser?.cookieEnabled?.toString()} />
+            <InfoRow label="Do Not Track" value={c.browser?.doNotTrack} />
+            <InfoRow label="JS Engine" value={c.browser?.jsEngine} />
+          </Section>
+
+          {/* Locale */}
+          <Section title="🕐 LAYER 6: LOCALE">
+            <InfoRow label="Timezone" value={c.locale?.timezone} />
+            <InfoRow label="UTC Offset" value={c.locale?.utcOffset} />
+            <InfoRow label="Language" value={c.locale?.language} />
+            <InfoRow label="Languages" value={c.locale?.languages?.join(', ')} />
+          </Section>
+
+          {/* Accessibility */}
+          <Section title="♿ LAYER 7: ACCESSIBILITY">
+            <InfoRow label="Color Scheme" value={c.accessibility?.colorScheme} />
+            <InfoRow label="Reduced Motion" value={c.accessibility?.reducedMotion?.toString()} />
+            <InfoRow label="High Contrast" value={c.accessibility?.highContrast?.toString()} />
+            <InfoRow label="Forced Colors" value={c.accessibility?.forcedColors?.toString()} />
+          </Section>
+
+          {/* Network */}
+          <Section title="📡 LAYER 8: NETWORK">
+            <InfoRow label="Connection Type" value={c.network?.connectionType} />
+            <InfoRow label="Effective Type" value={c.network?.effectiveType} />
+            <InfoRow label="Downlink" value={c.network?.downlink ? `${c.network.downlink} Mbps` : '—'} />
+            <InfoRow label="RTT" value={c.network?.rtt ? `${c.network.rtt}ms` : '—'} />
+            <InfoRow label="Data Saver" value={c.network?.saveData?.toString()} />
+          </Section>
+
+          {/* Linked Devices */}
+          {linked.length > 0 && (
+            <Section title={`🔗 LINKED DEVICES (${linked.length})`}>
+              {linked.map((d, i) => (
+                <div key={i} style={{ padding: 12, background: '#0a0a0a', borderRadius: 12, border: '1px solid #1a1a1a', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#00d4aa' }}>{truncate(d.fingerprintId, 20)}</span>
+                    <span style={{ ...styles.badge, background: d.confidence >= 80 ? '#ff6b6b30' : d.confidence >= 50 ? '#f9ca2430' : '#66666630', color: d.confidence >= 80 ? '#ff6b6b' : d.confidence >= 50 ? '#f9ca24' : '#888' }}>
+                      {d.confidence}% match
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888' }}>
+                    <span style={{ color: '#a29bfe', marginRight: 12 }}>{d.linkType?.replace('_', ' ')}</span>
+                    {d.reason}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>
+                    {d.summary?.browser} · {d.summary?.os} · {d.summary?.screen} · Last: {timeAgo(d.lastSeen)}
+                  </div>
+                  {d.sharedIPs?.length > 0 && <div style={{ fontSize: 10, color: '#f9ca24', marginTop: 2 }}>Shared IPs: {d.sharedIPs.join(', ')}</div>}
+                  <button onClick={() => doBan('fingerprint', d.fingerprintId, `Linked to ${truncate(device.fingerprintId, 12)}`)} style={{ ...styles.banBtn, marginTop: 6, fontSize: 10 }}>Ban linked device</button>
+                </div>
+              ))}
+            </Section>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <h3 style={{ color: '#00d4aa', fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 10px', borderBottom: '1px solid #1a1a1a', paddingBottom: 6 }}>{title}</h3>
       {children}
     </div>
   );
-  const Field = ({ label, value }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-      <span style={{ color: '#6b7280' }}>{label}</span>
-      <span style={{ color: '#f0f2f5', fontFamily: 'monospace', maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right', whiteSpace: 'nowrap' }}>{String(value ?? '—')}</span>
+}
+
+function InfoRow({ label, value, valueColor }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #0d0d0d' }}>
+      <span style={{ color: '#888', fontSize: 12 }}>{label}</span>
+      <span style={{ color: valueColor || '#ccc', fontSize: 12, fontFamily: 'monospace', textAlign: 'right', maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value ?? '—'}</span>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BAN MODAL
+// ═══════════════════════════════════════════════════════════════
+function BanModal({ initial, onBan, onClose }) {
+  const [type, setType] = useState(initial.type || 'ip');
+  const [value, setValue] = useState(initial.value || '');
+  const [reason, setReason] = useState('');
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 9998, overflowY: 'auto', padding: '40px 16px' }} onClick={onClose}>
-      <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 20, padding: 32, maxWidth: 640, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-          <div>
-            <h3 style={{ color: '#f0f2f5', fontSize: 20, fontWeight: 800, margin: 0 }}>🔍 Device Details</h3>
-            <p style={{ color: '#6b7280', fontSize: 12, fontFamily: 'monospace', margin: '4px 0 0' }}>{device.fingerprintId}</p>
+    <div style={styles.overlay} onClick={onClose}>
+      <div style={{ ...styles.modal, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+        <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 900, margin: '0 0 20px' }}>🚫 Create Ban</h2>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ color: '#888', fontSize: 12, display: 'block', marginBottom: 4 }}>Type</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setType('ip')} style={{ ...styles.filterBtn, ...(type === 'ip' ? styles.filterBtnActive : {}) }}>IP</button>
+            <button onClick={() => setType('fingerprint')} style={{ ...styles.filterBtn, ...(type === 'fingerprint' ? styles.filterBtnActive : {}) }}>Device</button>
           </div>
-          <button onClick={() => onBan(device.fingerprintId)} style={{ padding: '8px 16px', background: '#ff4444', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>🚫 Ban</button>
         </div>
-
-        <Section title="Overview">
-          <Field label="First Seen" value={new Date(device.firstSeen).toLocaleString()} />
-          <Field label="Last Seen" value={timeAgo(device.lastSeen)} />
-          <Field label="Visit Count" value={device.visitCount} />
-          <Field label="Known IPs" value={device.ips?.join(', ')} />
-        </Section>
-
-        <Section title="Layer 1: Graphics">
-          <Field label="GPU Vendor" value={components.webgl?.vendor} />
-          <Field label="GPU Renderer" value={components.webgl?.renderer} />
-          <Field label="Max Texture Size" value={components.webgl?.maxTextureSize} />
-          <Field label="WebGL Version" value={components.webgl?.glVersion} />
-          <Field label="Extensions" value={components.webgl?.extensions?.length + ' extensions'} />
-          <Field label="Render Hash" value={components.webgl?.renderHash} />
-          <Field label="Canvas Hash" value={components.canvas ? truncate(components.canvas, 40) : '—'} />
-        </Section>
-
-        <Section title="Layer 2: Audio">
-          <Field label="Audio Hash" value={components.audio?.hash} />
-          <Field label="Sample Rate" value={components.audio?.sampleRate} />
-          <Field label="Channel Count" value={components.audio?.channelCount} />
-          <Field label="Max Channels" value={components.audio?.maxChannelCount} />
-        </Section>
-
-        <Section title="Layer 3: Hardware">
-          <Field label="CPU Cores" value={summary.cpuCores} />
-          <Field label="Device Memory" value={summary.deviceMemory ? summary.deviceMemory + ' GB' : '—'} />
-          <Field label="Screen" value={summary.screen} />
-          <Field label="Color Depth" value={components.hardware?.screen?.colorDepth} />
-          <Field label="Pixel Ratio" value={components.hardware?.screen?.devicePixelRatio} />
-          <Field label="Color Gamut" value={components.hardware?.colorGamut} />
-          <Field label="HDR Support" value={String(components.hardware?.hdrSupport)} />
-          <Field label="Max Touch Points" value={components.hardware?.maxTouchPoints} />
-        </Section>
-
-        <Section title="Layer 4: Fonts & Speech">
-          <Field label="Detected Fonts" value={summary.fontCount} />
-          <Field label="TTS Voices" value={summary.voiceCount} />
-          {components.fonts?.length > 0 && (
-            <div style={{ marginTop: 8, padding: 8, background: '#141416', borderRadius: 8, maxHeight: 80, overflowY: 'auto', fontSize: 11, color: '#9ca3af', fontFamily: 'monospace', lineHeight: 1.6 }}>
-              {components.fonts.join(' · ')}
-            </div>
-          )}
-        </Section>
-
-        <Section title="Layer 5: Browser">
-          <Field label="Browser" value={summary.browser} />
-          <Field label="OS" value={summary.os} />
-          <Field label="JS Engine" value={components.browser?.jsEngine} />
-          <Field label="Platform" value={components.browser?.platform} />
-          <Field label="PDF Viewer" value={String(components.browser?.pdfViewerEnabled)} />
-          <Field label="Cookies" value={String(components.browser?.cookiesEnabled)} />
-          <Field label="DNT" value={components.browser?.doNotTrack} />
-        </Section>
-
-        <Section title="Layer 6: Locale & Time">
-          <Field label="Timezone" value={summary.timezone} />
-          <Field label="UTC Offset" value={components.locale?.timezoneOffset + ' min'} />
-          <Field label="DST" value={String(components.locale?.hasDST)} />
-          <Field label="Language" value={summary.language} />
-          <Field label="Languages" value={components.locale?.languages?.join(', ')} />
-        </Section>
-
-        <Section title="Layer 7: Accessibility">
-          <Field label="Color Scheme" value={components.accessibility?.prefersColorScheme} />
-          <Field label="Reduced Motion" value={String(components.accessibility?.prefersReducedMotion)} />
-          <Field label="High Contrast" value={String(components.accessibility?.prefersContrast)} />
-          <Field label="Forced Colors" value={String(components.accessibility?.forcedColors)} />
-        </Section>
-
-        <Section title="Layer 8: Network">
-          <Field label="Connection Type" value={components.network?.effectiveType} />
-          <Field label="Downlink" value={components.network?.downlink ? components.network.downlink + ' Mbps' : '—'} />
-          <Field label="RTT" value={components.network?.rtt ? components.network.rtt + ' ms' : '—'} />
-          <Field label="Save Data" value={String(components.network?.saveData)} />
-        </Section>
-
-        <button onClick={onClose} style={{ width: '100%', padding: '12px 0', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 12, color: '#9ca3af', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}>Close</button>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ color: '#888', fontSize: 12, display: 'block', marginBottom: 4 }}>Value</label>
+          <input value={value} onChange={e => setValue(e.target.value)} placeholder={type === 'ip' ? 'e.g. 103.55.96.200' : 'fingerprint ID'} style={styles.input} />
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ color: '#888', fontSize: 12, display: 'block', marginBottom: 4 }}>Reason (optional)</label>
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Abuse, scraping, etc." style={styles.input} />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { onBan(type, value, reason); onClose(); }} disabled={!value} style={{ ...styles.banBtn, padding: '10px 24px', fontSize: 14, opacity: value ? 1 : 0.4 }}>Confirm Ban</button>
+          <button onClick={onClose} style={{ ...styles.banBtn, background: '#33333340', color: '#888', padding: '10px 24px', fontSize: 14 }}>Cancel</button>
+        </div>
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MAIN ADMIN DASHBOARD
-// ═══════════════════════════════════════════════════════════════
-function Dashboard({ user, onLogout }) {
-  const [tab, setTab] = useState('overview');
-  const [stats, setStats] = useState(null);
-  const [devices, setDevices] = useState({ devices: [], total: 0, pages: 0 });
-  const [analytics, setAnalytics] = useState(null);
-  const [abuse, setAbuse] = useState(null);
-  const [bans, setBans] = useState([]);
-  const [requests, setRequests] = useState({ requests: [], total: 0 });
-  const [deviceSearch, setDeviceSearch] = useState('');
-  const [devicePage, setDevicePage] = useState(1);
-  const [requestFilter, setRequestFilter] = useState({ ip: '', endpoint: '' });
-  const [selectedDevice, setSelectedDevice] = useState(null);
-  const [banModal, setBanModal] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const refreshRef = useRef(null);
-
-  const load = useCallback(async (activeTab) => {
-    const t = activeTab || tab;
-    setLoading(true);
-    try {
-      if (t === 'overview') {
-        const res = await adminFetch('/api/admin/stats');
-        setStats(await res.json());
-      } else if (t === 'devices') {
-        const res = await adminFetch(`/api/admin/devices?page=${devicePage}&search=${encodeURIComponent(deviceSearch)}`);
-        setDevices(await res.json());
-      } else if (t === 'analytics') {
-        const res = await adminFetch('/api/admin/analytics?hours=24');
-        setAnalytics(await res.json());
-      } else if (t === 'abuse') {
-        const res = await adminFetch('/api/admin/analytics/abuse');
-        setAbuse(await res.json());
-      } else if (t === 'bans') {
-        const res = await adminFetch('/api/admin/bans');
-        const data = await res.json();
-        setBans(data.bans || []);
-      } else if (t === 'requests') {
-        const params = new URLSearchParams({ page: 1, limit: 100 });
-        if (requestFilter.ip) params.set('ip', requestFilter.ip);
-        if (requestFilter.endpoint) params.set('endpoint', requestFilter.endpoint);
-        const res = await adminFetch(`/api/admin/requests?${params}`);
-        setRequests(await res.json());
-      }
-    } catch (e) { console.error('Load error:', e); }
-    setLoading(false);
-  }, [tab, devicePage, deviceSearch, requestFilter]);
-
-  useEffect(() => { load(); }, [tab, devicePage]);
-  useEffect(() => {
-    // Auto-refresh every 30s
-    refreshRef.current = setInterval(() => load(), 30000);
-    return () => clearInterval(refreshRef.current);
-  }, [load]);
-
-  const switchTab = (t) => { setTab(t); };
-
-  const handleBanFromModal = async (ban) => {
-    setBanModal(null);
-    load();
-    if (tab === 'bans') { const res = await adminFetch('/api/admin/bans'); setBans((await res.json()).bans || []); }
-  };
-
-  const handleUnban = async (id) => {
-    await adminFetch(`/api/admin/ban/${id}`, { method: 'DELETE' });
-    const res = await adminFetch('/api/admin/bans');
-    setBans((await res.json()).bans || []);
-  };
-
-  const handleDeviceClick = async (device) => {
-    try {
-      const res = await adminFetch(`/api/admin/devices/${device.fingerprintId}`);
-      const data = await res.json();
-      setSelectedDevice(data.device);
-    } catch (e) {}
-  };
-
-  const TABS = [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'devices', label: 'Devices', icon: '📱' },
-    { id: 'analytics', label: 'Analytics', icon: '📈' },
-    { id: 'abuse', label: 'Abuse', icon: '⚠️' },
-    { id: 'bans', label: 'Bans', icon: '🚫' },
-    { id: 'requests', label: 'Requests', icon: '📋' },
-  ];
-
-  const sidebarStyle = {
-    width: 220, background: '#0a0a0b', borderRight: '1px solid #1c1c1f', padding: '20px 0',
-    display: 'flex', flexDirection: 'column', height: '100vh', position: 'fixed', left: 0, top: 0, zIndex: 100,
-  };
-
-  const tabBtnStyle = (active) => ({
-    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', margin: '2px 8px',
-    background: active ? 'rgba(0,242,255,0.08)' : 'transparent', border: 'none', borderRadius: 10,
-    color: active ? '#00f2ff' : '#9ca3af', fontSize: 14, fontWeight: active ? 700 : 500,
-    cursor: 'pointer', textAlign: 'left', fontFamily: 'Outfit, Inter, sans-serif', transition: 'all 0.15s',
-    borderLeft: active ? '3px solid #00f2ff' : '3px solid transparent',
-  });
-
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#050505', fontFamily: 'Outfit, Inter, sans-serif' }}>
-      {/* Sidebar */}
-      <div style={sidebarStyle}>
-        <div style={{ padding: '8px 20px 24px', borderBottom: '1px solid #1c1c1f', marginBottom: 8 }}>
-          <h2 style={{ color: '#f0f2f5', fontSize: 20, fontWeight: 800, margin: 0 }}>🛡️ MIYO <span style={{ color: '#00f2ff' }}>Admin</span></h2>
-        </div>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => switchTab(t.id)} style={tabBtnStyle(tab === t.id)}>
-            <span>{t.icon}</span> {t.label}
-          </button>
-        ))}
-        <div style={{ marginTop: 'auto', padding: '16px 20px', borderTop: '1px solid #1c1c1f' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            {user?.picture && <img src={user.picture} alt="" style={{ width: 28, height: 28, borderRadius: 14 }} />}
-            <span style={{ color: '#9ca3af', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</span>
-          </div>
-          <button onClick={onLogout} style={{ width: '100%', padding: '8px 0', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 8, color: '#9ca3af', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Sign Out</button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div style={{ marginLeft: 220, flex: 1, padding: '24px 32px', minHeight: '100vh', overflowX: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h1 style={{ color: '#f0f2f5', fontSize: 24, fontWeight: 800, margin: 0 }}>
-            {TABS.find(t => t.id === tab)?.icon} {TABS.find(t => t.id === tab)?.label}
-          </h1>
-          <button onClick={() => load()} style={{ padding: '8px 16px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 8, color: '#00f2ff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
-            {loading ? '⏳' : '🔄'} Refresh
-          </button>
-        </div>
-
-        {/* ── Overview Tab ── */}
-        {tab === 'overview' && stats && (
-          <div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
-              <StatCard label="Total Devices" value={stats.totalDevices} icon="📱" />
-              <StatCard label="Unique IPs Today" value={stats.uniqueIpsToday} icon="🌐" />
-              <StatCard label="Requests Today" value={stats.requestsToday?.toLocaleString()} icon="📊" />
-              <StatCard label="Requests/Hour" value={stats.requestsPerHour?.toLocaleString()} icon="⚡" />
-              <StatCard label="Rate Limits Hit" value={stats.rateLimitHitsToday} icon="🛑" accent="#ff4444" />
-              <StatCard label="Active Bans" value={stats.totalBans} icon="🚫" accent="#ff6600" />
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-              <div style={{ flex: '1 1 300px', background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, padding: 20 }}>
-                <h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: '0 0 8px' }}>Server</h3>
-                <div style={{ fontSize: 13 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', color: '#9ca3af' }}><span>Uptime</span><span style={{ color: '#f0f2f5', fontFamily: 'monospace' }}>{formatUptime(stats.serverUptime)}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', color: '#9ca3af' }}><span>Heap Used</span><span style={{ color: '#f0f2f5', fontFamily: 'monospace' }}>{formatBytes(stats.memoryUsage?.heapUsed)}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', color: '#9ca3af' }}><span>RSS</span><span style={{ color: '#f0f2f5', fontFamily: 'monospace' }}>{formatBytes(stats.memoryUsage?.rss)}</span></div>
-                </div>
-              </div>
-              <div style={{ flex: '2 1 400px', background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, padding: 20 }}>
-                <h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>Quick Actions</h3>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-                  <button onClick={() => switchTab('devices')} style={{ padding: '10px 18px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 10, color: '#00f2ff', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>📱 View Devices</button>
-                  <button onClick={() => setBanModal({ type: 'ip', value: '' })} style={{ padding: '10px 18px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 10, color: '#ff4444', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>🚫 Ban IP</button>
-                  <button onClick={() => switchTab('abuse')} style={{ padding: '10px 18px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 10, color: '#ffaa00', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>⚠️ Check Abuse</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Devices Tab ── */}
-        {tab === 'devices' && (
-          <div>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-              <input value={deviceSearch} onChange={e => setDeviceSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()}
-                placeholder="Search by IP, browser, OS, GPU, timezone..."
-                style={{ flex: 1, padding: '10px 16px', background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 10, color: '#f0f2f5', fontSize: 14, outline: 'none' }} />
-              <button onClick={() => { setDevicePage(1); load(); }} style={{ padding: '10px 20px', background: '#00f2ff', border: 'none', borderRadius: 10, color: '#050505', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Search</button>
-            </div>
-            <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-              <Table
-                columns={[
-                  { label: 'Fingerprint', key: 'fingerprintId', render: r => <span style={{ fontFamily: 'monospace', color: '#00f2ff' }}>{truncate(r.fingerprintId, 12)}</span> },
-                  { label: 'IPs', render: r => truncate(r.ips?.join(', '), 24) },
-                  { label: 'Browser', render: r => r.summary?.browser || '—' },
-                  { label: 'OS', render: r => r.summary?.os || '—' },
-                  { label: 'GPU', render: r => truncate(r.summary?.gpu, 30) },
-                  { label: 'Screen', render: r => r.summary?.screen || '—' },
-                  { label: 'Visits', key: 'visitCount' },
-                  { label: 'Last Seen', render: r => timeAgo(r.lastSeen) },
-                  { label: 'Actions', render: r => (
-                    <button onClick={e => { e.stopPropagation(); setBanModal({ type: 'fingerprint', value: r.fingerprintId }); }}
-                      style={{ padding: '4px 10px', background: '#ff4444', border: 'none', borderRadius: 6, color: '#fff', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>Ban</button>
-                  )},
-                ]}
-                data={devices.devices}
-                onRowClick={handleDeviceClick}
-              />
-            </div>
-            {devices.pages > 1 && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
-                <button onClick={() => setDevicePage(p => Math.max(1, p - 1))} disabled={devicePage === 1} style={{ padding: '8px 14px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 8, color: '#9ca3af', cursor: 'pointer' }}>← Prev</button>
-                <span style={{ color: '#6b7280', padding: '8px 12px', fontSize: 13 }}>Page {devicePage} of {devices.pages} ({devices.total} total)</span>
-                <button onClick={() => setDevicePage(p => Math.min(devices.pages, p + 1))} disabled={devicePage >= devices.pages} style={{ padding: '8px 14px', background: '#141416', border: '1px solid #1c1c1f', borderRadius: 8, color: '#9ca3af', cursor: 'pointer' }}>Next →</button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Analytics Tab ── */}
-        {tab === 'analytics' && analytics && (
-          <div>
-            <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-              <h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: '0 0 8px' }}>Requests (Last 24h)</h3>
-              <MiniBarChart data={analytics.requestsPerHour} label="count" />
-            </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 400px', background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-                <div style={{ padding: '14px 20px', borderBottom: '1px solid #1c1c1f' }}><h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: 0 }}>Top Endpoints</h3></div>
-                <Table columns={[
-                  { label: 'Endpoint', key: '_id' },
-                  { label: 'Requests', key: 'count' },
-                  { label: 'Avg Response', render: r => `${Math.round(r.avgResponseTime || 0)}ms` },
-                ]} data={analytics.topEndpoints} />
-              </div>
-              <div style={{ flex: '1 1 400px', background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-                <div style={{ padding: '14px 20px', borderBottom: '1px solid #1c1c1f' }}><h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: 0 }}>Top IPs</h3></div>
-                <Table columns={[
-                  { label: 'IP Address', key: '_id' },
-                  { label: 'Requests', key: 'count' },
-                  { label: 'Rate Limited', key: 'rateLimitHits', render: r => <span style={{ color: r.rateLimitHits > 0 ? '#ff4444' : '#6b7280' }}>{r.rateLimitHits}</span> },
-                  { label: '', render: r => <button onClick={() => setBanModal({ type: 'ip', value: r._id })} style={{ padding: '3px 8px', background: '#ff4444', border: 'none', borderRadius: 4, color: '#fff', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>Ban</button> },
-                ]} data={analytics.topIPs} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Abuse Tab ── */}
-        {tab === 'abuse' && abuse && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid #1c1c1f', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#ff4444', fontSize: 16 }}>🛑</span>
-                <h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: 0 }}>Rate Limit Abusers (Last Hour)</h3>
-              </div>
-              <Table columns={[
-                { label: 'IP', key: '_id' },
-                { label: 'Hits', key: 'hits', render: r => <span style={{ color: '#ff4444', fontWeight: 700 }}>{r.hits}</span> },
-                { label: '', render: r => <button onClick={() => setBanModal({ type: 'ip', value: r._id })} style={{ padding: '3px 8px', background: '#ff4444', border: 'none', borderRadius: 4, color: '#fff', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>Ban</button> },
-              ]} data={abuse.rateLimitAbusers} emptyMsg="No rate limit abusers detected" />
-            </div>
-            <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid #1c1c1f', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#ffaa00', fontSize: 16 }}>⚡</span>
-                <h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: 0 }}>Burst Requests (100+ in 5min)</h3>
-              </div>
-              <Table columns={[
-                { label: 'IP', key: '_id' },
-                { label: 'Requests', key: 'count', render: r => <span style={{ color: '#ffaa00', fontWeight: 700 }}>{r.count}</span> },
-                { label: 'Endpoints', render: r => r.endpoints?.length || 0 },
-                { label: '', render: r => <button onClick={() => setBanModal({ type: 'ip', value: r._id })} style={{ padding: '3px 8px', background: '#ff4444', border: 'none', borderRadius: 4, color: '#fff', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>Ban</button> },
-              ]} data={abuse.burstAbusers} emptyMsg="No burst activity detected" />
-            </div>
-            <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid #1c1c1f', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: '#ff00ff', fontSize: 16 }}>🕷️</span>
-                <h3 style={{ color: '#f0f2f5', fontSize: 14, fontWeight: 700, margin: 0 }}>Suspected Scrapers (30+ endpoints/hour)</h3>
-              </div>
-              <Table columns={[
-                { label: 'IP', key: '_id' },
-                { label: 'Unique Endpoints', key: 'endpointCount', render: r => <span style={{ color: '#ff00ff', fontWeight: 700 }}>{r.endpointCount}</span> },
-                { label: 'Total Requests', key: 'totalRequests' },
-                { label: '', render: r => <button onClick={() => setBanModal({ type: 'ip', value: r._id })} style={{ padding: '3px 8px', background: '#ff4444', border: 'none', borderRadius: 4, color: '#fff', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}>Ban</button> },
-              ]} data={abuse.scrapers} emptyMsg="No scraping patterns detected" />
-            </div>
-          </div>
-        )}
-
-        {/* ── Bans Tab ── */}
-        {tab === 'bans' && (
-          <div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-              <button onClick={() => setBanModal({ type: 'ip', value: '' })} style={{ padding: '10px 20px', background: '#ff4444', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🚫 Ban IP</button>
-              <button onClick={() => setBanModal({ type: 'fingerprint', value: '' })} style={{ padding: '10px 20px', background: '#ff6600', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>📱 Ban Device</button>
-            </div>
-            <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-              <Table columns={[
-                { label: 'Type', render: r => <span style={{ color: r.type === 'ip' ? '#00f2ff' : '#ff6600', fontWeight: 700, textTransform: 'uppercase' }}>{r.type}</span> },
-                { label: 'Value', key: 'value', render: r => <span style={{ fontFamily: 'monospace' }}>{truncate(r.value, 24)}</span> },
-                { label: 'Reason', key: 'reason', render: r => r.reason || '—' },
-                { label: 'Status', render: r => <span style={{ color: r.active ? '#ff4444' : '#4ade80', fontWeight: 700 }}>{r.active ? 'ACTIVE' : 'LIFTED'}</span> },
-                { label: 'Expires', render: r => r.expiresAt ? new Date(r.expiresAt).toLocaleString() : 'Permanent' },
-                { label: 'Banned', render: r => timeAgo(r.bannedAt) },
-                { label: 'Actions', render: r => r.active ? (
-                  <button onClick={() => handleUnban(r._id)} style={{ padding: '4px 10px', background: '#4ade80', border: 'none', borderRadius: 6, color: '#050505', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}>Unban</button>
-                ) : '—' },
-              ]} data={bans} emptyMsg="No bans configured" />
-            </div>
-          </div>
-        )}
-
-        {/* ── Requests Tab ── */}
-        {tab === 'requests' && (
-          <div>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-              <input value={requestFilter.ip} onChange={e => setRequestFilter(f => ({ ...f, ip: e.target.value }))} placeholder="Filter by IP..."
-                style={{ flex: 1, padding: '10px 16px', background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 10, color: '#f0f2f5', fontSize: 14, outline: 'none' }} />
-              <input value={requestFilter.endpoint} onChange={e => setRequestFilter(f => ({ ...f, endpoint: e.target.value }))} placeholder="Filter by endpoint..."
-                style={{ flex: 1, padding: '10px 16px', background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 10, color: '#f0f2f5', fontSize: 14, outline: 'none' }} />
-              <button onClick={() => load()} style={{ padding: '10px 20px', background: '#00f2ff', border: 'none', borderRadius: 10, color: '#050505', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Filter</button>
-            </div>
-            <div style={{ background: '#0a0a0b', border: '1px solid #1c1c1f', borderRadius: 16, overflow: 'hidden' }}>
-              <Table columns={[
-                { label: 'Time', render: r => new Date(r.timestamp).toLocaleTimeString() },
-                { label: 'Method', key: 'method', render: r => <span style={{ color: r.method === 'POST' ? '#ffaa00' : '#00f2ff', fontWeight: 700 }}>{r.method}</span> },
-                { label: 'Endpoint', key: 'endpoint' },
-                { label: 'IP', key: 'ip' },
-                { label: 'Status', key: 'statusCode', render: r => <span style={{ color: r.statusCode >= 400 ? '#ff4444' : r.statusCode === 429 ? '#ffaa00' : '#4ade80' }}>{r.statusCode}</span> },
-                { label: 'Time', render: r => `${r.responseTime || 0}ms` },
-                { label: 'FP', render: r => r.fingerprintId ? <span style={{ fontFamily: 'monospace', color: '#6b7280' }}>{truncate(r.fingerprintId, 8)}</span> : '—' },
-                { label: 'Rate Limited', render: r => r.rateLimited ? <span style={{ color: '#ff4444' }}>⛔</span> : '—' },
-              ]} data={requests.requests} emptyMsg="No requests logged" />
-            </div>
-            <div style={{ color: '#6b7280', fontSize: 12, marginTop: 8, textAlign: 'center' }}>Showing {requests.requests?.length || 0} of {requests.total || 0} requests</div>
-          </div>
-        )}
-      </div>
-
-      {/* Modals */}
-      {banModal && (
-        <BanModal
-          type={banModal.type}
-          value={banModal.value}
-          onClose={() => setBanModal(null)}
-          onBan={handleBanFromModal}
-        />
-      )}
-      {selectedDevice && (
-        <DeviceDetailModal
-          device={selectedDevice}
-          onClose={() => setSelectedDevice(null)}
-          onBan={(fpId) => { setSelectedDevice(null); setBanModal({ type: 'fingerprint', value: fpId }); }}
-        />
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MAIN EXPORT
+// ADMIN ENTRY POINT
 // ═══════════════════════════════════════════════════════════════
 export function Admin() {
   const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) { setChecking(false); return; }
-    fetch('/api/admin/auth/verify', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => { setUser(data.user); setChecking(false); })
-      .catch(() => { clearToken(); setChecking(false); });
+    async function verify() {
+      const token = getToken();
+      if (!token) { setLoading(false); return; }
+      try {
+        const r = await fetch('/api/admin/auth/verify', { headers: { Authorization: `Bearer ${token}` } });
+        if (r.ok) { setUser(await r.json()); } else { clearToken(); }
+      } catch (e) { clearToken(); }
+      setLoading(false);
+    }
+    verify();
   }, []);
 
-  const handleLogout = async () => {
-    await fetch('/api/admin/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` } }).catch(() => {});
-    clearToken(); setUser(null);
-  };
+  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a' }}><div style={{ color: '#888' }}>Loading...</div></div>;
 
-  if (checking) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
-      <div style={{ width: 40, height: 40, border: '4px solid #00f2ff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
+  if (!user) return <LoginScreen onLogin={data => { setUser(data); }} />;
 
-  if (!user) return <LoginScreen onLogin={setUser} />;
-  return <Dashboard user={user} onLogout={handleLogout} />;
+  return <Dashboard user={user} onLogout={() => { clearToken(); setUser(null); }} />;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════
+const styles = {
+  shell: { display: 'flex', minHeight: '100vh', background: '#0a0a0a', fontFamily: 'Inter, -apple-system, sans-serif', color: '#ccc' },
+  sidebar: { width: 200, background: '#111', borderRight: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' },
+  logo: { padding: '24px 20px 20px', fontSize: 18, fontWeight: 900, borderBottom: '1px solid #1a1a1a' },
+  nav: { flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 },
+  navBtn: { display: 'flex', alignItems: 'center', padding: '10px 14px', border: 'none', background: 'transparent', color: '#888', fontSize: 13, fontWeight: 500, borderRadius: 10, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' },
+  navBtnActive: { background: '#00d4aa15', color: '#00d4aa', fontWeight: 700 },
+  userBox: { padding: 16, borderTop: '1px solid #1a1a1a' },
+  logoutBtn: { display: 'block', width: '100%', marginTop: 10, padding: '8px', border: '1px solid #333', borderRadius: 8, background: 'transparent', color: '#888', fontSize: 12, cursor: 'pointer' },
+  main: { flex: 1, padding: '24px 32px', overflowY: 'auto' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  headerTitle: { fontSize: 22, fontWeight: 900, color: '#fff', margin: 0 },
+  refreshBtn: { padding: '8px 16px', border: '1px solid #00d4aa30', borderRadius: 10, background: '#00d4aa10', color: '#00d4aa', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 },
+  statCard: { background: '#111', border: '1px solid #1a1a1a', borderRadius: 16, padding: '16px 20px' },
+  panel: { background: '#111', border: '1px solid #1a1a1a', borderRadius: 16, padding: 20 },
+  panelTitle: { fontSize: 14, fontWeight: 800, color: '#fff', margin: '0 0 14px' },
+  infoRow: { display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, color: '#aaa', borderBottom: '1px solid #0d0d0d' },
+  table: { width: '100%' },
+  tableHeader: { display: 'flex', padding: '10px 12px', borderBottom: '1px solid #222', fontSize: 10, fontWeight: 700, color: '#666', letterSpacing: 0.8, textTransform: 'uppercase' },
+  tableRow: { display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #111', fontSize: 13, color: '#aaa', cursor: 'pointer', transition: 'background 0.1s' },
+  badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.5 },
+  banBtn: { padding: '4px 12px', border: 'none', borderRadius: 8, background: '#ff6b6b20', color: '#ff6b6b', fontSize: 11, fontWeight: 700, cursor: 'pointer' },
+  actionBtn: { padding: '8px 16px', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  filterBtn: { padding: '6px 14px', border: '1px solid #333', borderRadius: 8, background: 'transparent', color: '#888', fontSize: 12, cursor: 'pointer' },
+  filterBtnActive: { background: '#00d4aa15', borderColor: '#00d4aa40', color: '#00d4aa' },
+  input: { flex: 1, padding: '10px 14px', border: '1px solid #222', borderRadius: 10, background: '#0a0a0a', color: '#ccc', fontSize: 13, outline: 'none' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal: { background: '#111', border: '1px solid #222', borderRadius: 20, padding: 32, maxWidth: 700, width: '90vw', maxHeight: '90vh', overflow: 'hidden' },
+  loading: { display: 'flex', justifyContent: 'center', padding: 40, color: '#666' },
+};
