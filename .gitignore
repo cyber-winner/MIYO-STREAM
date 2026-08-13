@@ -60,6 +60,7 @@ libs/
 # Deploy Scripts (local-only)
 deploy.js
 fast_deploy.js
+.deploy.env
 
 # Internal References
 .strawverse-ref/
@@ -92,3 +93,6 @@ backend_modules/
 electron/release/
 electron/squashfs-root/
 electron/
+
+# Added by ggshield
+.cache_ggshield
