@@ -16,7 +16,7 @@ import { cn } from '../lib/cn';
 import { useSEO } from '../hooks/useSEO';
 import { slugify } from '../lib/slugify';
 import { isNative, youTubeEmbedUrl } from '../platform/index.js';
-import { getDownloadForEpisode, saveDownloadMetadata, getDownloads } from '../lib/downloadsManager.js';
+import { getDownloadForEpisode, saveDownloadMetadata } from '../lib/downloadsManager.js';
 export function AnimeDetail() {
   const { id, slug } = useParams();
   const navigate = useNavigate();
@@ -38,12 +38,7 @@ export function AnimeDetail() {
   const [audioPreference, setAudioPreference] = useState('sub'); // 'sub' or 'dub'
   const [availableAudio, setAvailableAudio] = useState(['sub']); // ['sub', 'dub'] based on provider info
   const [loadingEpisode, setLoadingEpisode] = useState(false);
-  // Background trailer state
-  const [bgTrailerPhase, setBgTrailerPhase] = useState('image'); // 'image' | 'trailer'
-  const [bgTrailerReady, setBgTrailerReady] = useState(false);
-  const bgPlayerRef = useRef(null);
-  const bgTimerRef = useRef(null);
-  const bgIframeRef = useRef(null);
+
   const episodesContainerRef = useRef(null);
   // Watch Together state
   const [wtModalOpen, setWtModalOpen] = useState(false);
@@ -546,125 +541,7 @@ export function AnimeDetail() {
   const title = data ? (data.title?.english || data.title?.romaji || data.title?.userPreferred) : '';
   const description = data?.description?.replace(/<[^>]*>/g, '') || '';
   const cover = data ? (data.coverImage?.extraLarge || data.coverImage?.large) : '';
-  // Background trailer: use AniList trailer data (computed before hooks, null-safe)
-  // If we are offline, or if this anime has any downloaded episodes, force "picture mode" by ignoring the trailer
-  const isOfflineMode = !navigator.onLine || Object.values(getDownloads() || {}).some(d => String(d.animeId) === String(id));
-  const bgTrailer = (!isOfflineMode && data?.type === 'ANIME' && data?.trailer?.site === 'youtube') ? data.trailer : null;
-  // Load YouTube IFrame API once. All platforms now run on a real HTTP
-  // origin (desktop serves from http://localhost via tauri-plugin-localhost),
-  // so the standard YT.Player works everywhere — same as Android.
-  useEffect(() => {
-    if (!bgTrailer) return;
-    if (window.YT && window.YT.Player) return;
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  }, [bgTrailer]);
-  // Trailer cycling logic
-  useEffect(() => {
-    if (!bgTrailer || !data) return;
-    if (bgTrailerPhase === 'image') {
-      setBgTrailerReady(false);
-      bgTimerRef.current = setTimeout(() => {
-        setBgTrailerPhase('trailer');
-      }, 5000);
-      return () => clearTimeout(bgTimerRef.current);
-    }
-    if (bgTrailerPhase === 'trailer') {
-      const initPlayer = () => {
-        if (bgPlayerRef.current) {
-          try {
-            bgPlayerRef.current.seekTo(0);
-            bgPlayerRef.current.playVideo();
-          } catch(e) {}
-          return;
-        }
-        const iframeEl = bgIframeRef.current;
-        if (!iframeEl) return;
-        bgPlayerRef.current = new window.YT.Player(iframeEl, {
-          videoId: bgTrailer.id,
-          playerVars: {
-            autoplay: 1,
-            mute: 1,
-            controls: 0,
-            showinfo: 0,
-            rel: 0,
-            modestbranding: 1,
-            iv_load_policy: 3,
-            disablekb: 1,
-            fs: 0,
-            playsinline: 1,
-            loop: 1,
-            playlist: bgTrailer.id,
-            origin: window.location.origin,
-          },
-          events: {
-            onReady: (e) => {
-              e.target.mute();
-              e.target.playVideo();
-              setTimeout(() => setBgTrailerReady(true), 800);
-            },
-            onStateChange: (e) => {
-              if (e.data === 1) setBgTrailerReady(true);
-              // Paused (e.g. app went to background): show the backdrop image
-              if (e.data === 2) setBgTrailerReady(false);
-              if (e.data === 0) {
-                // Safety net — with loop:1 this normally never fires.
-                setBgTrailerReady(false);
-                setTimeout(() => setBgTrailerPhase('image'), 600);
-              }
-            },
-            onError: () => {
-              setBgTrailerReady(false);
-              setBgTrailerPhase('image');
-            },
-          },
-        });
-      };
-      if (window.YT && window.YT.Player) {
-        initPlayer();
-      } else {
-        window.onYouTubeIframeAPIReady = initPlayer;
-      }
-    }
-  }, [bgTrailerPhase, bgTrailer, data]);
-  // Resume the trailer when the app comes back to the foreground. While
-  // hidden the player pauses and the cover image is shown; on return we
-  // replay — if that fails, fall back to the image permanently.
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) return;
-      if (!bgPlayerRef.current) return;
-      try {
-        bgPlayerRef.current.mute();
-        bgPlayerRef.current.playVideo();
-      } catch (e) {
-        setBgTrailerReady(false);
-        setBgTrailerPhase('image');
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, []);
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearTimeout(bgTimerRef.current);
-      if (bgPlayerRef.current) {
-        try { bgPlayerRef.current.destroy(); } catch(e) {}
-        bgPlayerRef.current = null;
-      }
-    };
-  }, []);
-  // Reset trailer state when navigating to a different item
-  useEffect(() => {
-    setBgTrailerPhase('image');
-    setBgTrailerReady(false);
-    if (bgPlayerRef.current) {
-      try { bgPlayerRef.current.destroy(); } catch(e) {}
-      bgPlayerRef.current = null;
-    }
-  }, [id]);
+
   useSEO({
     title,
     description,
@@ -676,10 +553,9 @@ export function AnimeDetail() {
   const BackgroundLayer = (
     <>
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2] transition-opacity duration-1000"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2]"
         style={{ 
           backgroundImage: backdrop ? `url('${backdrop}')` : cover ? `url('${cover}')` : undefined,
-          opacity: bgTrailerReady ? 0 : 1,
         }}
       />
       <div className="fixed inset-0 gradient-overlay-detail z-[-1]" />
@@ -737,33 +613,11 @@ export function AnimeDetail() {
     <div className="animate-in fade-in duration-700">
       {/* Global Cinematic Background */}
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2] transition-opacity duration-1000"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2]"
         style={{ 
           backgroundImage: backdrop ? `url('${backdrop}')` : cover ? `url('${cover}')` : undefined,
-          opacity: bgTrailerReady ? 0 : 1,
         }}
       />
-      {/* Background YouTube Trailer (muted, behind everything) */}
-      {bgTrailer && (
-        <div 
-          className="fixed inset-0 z-[-2] overflow-hidden transition-opacity duration-1000"
-          style={{ opacity: bgTrailerReady ? 1 : 0 }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: 'max(177.78vh, 100vw)',
-              height: 'max(56.25vw, 100vh)',
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none',
-            }}
-          >
-            <div ref={bgIframeRef} style={{ width: '100%', height: '100%' }} />
-          </div>
-        </div>
-      )}
       <div className="fixed inset-0 gradient-overlay-detail z-[-1]" />
       <div
         className={cn(

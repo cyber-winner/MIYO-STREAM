@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useDevice } from '../context/DeviceContext';
@@ -28,12 +28,7 @@ export function Detail({ mediaType = 'movie' }) {
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState('popular');
   const [isPosterExpanded, setIsPosterExpanded] = useState(false);
-  // Background trailer state
-  const [bgTrailerPhase, setBgTrailerPhase] = useState('image'); // 'image' | 'trailer'
-  const [bgTrailerReady, setBgTrailerReady] = useState(false);
-  const bgPlayerRef = useRef(null);
-  const bgTimerRef = useRef(null);
-  const bgIframeRef = useRef(null);
+
   const { showToast } = useToast();
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -121,128 +116,7 @@ export function Detail({ mediaType = 'movie' }) {
   const title = data ? (isTvShow ? data.name : data.title) : '';
   const description = data?.overview || '';
   const poster = data ? api.getImageUrl(data.poster_path) : '';
-  // Background trailer: find a YouTube trailer (null-safe, computed before hooks)
-  const bgTrailer = data?.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube') || data?.videos?.results?.find(v => v.site === 'YouTube') || null;
-  // Load YouTube IFrame API once. All platforms now run on a real HTTP
-  // origin (desktop serves from http://localhost via tauri-plugin-localhost),
-  // so the standard YT.Player works everywhere — same as Android.
-  useEffect(() => {
-    if (!bgTrailer) return;
-    if (window.YT && window.YT.Player) return;
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  }, [bgTrailer]);
-  // Trailer cycling logic
-  useEffect(() => {
-    if (!bgTrailer || !data) return;
-    if (bgTrailerPhase === 'image') {
-      setBgTrailerReady(false);
-      bgTimerRef.current = setTimeout(() => {
-        setBgTrailerPhase('trailer');
-      }, 5000);
-      return () => clearTimeout(bgTimerRef.current);
-    }
-    if (bgTrailerPhase === 'trailer') {
-      const initPlayer = () => {
-        if (bgPlayerRef.current) {
-          try {
-            bgPlayerRef.current.seekTo(0);
-            bgPlayerRef.current.playVideo();
-          } catch(e) {}
-          return;
-        }
-        const iframeEl = bgIframeRef.current;
-        if (!iframeEl) return;
-        bgPlayerRef.current = new window.YT.Player(iframeEl, {
-          videoId: bgTrailer.key,
-          playerVars: {
-            autoplay: 1,
-            mute: 1,
-            controls: 0,
-            showinfo: 0,
-            rel: 0,
-            modestbranding: 1,
-            iv_load_policy: 3,
-            disablekb: 1,
-            fs: 0,
-            playsinline: 1,
-            loop: 1,
-            playlist: bgTrailer.key,
-            origin: window.location.origin,
-          },
-          events: {
-            onReady: (e) => {
-              e.target.mute();
-              e.target.playVideo();
-              setTimeout(() => setBgTrailerReady(true), 800);
-            },
-            onStateChange: (e) => {
-              if (e.data === 1) {
-                setBgTrailerReady(true);
-              }
-              // Paused (e.g. app/tab went to background): show the backdrop
-              // image instead of a frozen video frame.
-              if (e.data === 2) {
-                setBgTrailerReady(false);
-              }
-              if (e.data === 0) {
-                // Safety net — with loop:1 this normally never fires.
-                setBgTrailerReady(false);
-                setTimeout(() => setBgTrailerPhase('image'), 600);
-              }
-            },
-            onError: () => {
-              setBgTrailerReady(false);
-              setBgTrailerPhase('image');
-            },
-          },
-        });
-      };
-      if (window.YT && window.YT.Player) {
-        initPlayer();
-      } else {
-        window.onYouTubeIframeAPIReady = initPlayer;
-      }
-    }
-  }, [bgTrailerPhase, bgTrailer, data]);
-  // Resume the trailer when the app/tab comes back to the foreground.
-  // While hidden the player pauses and the backdrop image is shown; on
-  // return we replay — if that fails, fall back to the image permanently.
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) return;
-      if (!bgPlayerRef.current) return;
-      try {
-        bgPlayerRef.current.mute();
-        bgPlayerRef.current.playVideo();
-      } catch (e) {
-        setBgTrailerReady(false);
-        setBgTrailerPhase('image');
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, []);
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearTimeout(bgTimerRef.current);
-      if (bgPlayerRef.current) {
-        try { bgPlayerRef.current.destroy(); } catch(e) {}
-        bgPlayerRef.current = null;
-      }
-    };
-  }, []);
-  // Reset trailer state when navigating to a different item
-  useEffect(() => {
-    setBgTrailerPhase('image');
-    setBgTrailerReady(false);
-    if (bgPlayerRef.current) {
-      try { bgPlayerRef.current.destroy(); } catch(e) {}
-      bgPlayerRef.current = null;
-    }
-  }, [id]);
+
   useSEO({
     title,
     description,
@@ -254,10 +128,9 @@ export function Detail({ mediaType = 'movie' }) {
   const BackgroundLayer = (
     <>
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2] transition-opacity duration-1000"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2]"
         style={{ 
           backgroundImage: backdrop ? `url('${backdrop}')` : undefined,
-          opacity: bgTrailerReady ? 0 : 1,
         }}
       />
       <div className="fixed inset-0 gradient-overlay-detail z-[-1]" />
@@ -277,33 +150,11 @@ export function Detail({ mediaType = 'movie' }) {
     <div className="animate-in fade-in duration-700 relative">
       {/* Global Cinematic Background */}
       <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2] transition-opacity duration-1000"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-[-2]"
         style={{ 
           backgroundImage: `url('${backdrop}')`,
-          opacity: bgTrailerReady ? 0 : 1,
         }}
       />
-      {/* Background YouTube Trailer (muted, behind everything) */}
-      {bgTrailer && (
-        <div 
-          className="fixed inset-0 z-[-2] overflow-hidden transition-opacity duration-1000"
-          style={{ opacity: bgTrailerReady ? 1 : 0 }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              width: 'max(177.78vh, 100vw)',
-              height: 'max(56.25vw, 100vh)',
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none',
-            }}
-          >
-            <div ref={bgIframeRef} style={{ width: '100%', height: '100%' }} />
-          </div>
-        </div>
-      )}
       <div className="fixed inset-0 gradient-overlay-detail z-[-1]" />
       <div
         className={cn(
