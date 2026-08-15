@@ -26,10 +26,12 @@ function timeAgo(date) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 function formatUptime(s) {
+  if (s == null || isNaN(s)) return '—';
   const d = Math.floor(s / 86400); const h = Math.floor((s % 86400) / 3600); const m = Math.floor((s % 3600) / 60);
   return `${d}d ${h}h ${m}m`;
 }
 function formatBytes(b) {
+  if (b == null || isNaN(b)) return '—';
   if (b < 1024) return `${b}B`;
   if (b < 1048576) return `${(b / 1024).toFixed(1)}KB`;
   return `${(b / 1048576).toFixed(1)}MB`;
@@ -119,6 +121,15 @@ const TABS = [
 ];
 
 function Dashboard({ user, onLogout }) {
+  // Inject spin animation for refresh button (inline styles can't do @keyframes)
+  useEffect(() => {
+    if (!document.getElementById('admin-spin-css')) {
+      const style = document.createElement('style');
+      style.id = 'admin-spin-css';
+      style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+      document.head.appendChild(style);
+    }
+  }, []);
   const [tab, setTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [extStats, setExtStats] = useState(null);
@@ -259,14 +270,20 @@ function Dashboard({ user, onLogout }) {
     } catch (e) {}
   };
 
-  const refresh = () => {
-    if (tab === 'overview') { fetchStats(); fetchTopRoutes(); fetchTopContent(); }
-    if (tab === 'devices') fetchDevices();
-    if (tab === 'analytics') { fetchAnalytics(); fetchTopRoutes(); }
-    if (tab === 'content') fetchTopContent();
-    if (tab === 'abuse') fetchAbuse();
-    if (tab === 'bans') fetchBans();
-    if (tab === 'requests') fetchRequests();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      if (tab === 'overview') { await Promise.all([fetchStats(), fetchTopRoutes(), fetchTopContent()]); }
+      if (tab === 'devices') await fetchDevices();
+      if (tab === 'analytics') { await Promise.all([fetchAnalytics(), fetchTopRoutes()]); }
+      if (tab === 'content') await fetchTopContent();
+      if (tab === 'abuse') await fetchAbuse();
+      if (tab === 'bans') await fetchBans();
+      if (tab === 'requests') await fetchRequests();
+    } catch (e) {}
+    setRefreshing(false);
   };
 
   const filteredDevices = devices.filter(d => {
@@ -311,7 +328,9 @@ function Dashboard({ user, onLogout }) {
       <main style={S.main}>
         <div style={S.header}>
           <h1 style={S.headerTitle}>{TABS.find(t => t.id === tab)?.icon} {TABS.find(t => t.id === tab)?.label}</h1>
-          <button onClick={refresh} style={S.refreshBtn}>🔄 Refresh</button>
+          <button onClick={refresh} disabled={refreshing} style={{ ...S.refreshBtn, opacity: refreshing ? 0.6 : 1, pointerEvents: refreshing ? 'none' : 'auto' }}>
+            <span style={{ display: 'inline-block', animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>🔄</span> {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
 
         {tab === 'overview' && <OverviewTab stats={stats} extStats={extStats} topRoutes={topRoutes} topContent={topContent} setTab={setTab} setBanModal={setBanModal} />}
@@ -382,10 +401,10 @@ function OverviewTab({ stats, extStats, topRoutes, topContent, setTab, setBanMod
         <div style={styles.panel}>
           <h3 style={styles.panelTitle}>Quick Actions</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-            <button onClick={() => setTab('devices')} style={{ ...styles.actionBtn, background: '#00d4aa20', color: '#00d4aa' }}>📱 View Devices</button>
-            <button onClick={() => setBanModal({ type: 'ip', value: '' })} style={{ ...styles.actionBtn, background: '#ff6b6b20', color: '#ff6b6b' }}>🚫 Ban IP</button>
-            <button onClick={() => setTab('abuse')} style={{ ...styles.actionBtn, background: '#f9ca2420', color: '#f9ca24' }}>⚠️ Check Abuse</button>
-            <button onClick={() => setTab('content')} style={{ ...styles.actionBtn, background: '#a29bfe20', color: '#a29bfe' }}>🎬 Top Content</button>
+            <button type="button" onClick={() => setTab('devices')} onMouseOver={e => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'scale(1.03)'; }} onMouseOut={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }} style={{ ...styles.actionBtn, background: '#00d4aa20', color: '#00d4aa' }}>📱 View Devices</button>
+            <button type="button" onClick={() => setBanModal({ type: 'ip', value: '' })} onMouseOver={e => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'scale(1.03)'; }} onMouseOut={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }} style={{ ...styles.actionBtn, background: '#ff6b6b20', color: '#ff6b6b' }}>🚫 Ban IP</button>
+            <button type="button" onClick={() => setTab('abuse')} onMouseOver={e => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'scale(1.03)'; }} onMouseOut={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }} style={{ ...styles.actionBtn, background: '#f9ca2420', color: '#f9ca24' }}>⚠️ Check Abuse</button>
+            <button type="button" onClick={() => setTab('content')} onMouseOver={e => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'scale(1.03)'; }} onMouseOut={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }} style={{ ...styles.actionBtn, background: '#a29bfe20', color: '#a29bfe' }}>🎬 Top Content</button>
           </div>
 
           {/* Top Routes Preview */}
@@ -973,7 +992,7 @@ const styles = {
   tableRow: { display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #111', fontSize: 13, color: '#aaa', cursor: 'pointer', transition: 'background 0.1s' },
   badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.5 },
   banBtn: { padding: '4px 12px', border: 'none', borderRadius: 8, background: '#ff6b6b20', color: '#ff6b6b', fontSize: 11, fontWeight: 700, cursor: 'pointer' },
-  actionBtn: { padding: '8px 16px', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  actionBtn: { padding: '8px 16px', border: 'none', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', position: 'relative', zIndex: 1, transition: 'opacity 0.15s, transform 0.15s' },
   filterBtn: { padding: '6px 14px', border: '1px solid #333', borderRadius: 8, background: 'transparent', color: '#888', fontSize: 12, cursor: 'pointer' },
   filterBtnActive: { background: '#00d4aa15', borderColor: '#00d4aa40', color: '#00d4aa' },
   input: { flex: 1, padding: '10px 14px', border: '1px solid #222', borderRadius: 10, background: '#0a0a0a', color: '#ccc', fontSize: 13, outline: 'none' },

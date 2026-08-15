@@ -300,23 +300,22 @@ app.use('/api', (req, res, next) => {
 
     // Content access tracking (fire-and-forget)
     try {
-      const fullPath = req.query?.path || req.path;
-      // TMDB movie/tv detail pages
-      const tmdbMovie = fullPath.match(/^\/movie\/(\d+)$/);
-      const tmdbTv = fullPath.match(/^\/tv\/(\d+)$/);
-      if (req.path === '/tmdb' && tmdbMovie) {
-        db.ContentAccess.create({ contentType: 'movie', contentId: tmdbMovie[1], ip: clientIP, fingerprintId: fpId }).catch(() => {});
-      } else if (req.path === '/tmdb' && tmdbTv) {
-        db.ContentAccess.create({ contentType: 'tv', contentId: tmdbTv[1], ip: clientIP, fingerprintId: fpId }).catch(() => {});
+      const queryPath = req.query?.path || '';
+      const isTmdbRoute = req.path.endsWith('/tmdb') || req.path.endsWith('/api/tmdb');
+      const tmdbMovie = queryPath.match(/^\/movie\/(\d+)/);
+      const tmdbTv = queryPath.match(/^\/tv\/(\d+)/);
+      if (isTmdbRoute && tmdbMovie) {
+        db.ContentAccess.create({ contentType: 'movie', contentId: tmdbMovie[1], ip: clientIP, fingerprintId: fpId, timestamp: new Date() }).catch(() => {});
+      } else if (isTmdbRoute && tmdbTv) {
+        db.ContentAccess.create({ contentType: 'tv', contentId: tmdbTv[1], ip: clientIP, fingerprintId: fpId, timestamp: new Date() }).catch(() => {});
       }
       // Anime info pages
-      const animeInfo = req.path.match(/^\/anime\/[^/]+\/info/);
-      if (animeInfo && req.query?.id) {
-        db.ContentAccess.create({ contentType: 'anime', contentId: req.query.id, ip: clientIP, fingerprintId: fpId }).catch(() => {});
+      if (req.path.includes('/anime/') && req.path.includes('/info') && req.query?.id) {
+        db.ContentAccess.create({ contentType: 'anime', contentId: req.query.id, ip: clientIP, fingerprintId: fpId, timestamp: new Date() }).catch(() => {});
       }
       // Watch endpoint (anime streaming)
-      if (req.path === '/watch' && req.method === 'POST') {
-        db.ContentAccess.create({ contentType: 'anime', contentId: req.body?.ep || 'unknown', ip: clientIP, fingerprintId: fpId }).catch(() => {});
+      if (req.path.endsWith('/watch') && req.method === 'POST') {
+        db.ContentAccess.create({ contentType: 'anime', contentId: req.body?.ep || 'unknown', ip: clientIP, fingerprintId: fpId, timestamp: new Date() }).catch(() => {});
       }
     } catch (e) {}
 
@@ -1214,13 +1213,13 @@ app.get('/api/admin/stats', requireAdmin, async (req, res) => {
 
     res.json({
       totalDevices,
-      totalBans,
+      activeBans: totalBans,
       requestsToday,
       requestsPerHour: requestsHour,
-      rateLimitHitsToday,
-      uniqueIpsToday,
-      serverUptime: process.uptime(),
-      memoryUsage: process.memoryUsage(),
+      rateLimitsHit: rateLimitHitsToday,
+      uniqueIPsToday: uniqueIpsToday,
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1462,7 +1461,7 @@ app.get('/api/admin/routes/top', requireAdmin, async (req, res) => {
     const { hours = 24 } = req.query;
     const since = new Date(Date.now() - parseInt(hours) * 60 * 60 * 1000);
     const routes = await db.Analytics.aggregate([
-      { $match: { timestamp: { $gte: since }, endpoint: { $not: /^\/admin/ } } },
+      { $match: { timestamp: { $gte: since }, endpoint: { $not: /\/admin/ } } },
       { $group: { _id: '$endpoint', count: { $sum: 1 }, uniqueIPs: { $addToSet: '$ip' }, avgResponseTime: { $avg: '$responseTime' } } },
       { $project: { _id: 1, count: 1, uniqueIPCount: { $size: '$uniqueIPs' }, avgResponseTime: 1 } },
       { $sort: { count: -1 } },
@@ -1596,7 +1595,7 @@ app.get('/api/admin/stats/extended', requireAdmin, async (req, res) => {
     const [countries, topRoutes, topContent, deviceTypes] = await Promise.all([
       db.Fingerprint.distinct('geo.country').then(c => c.filter(Boolean)),
       db.Analytics.aggregate([
-        { $match: { timestamp: { $gte: todayStart }, endpoint: { $not: /^\/admin/ } } },
+        { $match: { timestamp: { $gte: todayStart }, endpoint: { $not: /\/admin/ } } },
         { $group: { _id: '$endpoint', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 5 },
