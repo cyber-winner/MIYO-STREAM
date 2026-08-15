@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/cn';
 import { MenuIcon } from './NavIcons';
+import { ApiStatusBanner } from '../ui/ApiStatusBanner';
 export function AppShell({ children }) {
   const { isDesktop } = useDevice();
   const containerRef = useRef(null);
@@ -18,6 +19,7 @@ export function AppShell({ children }) {
   }, [location, isDesktop]);
   return (
     <div ref={containerRef} className="min-h-screen bg-transparent text-text-primary">
+      <ApiStatusBanner />
       {!isDesktop && (
         <button
           onClick={() => setIsSidebarOpen(true)}

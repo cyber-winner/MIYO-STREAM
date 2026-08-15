@@ -244,12 +244,14 @@ app.use((req, res, next) => {
   
   // 1. Direct IP ban check
   if (db.isIPBanned(clientIP)) {
+    console.warn(`[BAN] Blocked by IP ban: ip=${clientIP} path=${req.path}`);
     return res.status(403).json({ error: 'Access denied.' });
   }
   
   // 2. Check fingerprint ban via header OR cookie
   const fpId = req.headers['x-fingerprint-id'] || '';
   if (fpId && db.isFingerprintBanned(fpId)) {
+    console.warn(`[BAN] Blocked by fingerprint ban: fp=${fpId} ip=${clientIP} path=${req.path}`);
     return res.status(403).json({ error: 'Access denied.' });
   }
   
@@ -257,6 +259,7 @@ app.use((req, res, next) => {
   const linkedFps = db.getFingerprintsForIP(clientIP);
   for (const linkedFp of linkedFps) {
     if (db.isFingerprintBanned(linkedFp)) {
+      console.warn(`[BAN] Blocked by cross-ban (IP->FP): ip=${clientIP} linkedFp=${linkedFp} path=${req.path}`);
       return res.status(403).json({ error: 'Access denied.' });
     }
   }
@@ -266,6 +269,7 @@ app.use((req, res, next) => {
     const linkedIPs = db.getIPsForFingerprint(fpId);
     for (const linkedIP of linkedIPs) {
       if (db.isIPBanned(linkedIP)) {
+        console.warn(`[BAN] Blocked by cross-ban (FP->IP): fp=${fpId} linkedIP=${linkedIP} path=${req.path}`);
         return res.status(403).json({ error: 'Access denied.' });
       }
     }
@@ -339,7 +343,7 @@ const proxyLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use('/api/tmdb', apiLimiter);
-app.use('/api/anilist', apiLimiter);
+app.use('/api/al', apiLimiter);
 app.use('/api/anime', apiLimiter);
 app.use('/api/watch', apiLimiter);
 app.use('/api/proxy', proxyLimiter);
@@ -677,30 +681,164 @@ const CACHE_DIR = path.join(__dirname, '.cache', 'anilist');
 if (!fs.existsSync(CACHE_DIR)) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
 }
-const CACHE_DURATION_MS = 1000 * 60 * 60; 
-app.post('/api/anilist', async (req, res) => {
-  try {
-    const hash = crypto.createHash('md5').update(JSON.stringify(req.body)).digest('hex');
-    const cacheFile = path.join(CACHE_DIR, `${hash}.json`);
-    if (fs.existsSync(cacheFile)) {
-      try {
-        const cachedContent = fs.readFileSync(cacheFile, 'utf8');
-        const cachedData = JSON.parse(cachedContent);
-        if (Date.now() - cachedData.timestamp < CACHE_DURATION_MS) {
-          return res.json(cachedData.data);
-        }
-      } catch (err) {
+const CACHE_DURATION_MS = 1000 * 60 * 60;
+
+// AniList GraphQL proxy — route renamed from /api/anilist to /api/al to avoid
+// ad-blocker false positives that match "anilist" in filter lists.
+async function fetchAniListWithRetry(body, retries = 2) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await axios({
+        method: 'POST',
+        url: 'https://graphql.anilist.co',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        data: body,
+        timeout: 15000,
+      });
+      return response;
+    } catch (err) {
+      lastErr = err;
+      const status = err.response?.status;
+      // Don't retry on 4xx client errors (except 429 rate-limit)
+      if (status && status >= 400 && status < 500 && status !== 429) {
+        throw err;
+      }
+      if (status === 429) {
+        const wait = (attempt + 1) * 3000;
+        console.warn(`[AniList] Rate limited (429), waiting ${wait}ms before retry ${attempt + 1}...`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      if (attempt < retries) {
+        const wait = (attempt + 1) * 1500;
+        console.warn(`[AniList] Request failed (${status || err.code || err.message}), retry ${attempt + 1} in ${wait}ms...`);
+        await new Promise(r => setTimeout(r, wait));
       }
     }
-    const response = await axios({
-      method: 'POST',
-      url: 'https://graphql.anilist.co',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      data: req.body,
-    });
+  }
+  throw lastErr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── Unified API Health Check (polled by the frontend ApiStatusBanner) ──
+// Probes ALL upstream APIs and returns per-service status.
+// ═══════════════════════════════════════════════════════════════════════
+const healthCache = { services: {}, checkedAt: 0 };
+const HEALTH_CHECK_TTL = 2 * 60 * 1000; // cache for 2 min
+
+const HEALTH_PROBES = [
+  {
+    id: 'tmdb',
+    name: 'TMDB',
+    check: async () => {
+      const key = process.env.TMDB_API_KEY || '';
+      const res = await axios.get(`https://api.themoviedb.org/3/configuration?api_key=${key}`, { timeout: 8000 });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+    },
+  },
+  {
+    id: 'anilist',
+    name: 'AniList',
+    check: async () => {
+      const res = await axios.post('https://graphql.anilist.co', {
+        query: '{ Page(page:1,perPage:1) { media(type:ANIME) { id } } }',
+      }, {
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        timeout: 10000,
+      });
+      const errors = res.data?.errors;
+      if (errors?.length) throw new Error(errors[0].message);
+    },
+  },
+  {
+    id: 'anikoto',
+    name: 'Anikoto',
+    check: async () => {
+      const res = await global.axios.get('https://anikototv.to/', { timeout: 10000 });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+    },
+  },
+  {
+    id: 'animepahe',
+    name: 'AnimePahe',
+    check: async () => {
+      const res = await global.axios.get('https://animepahe.pw/', {
+        headers: { Referer: 'https://animepahe.pw/' },
+        timeout: 10000,
+      });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+    },
+  },
+  {
+    id: 'anineko',
+    name: 'AniNeko',
+    check: async () => {
+      const res = await global.axios.get('https://anineko.to/', { timeout: 10000 });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+    },
+  },
+  {
+    id: 'weebcentral',
+    name: 'WeebCentral',
+    check: async () => {
+      const res = await global.axios.get('https://weebcentral.com/', {
+        headers: { Referer: 'https://weebcentral.com/' },
+        timeout: 10000,
+      });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+    },
+  },
+];
+
+app.get('/api/health', async (req, res) => {
+  // Return cached if fresh
+  if (Date.now() - healthCache.checkedAt < HEALTH_CHECK_TTL) {
+    return res.json(healthCache);
+  }
+
+  const results = {};
+  await Promise.allSettled(
+    HEALTH_PROBES.map(async (probe) => {
+      try {
+        await probe.check();
+        results[probe.id] = { ok: true, name: probe.name, message: '' };
+      } catch (err) {
+        const msg = err.response?.data?.errors?.[0]?.message || err.message || `${probe.name} unreachable`;
+        results[probe.id] = { ok: false, name: probe.name, message: msg };
+        console.warn(`[Health] ${probe.name} is DOWN: ${msg}`);
+      }
+    })
+  );
+
+  healthCache.services = results;
+  healthCache.checkedAt = Date.now();
+  res.json(healthCache);
+});
+
+app.post('/api/al', async (req, res) => {
+  const hash = crypto.createHash('md5').update(JSON.stringify(req.body)).digest('hex');
+  const cacheFile = path.join(CACHE_DIR, `${hash}.json`);
+
+  // Try to read cache (fresh or stale)
+  let cachedData = null;
+  if (fs.existsSync(cacheFile)) {
+    try {
+      cachedData = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+    } catch (_) {}
+  }
+
+  // Return fresh cache if available
+  if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION_MS) {
+    return res.json(cachedData.data);
+  }
+
+  // Try to fetch from AniList
+  try {
+    const response = await fetchAniListWithRetry(req.body);
     try {
       fs.writeFileSync(cacheFile, JSON.stringify({
         timestamp: Date.now(),
@@ -709,16 +847,39 @@ app.post('/api/anilist', async (req, res) => {
     } catch (err) {
       console.error('Failed to write cache to disk:', err.message);
     }
-    res.json(response.data);
+    return res.json(response.data);
   } catch (err) {
     const status = err.response?.status || 500;
-    console.error('AniList proxy error:', status, err.message);
+    const source = err.response ? 'AniList API' : 'network/timeout';
+    const anilistMsg = err.response?.data?.errors?.[0]?.message || '';
+    console.error(`[AniList] Proxy error (source: ${source}):`, status, err.message, anilistMsg ? `| AniList says: "${anilistMsg}"` : '');
+
+    // Serve stale cache if AniList is down (better than nothing)
+    if (cachedData) {
+      console.warn(`[AniList] Serving stale cache (age: ${Math.round((Date.now() - cachedData.timestamp) / 60000)}min) because AniList is unavailable`);
+      res.setHeader('X-Cache', 'STALE');
+      return res.json(cachedData.data);
+    }
+
+    // AniList global outage — friendly error
+    if (status === 403 && anilistMsg.includes('temporarily disabled')) {
+      return res.status(503).json({
+        error: 'AniList API is temporarily down for maintenance. Please try again later.',
+        anilistMessage: anilistMsg,
+      });
+    }
+
     if (err.response?.data) {
       res.status(status).json(err.response.data);
     } else {
       res.status(status).json({ error: err.message });
     }
   }
+});
+// Backward-compat redirect: old /api/anilist path -> /api/al
+app.post('/api/anilist', (req, res) => {
+  // 307 preserves POST method and body
+  res.redirect(307, '/api/al');
 });
 // ═══════════════════════════════════════════════════════════════════════
 // ── Watch Together: Pure Node.js WebSocket Server (no Go binary) ──

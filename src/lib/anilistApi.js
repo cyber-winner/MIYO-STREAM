@@ -1,5 +1,5 @@
 import { isNative, platformFetch } from '../platform/index.js';
-const ANILIST_PROXY = '/api/anilist';
+const ANILIST_PROXY = '/api/al';
 const ANILIST_DIRECT = 'https://graphql.anilist.co';
 const cache = new Map();
 const CACHE_TTL = 60_000;
@@ -60,6 +60,22 @@ async function queryAniList(query, variables = {}) {
         }
         await new Promise(r => setTimeout(r, retryAfter * 1000));
         continue;
+      }
+      if (response.status === 503) {
+        // AniList is down for maintenance — don't retry, surface immediately
+        let body = {};
+        try { body = await response.json(); } catch (_) {}
+        const msg = body.error || body.anilistMessage || 'AniList API is temporarily unavailable.';
+        console.warn(`[AniList] Service unavailable (503): ${msg}`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('miyo-api-down', {
+            detail: { service: 'anilist', message: msg }
+          }));
+          window.dispatchEvent(new CustomEvent('miyo-toast', {
+            detail: { message: msg, type: 'warning', duration: 8000 }
+          }));
+        }
+        throw new Error(msg);
       }
       if (!response.ok) throw new Error(`Proxy returned ${response.status}`);
       const json = await response.json();
