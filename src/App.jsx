@@ -4,6 +4,10 @@ import { isNative } from './platform/index.js';
 import { DeviceProvider } from './context/DeviceContext';
 import { ToastProvider } from './components/ui/Toast';
 import { AppShell } from './components/layout/AppShell';
+import { ScrollProgressBar } from './components/ui/ScrollProgressBar';
+import { CookieBanner } from './components/ui/CookieBanner';
+import { useUTM } from './hooks/useUTM';
+
 const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
 const Browse = lazy(() => import('./pages/Browse').then(m => ({ default: m.Browse })));
 const Detail = lazy(() => import('./pages/Detail').then(m => ({ default: m.Detail })));
@@ -27,60 +31,82 @@ const MangaReader = lazy(() => import('./pages/MangaReader').then(m => ({ defaul
 const DevConsole = lazy(() => import('./pages/DevConsole').then(m => ({ default: m.DevConsole })));
 const Downloads = lazy(() => import('./pages/Downloads').then(m => ({ default: m.Downloads })));
 const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
+const About = lazy(() => import('./pages/About').then(m => ({ default: m.About })));
+const Blog = lazy(() => import('./pages/Blog').then(m => ({ default: m.Blog })));
+const ThankYou = lazy(() => import('./pages/ThankYou').then(m => ({ default: m.ThankYou })));
+const DMCA = lazy(() => import('./pages/DMCA').then(m => ({ default: m.DMCA })));
+
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[60vh]">
     <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
   </div>
 );
+
 // Native apps (Tauri/Capacitor) serve from a custom protocol where deep
 // history-API routes 404, so they use HashRouter. The website is unchanged.
 const Router = isNative() ? HashRouter : BrowserRouter;
+
+function AppContent() {
+  // Capture UTM params on first load
+  useUTM();
+
+  return (
+    <div className="relative isolate min-h-screen">
+      <ScrollProgressBar />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Watch Together — renders OUTSIDE AppShell for full immersion */}
+          <Route path="/watch-together" element={<WatchTogether />} />
+          {/* Manga Reader — full-screen immersive reading */}
+          <Route path="/manga/reader/:provider/:chapterId" element={<MangaReader />} />
+          {/* Admin Panel — hidden route, NOT linked from navigation */}
+          <Route path="/admin" element={<Admin />} />
+          {/* All other routes go through the normal AppShell layout */}
+          <Route path="*" element={
+            <AppShell>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/movies" element={<Browse mediaType="movie" />} />
+                <Route path="/tv" element={<Browse mediaType="tv" />} />
+                <Route path="/movie/:id/:slug?" element={<Detail mediaType="movie" />} />
+                <Route path="/tv/:id/:slug?" element={<Detail mediaType="tv" />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/person/:id" element={<Person />} />
+                <Route path="/collection/:id" element={<Collection />} />
+                <Route path="/changelog" element={<Changelog />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/download" element={<Download />} />
+                <Route path="/downloads" element={<Downloads />} />
+                <Route path="/dev-console" element={<DevConsole />} />
+                <Route path="/anime" element={<Anime />} />
+                <Route path="/anime/browse" element={<AnimeBrowse />} />
+                <Route path="/anime/:id/:slug?" element={<AnimeDetail />} />
+                <Route path="/manga" element={<Manga />} />
+                <Route path="/manga/browse" element={<MangaBrowse />} />
+                <Route path="/manga/read/:provider/:id/:slug?" element={<MangaDetail />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/thank-you" element={<ThankYou />} />
+                <Route path="/dmca" element={<DMCA />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AppShell>
+          } />
+        </Routes>
+      </Suspense>
+      <CookieBanner />
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <DeviceProvider>
       <ToastProvider>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <div className="relative isolate min-h-screen">
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                {/* Watch Together — renders OUTSIDE AppShell for full immersion */}
-                <Route path="/watch-together" element={<WatchTogether />} />
-                {/* Manga Reader — full-screen immersive reading */}
-                <Route path="/manga/reader/:provider/:chapterId" element={<MangaReader />} />
-                {/* Admin Panel — hidden route, NOT linked from navigation */}
-                <Route path="/admin" element={<Admin />} />
-                {/* All other routes go through the normal AppShell layout */}
-                <Route path="*" element={
-                  <AppShell>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/movies" element={<Browse mediaType="movie" />} />
-                      <Route path="/tv" element={<Browse mediaType="tv" />} />
-                      <Route path="/movie/:id/:slug?" element={<Detail mediaType="movie" />} />
-                      <Route path="/tv/:id/:slug?" element={<Detail mediaType="tv" />} />
-                      <Route path="/search" element={<Search />} />
-                      <Route path="/person/:id" element={<Person />} />
-                      <Route path="/collection/:id" element={<Collection />} />
-                      <Route path="/changelog" element={<Changelog />} />
-                      <Route path="/terms" element={<Terms />} />
-                      <Route path="/privacy" element={<Privacy />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/download" element={<Download />} />
-                      <Route path="/downloads" element={<Downloads />} />
-                      <Route path="/dev-console" element={<DevConsole />} />
-                      <Route path="/anime" element={<Anime />} />
-                      <Route path="/anime/browse" element={<AnimeBrowse />} />
-                      <Route path="/anime/:id/:slug?" element={<AnimeDetail />} />
-                      <Route path="/manga" element={<Manga />} />
-                      <Route path="/manga/browse" element={<MangaBrowse />} />
-                      <Route path="/manga/read/:provider/:id/:slug?" element={<MangaDetail />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </AppShell>
-                } />
-              </Routes>
-            </Suspense>
-          </div>
+          <AppContent />
         </Router>
       </ToastProvider>
     </DeviceProvider>

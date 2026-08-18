@@ -30,6 +30,8 @@ const MANGA_NAV = [
   { path: '/anime/browse?type=MANGA&status=HIATUS', label: 'Hiatus', icon: ClockIcon },
 ];
 const SECONDARY_NAV = [
+  { path: '/about', label: 'About', icon: HomeIcon },
+  { path: '/blog', label: 'Blog', icon: HistoryIcon },
   { path: '/changelog', label: 'Timeline', icon: HistoryIcon },
   { path: '/download', label: 'Get the App', icon: DownloadIcon },
   ...(isNative() ? [{ path: '/downloads', label: 'Downloads', icon: DownloadIcon }] : []),
@@ -83,12 +85,23 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
       )}
     >
       <div className="flex items-center gap-3 px-4 h-[70px] flex-shrink-0">
-        <Link to="/" className="flex items-center gap-2.5 min-w-0">
+        <Link to="/" onClick={() => onClose && onClose()} className="flex items-center gap-2.5 min-w-0 flex-1">
           <img src="/logo.png" alt="MIYO-STREAM" className="w-8 h-8 rounded-lg flex-shrink-0" />
           <span className="text-lg font-bold text-text-primary whitespace-nowrap">
             MIYO -<span className="text-accent animate-rgb-shift">STREAM</span>
           </span>
         </Link>
+        {!isDesktop && (
+          <button
+            onClick={() => onClose && onClose()}
+            className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-white/10 transition-all active:scale-90 flex-shrink-0"
+            aria-label="Close menu"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
       <div className="flex-1 px-2 mt-4 space-y-6 pb-8">
         {renderLinks(MAIN_NAV)}

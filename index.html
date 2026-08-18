@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MIYO-STREAM - Watch Free Movies & TV</title>
-  <link rel="icon" type="image/png" href="./logo.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
+  <link rel="icon" type="image/webp" href="/images/logo.webp" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- SEO & Standard Meta Tags -->
@@ -38,6 +40,16 @@
   <meta name="apple-mobile-web-app-title" content="MIYO-STREAM">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Google Search Console — set VITE_GOOGLE_SITE_VERIFICATION in .env -->
+  <meta name="google-site-verification" content="%VITE_GOOGLE_SITE_VERIFICATION%">
+  <!-- Google Analytics (GA4) — set VITE_GA_MEASUREMENT_ID in .env -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=%VITE_GA_MEASUREMENT_ID%"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '%VITE_GA_MEASUREMENT_ID%');
+  </script>
 </head>
 <body>
   <div id="root"></div>

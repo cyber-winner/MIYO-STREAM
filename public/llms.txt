@@ -1,0 +1,34 @@
+# MIYO-STREAM
+
+> Free, open-source streaming platform for movies, TV shows, anime, and manga.
+
+## About
+MIYO-STREAM is a React-based web application that provides a catalog and streaming interface for entertainment content. It uses TMDB and AniList APIs for metadata, supports embedded players and proxy-based streaming, and is available as a web app, desktop app (Tauri), and mobile app (Capacitor/Android).
+
+## Tech Stack
+- Frontend: React 19, Vite 8, Tailwind CSS
+- Desktop: Tauri (Rust)
+- Mobile: Capacitor (Android)
+- Backend: Node.js, Express, MongoDB
+- APIs: TMDB, AniList GraphQL
+
+## Key Pages
+- / — Home (trending movies, TV, anime)
+- /movies — Browse movies by genre
+- /tv — Browse TV shows by genre
+- /anime — Browse anime (AniList)
+- /manga — Browse manga (AniList)
+- /search — Search across all media
+- /download — Download native apps
+- /about — About the project
+- /blog — News and updates
+- /settings — User preferences
+- /terms — Terms of Service
+- /privacy — Privacy Policy
+
+## Contact
+- Email: contact@cyber-winner.site
+- GitHub: https://github.com/cyber-winner/MIYO-STREAM
+
+## License
+GNU General Public License v3.0 (GPL-3.0)

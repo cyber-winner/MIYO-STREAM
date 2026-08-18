@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getPlatform, isNative, getTmdbApiKey, setTmdbApiKey, isUsingDefaultTmdbKey } from '../platform/index.js';
 import { api } from '../lib/api';
 import { cn } from '../lib/cn';
+import { useSEO } from '../hooks/useSEO';
 
 const PLATFORM_LABELS = {
   web: 'Website',
@@ -10,6 +11,7 @@ const PLATFORM_LABELS = {
 };
 
 export function Settings() {
+  useSEO({ title: 'Settings', description: 'Configure your MIYO-STREAM experience. Set API keys, choose providers, and manage preferences.' });
   const platform = getPlatform();
   const native = isNative();
   const [apiKey, setApiKey] = useState('');

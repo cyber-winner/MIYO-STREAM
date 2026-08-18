@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { useDevice } from '../context/DeviceContext';
 import { Badge } from '../components/ui/Badge';
+import { useSEO } from '../hooks/useSEO';
 
 /* ─── v6.0 Manga Panel Changelog Data ─── */
 const V6_PANELS = [
@@ -880,6 +881,7 @@ function EditorialEntry({ item, isAlt }) {
    MAIN EXPORT
    ═══════════════════════════════════════════ */
 export function Changelog() {
+  useSEO({ title: 'Timeline', description: 'See what\'s new in MIYO-STREAM. Full changelog and version history.' });
   return (
     <div className="animate-in fade-in duration-1000">
       {/* v6.0 Manga Panel Hero */}

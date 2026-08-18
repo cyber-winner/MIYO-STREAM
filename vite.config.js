@@ -14,6 +14,7 @@ export default defineConfig({
   define: {
     // The provider extensions use `global.axios` etc. (Node-style globals)
     global: 'globalThis',
+    __MIYO_BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
   },
   server: {
     host: true, // Bind to all interfaces (including IPv6 [::1]) for Cloudflare Tunnel

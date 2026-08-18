@@ -13,7 +13,9 @@ import { Badge } from '../components/ui/Badge';
 import { useDevice } from '../context/DeviceContext';
 import { cn } from '../lib/cn';
 import { isNative, getTmdbApiKey } from '../platform/index.js';
+import { useSEO } from '../hooks/useSEO';
 export function Home() {
+  useSEO({ title: 'Home', description: 'Stream movies, TV shows, and anime for free on MIYO-STREAM. No registration required.' });
   const { isTv = false, isMobile = false } = useDevice() || {};
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

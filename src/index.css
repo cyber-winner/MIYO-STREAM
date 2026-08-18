@@ -8,6 +8,10 @@
     margin: 0;
     padding: 0;
   }
+  html {
+    overflow-x: hidden;
+    width: 100%;
+  }
   body {
     font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
     background-color: #050505;
@@ -16,7 +20,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    width: 100%;
     position: relative;
+  }
+  img, video, iframe, embed, object {
+    max-width: 100%;
   }
   body::before {
     content: '';
@@ -232,4 +240,69 @@
 .ep-btn:active {
  filter: brightness(.7);
  transform: scale(.98);
+}
+
+/* Cookie banner slide-up */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out forwards;
+}
+
+/* ═══ Print Stylesheet ═══ */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  body::before {
+    display: none !important;
+  }
+  /* Hide navigation, floating UI, decorative elements */
+  nav,
+  aside,
+  .fixed,
+  .sticky,
+  footer,
+  .cyber-gradient,
+  .rgb-pattern-bg,
+  .animate-rgb-shift,
+  video,
+  iframe,
+  button:not([type="submit"]) {
+    display: none !important;
+  }
+  /* Reset layout */
+  main, [class*="ml-["] {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  /* Show link URLs */
+  a[href]::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.8em;
+    color: #666;
+  }
+  a[href^="#"]::after,
+  a[href^="javascript"]::after {
+    content: '';
+  }
+  /* Clean text */
+  * {
+    text-shadow: none !important;
+    box-shadow: none !important;
+    border-color: #ccc !important;
+  }
+  img {
+    max-width: 100% !important;
+    filter: none !important;
+  }
+  h1, h2, h3 { color: #000 !important; }
+  p, li, span, td, th { color: #333 !important; }
+  /* Page break control */
+  h1, h2, h3 { page-break-after: avoid; }
+  img { page-break-inside: avoid; }
 }

@@ -1,79 +1,76 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { useSEO } from '../hooks/useSEO';
+
+const ExtLink = ({ href, children }) => (
+  <a href={href} target="_blank" rel="noopener noreferrer" className="text-accent underline decoration-accent/30 hover:decoration-accent transition-colors">{children}</a>
+);
+
 export function Privacy() {
+  useSEO({
+    title: 'Privacy Policy',
+    description: 'Privacy Policy for MIYO-STREAM — what data we collect, how we store it, device fingerprinting, third-party integrations, and your rights.',
+  });
+
   const sections = [
     {
-      title: "1. Information We Do Not Collect",
-      content: "MIYO-STREAM is designed to respect your privacy. As an open-source catalog and streaming interface, we do not require you to register, log in, or provide an email address. We do not collect, store, or process personal identifiable information (PII) such as names, addresses, or payment details."
+      title: "1. Local-First Storage",
+      content: "MIYO-STREAM is designed as a local-first application. Your watch history, video progress, bookmarks, theme preferences, and UI settings are stored locally on your device via browser localStorage. This data never leaves your machine unless explicitly stated otherwise. MIYO-STREAM does not require user accounts, logins, or any form of personal registration."
     },
     {
-      title: "2. Local Storage & Client-Side Data",
-      content: "To enhance your experience, MIYO-STREAM utilizes your browser's local storage to save preferences such as your watch history, progress on videos, UI preferences (e.g., light/dark mode), and saved bookmarks. This data remains strictly on your device and is never transmitted to our backend servers."
+      title: "2. Data We Collect",
+      content: "MIYO-STREAM collects limited data for platform security and abuse prevention. This includes: anonymous device fingerprints (one-way hashes of GPU rendering, audio context, system fonts, screen resolution, timezone, locale, and browser entropy), API request logs (endpoint, HTTP method, response status, response time, IP address, fingerprint ID), and basic network information. We do not collect names, emails, phone numbers, or any personally identifiable information."
     },
     {
-      title: "3. Third-Party Services & APIs",
-      content: "MIYO-STREAM functions as an interface that pulls data from various third-party services. We fetch movie and TV show metadata from TMDB, and anime/manga metadata from AniList. Anime playback utilizes a StrawVerse-inspired backend proxy engine to securely fetch video segments."
+      title: "3. Device Fingerprinting",
+      content: "To protect against automated abuse, scraping, and denial-of-service attacks, MIYO-STREAM generates anonymous device fingerprints. These fingerprints are non-reversible SHA-256 hashes derived from your browser and hardware characteristics. They identify device configurations — not individuals. You cannot be personally identified from a device fingerprint. Fingerprint records are retained as long as the associated device actively visits the platform."
     },
     {
-      title: "4. Embedded Video Players",
-      content: "For non-anime content, MIYO-STREAM does not host any video content. All video playback is handled via embedded iframes from third-party providers. When you stream an embedded video, the player provider may collect IP addresses, device information, or utilize cookies to deliver the stream."
+      title: "4. Server Logs & Retention",
+      content: <>MIYO-STREAM logs API requests for platform monitoring, performance optimization, and abuse detection. Logs include the endpoint URL, HTTP method, response status code, response time, client IP address, and device fingerprint ID. All server logs are automatically purged after 30 days via <ExtLink href="https://www.mongodb.com/docs/manual/core/index-ttl/">MongoDB TTL (Time-To-Live) indexes</ExtLink>. No logs are retained beyond this period.</>
     },
     {
-      title: "5. Device Fingerprinting & Anti-Abuse Data Collection",
-      content: "To protect the platform from abuse, automated scraping, and denial-of-service attacks, MIYO-STREAM collects anonymous device fingerprint data. This fingerprint is a non-reversible hash generated from your browser and hardware characteristics. It does not identify you personally — it identifies your device configuration. The following categories of technical data are collected:"
+      title: "5. Data Storage & Security",
+      content: <>Server-side data (device fingerprints, API logs, ban records) is stored in a private <ExtLink href="https://www.mongodb.com/">MongoDB</ExtLink> database. Storage buckets are not publicly accessible. All data is encrypted in transit via TLS 1.2+. Database access is restricted to a single authorized administrator authenticated via <ExtLink href="https://developers.google.com/identity/protocols/oauth2">Google OAuth 2.0</ExtLink>. No user-submitted personal data exists because no signup or personal data submission is required.</>
     },
     {
-      title: "5.1 Graphics & Hardware Rendering Data",
-      content: "We collect a hash of how your browser renders 2D canvas elements and 3D WebGL scenes. Sub-pixel rendering differences caused by GPU drivers, anti-aliasing implementations, and graphics hardware yield a distinct signature. We also collect your GPU vendor name, renderer identifier, and supported WebGL capabilities and extensions."
+      title: "6. Third-Party Services",
+      content: <>MIYO-STREAM integrates with third-party services that may independently collect data according to their own privacy policies: <ExtLink href="https://www.themoviedb.org/">TMDB (The Movie Database)</ExtLink> — movie and TV metadata, images, and trailers. <ExtLink href="https://anilist.co/">AniList</ExtLink> — anime and manga metadata via GraphQL API. Third-party embedded video players — may collect IP addresses or set cookies to deliver streams. <ExtLink href="https://github.com/TheYogMehta/StrawVerse">StrawVerse</ExtLink>-inspired proxy endpoints — resolve HLS segment URLs client-side without storing media. MIYO-STREAM has no control over data practices of these external services.</>
     },
     {
-      title: "5.2 Audio Processing Characteristics",
-      content: "We generate an audio fingerprint by processing a test signal through your browser's AudioContext pipeline (oscillator → compressor → analyser). Subtle differences in DSP implementations across browsers and operating systems produce a unique hash. We also record audio sample rate and channel count."
+      title: "7. Network Activity",
+      content: <>Outbound network requests made by the application include: metadata API calls to <ExtLink href="https://www.themoviedb.org/">TMDB</ExtLink> and <ExtLink href="https://anilist.co/">AniList</ExtLink> from your browser, HLS stream segment requests resolved client-side through proxy endpoints, font and asset loading from CDNs, and optional <ExtLink href="https://analytics.google.com/">Google Analytics</ExtLink> tracking (if configured via environment variables). All requests occur directly from your device to the respective endpoints.</>
     },
     {
-      title: "5.3 Hardware Architecture & System Specs",
-      content: "We collect CPU core count (navigator.hardwareConcurrency), device memory (navigator.deviceMemory), screen resolution, color depth, device pixel ratio, color gamut support (sRGB/P3/Rec2020), HDR capability, and touch point count. Battery status may be queried where supported."
-    },
-    {
-      title: "5.4 Installed System Fonts & Speech Engines",
-      content: "We detect which system fonts are installed by measuring text rendering dimensions against baseline fonts. We also enumerate available text-to-speech voices via the Web Speech API. The specific combination of installed fonts and TTS engines is highly unique to each system."
-    },
-    {
-      title: "5.5 Browser Environment & Execution Quirks",
-      content: "We collect your User-Agent string, platform identifier, PDF viewer status, plugin count, cookie enablement status, Do Not Track setting, JavaScript engine type (detected via error stack format differences), and supported media codec profiles for audio and video formats."
-    },
-    {
-      title: "5.6 Time, Locale & Internationalization",
-      content: "We collect your IANA timezone identifier, UTC offset, daylight saving time configuration, preferred language(s), and Intl API formatting rules for numbers, dates, and currency. These locale signals are combined with other attributes to strengthen the fingerprint."
-    },
-    {
-      title: "5.7 Accessibility & System Preferences",
-      content: "We detect your operating system's accessibility preferences including color scheme (dark/light), reduced motion, reduced transparency, high contrast mode, and forced colors settings. These are queried via CSS media queries and are never used to discriminate — only to differentiate device configurations."
-    },
-    {
-      title: "5.8 Network & Transport Information",
-      content: "We collect network connection type (WiFi/cellular), effective bandwidth, round-trip time (RTT), and data saver status via the Network Information API where available. On the server side, we record your IP address, TLS handshake metadata, and Cloudflare security headers."
-    },
-    {
-      title: "6. Purpose of Device Fingerprinting",
-      content: "Device fingerprints are used exclusively for: (a) detecting and blocking automated scrapers and bots, (b) enforcing API rate limits and preventing abuse, (c) identifying and banning devices engaged in denial-of-service patterns, and (d) platform security monitoring. Fingerprints are anonymous device identifiers — they do not link to any personal identity, email, or account."
-    },
-    {
-      title: "7. Data Retention & Storage",
-      content: "Fingerprint data is stored in a secured MongoDB database. Request analytics logs are automatically deleted after 30 days via TTL indexes. Device fingerprint records are retained as long as the device continues to visit the platform. Admin session tokens expire after 7 days. All data is encrypted in transit via TLS."
-    },
-    {
-      title: "8. Analytics and Server Logs",
-      content: "MIYO-STREAM logs API requests including endpoint, HTTP method, response status code, response time, IP address, and device fingerprint ID. These logs are used for platform monitoring, abuse detection, and performance optimization. They are retained for 30 days and then automatically purged."
+      title: "8. Cookies & Tracking",
+      content: <>MIYO-STREAM itself does not use tracking cookies, advertising pixels, or cross-site tracking mechanisms. However, third-party embedded iframes (video players) may independently set cookies. If <ExtLink href="https://analytics.google.com/">Google Analytics</ExtLink> is enabled, it uses cookies to measure traffic. You can control cookie behavior via your browser settings or our cookie consent banner.</>
     },
     {
       title: "9. Administrative Access",
-      content: "Platform administration is restricted to a single authorized administrator authenticated via Google OAuth 2.0. The admin panel provides access to aggregated device fingerprints, request analytics, ban management, and abuse detection reports. No personal user data is accessible through the admin panel."
+      content: <>Platform administration is restricted to a single authorized administrator authenticated via <ExtLink href="https://developers.google.com/identity/protocols/oauth2">Google OAuth 2.0</ExtLink>. The admin panel provides access to: aggregated platform analytics (request counts, response times), device fingerprint records and ban management, abuse detection logs and rate-limit violations. No personally identifiable user data is stored or accessible through the admin panel.</>
     },
     {
-      title: "10. Contact Us",
-      content: "If you have any questions about this Privacy Policy or how we handle data, please open an issue on our official GitHub repository."
+      title: "10. No Fake Testimonials",
+      content: "MIYO-STREAM does not fabricate user testimonials, generate fake reviews, create misleading endorsements, or inflate usage statistics. Any user feedback displayed on the platform is genuine and unaltered."
+    },
+    {
+      title: "11. Your Rights",
+      content: "Since MIYO-STREAM does not require accounts or collect personally identifiable information, there is no personal profile to delete, export, or modify. Device fingerprints are anonymous hashes that cannot be traced back to an individual. To reset all local data (watch history, preferences, bookmarks), clear your browser's localStorage for this site at any time."
+    },
+    {
+      title: "12. Open-Source Verification",
+      content: <>MIYO-STREAM is completely open source under the <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM/blob/main/LICENSE">GNU General Public License v3.0 (GPL-3.0)</ExtLink>. You can audit the entire source code — including the server, fingerprinting system, proxy architecture, and admin panel — at any time on our <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM">GitHub repository</ExtLink>. Every claim in this privacy policy can be independently verified against the codebase.</>
+    },
+    {
+      title: "13. Changes to This Policy",
+      content: "We may update this Privacy Policy from time to time. Changes will be reflected on this page with an updated effective date. Continued use of the platform after changes constitutes acceptance of the revised policy."
+    },
+    {
+      title: "14. Contact",
+      content: <>If you have questions about this Privacy Policy, our data practices, or wish to report a concern, contact us at <a href="mailto:contact@cyber-winner.site" className="text-accent underline decoration-accent/30 hover:decoration-accent transition-colors">contact@cyber-winner.site</a> or open an issue on the official <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM/issues">MIYO-STREAM GitHub repository</ExtLink>.</>
     }
   ];
+
   return (
     <div className="pt-24 pb-20 px-6 min-h-screen animate-in fade-in duration-700">
       <div className="max-w-4xl mx-auto">
@@ -82,9 +79,23 @@ export function Privacy() {
             Privacy <span className="text-accent animate-rgb-shift">Policy</span>
           </h1>
           <p className="text-text-secondary text-sm font-bold uppercase tracking-widest opacity-60">
-            Last Updated: August 2026
+            Effective Date: August 2026
           </p>
         </div>
+
+        {/* Key summary callout */}
+        <div className="mb-10 p-6 rounded-[2rem] bg-green-500/5 border border-green-500/15">
+          <p className="text-green-400 text-sm font-semibold mb-2">🔒 Summary</p>
+          <ul className="text-text-secondary text-sm leading-relaxed space-y-1">
+            <li>• No accounts, no signup, no personal data collection</li>
+            <li>• Watch history & preferences stored locally on your device</li>
+            <li>• Anonymous device fingerprints for anti-abuse only</li>
+            <li>• Server logs auto-purged after 30 days</li>
+            <li>• Private database — storage is not public</li>
+            <li>• 100% open source — <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM">verify everything in our codebase</ExtLink></li>
+          </ul>
+        </div>
+
         <div className="space-y-12">
           {sections.map((section, index) => (
             <section key={index} className="bg-surface/30 backdrop-blur-xl border border-white/5 p-8 rounded-[2rem] hover:border-accent/20 transition-colors group">
@@ -97,10 +108,25 @@ export function Privacy() {
             </section>
           ))}
         </div>
+
         <div className="mt-16 p-8 bg-accent/5 border border-accent/10 rounded-[2rem] text-center">
-           <p className="text-sm font-bold text-text-secondary">
-             Your privacy is our priority. MIYO-STREAM is an open-source project.
-           </p>
+          <p className="text-sm font-bold text-text-secondary mb-4">
+            Transparency matters. MIYO-STREAM is open source — our code is public, our policies are honest.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <a href="https://github.com/cyber-winner/MIYO-STREAM" target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">
+              Audit the Source Code
+            </a>
+            <a href="mailto:contact@cyber-winner.site" className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent hover:bg-accent/20 transition-colors">
+              contact@cyber-winner.site
+            </a>
+            <Link to="/terms" className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">
+              Terms of Service
+            </Link>
+            <Link to="/dmca" className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">
+              DMCA & Disclaimer
+            </Link>
+          </div>
         </div>
       </div>
     </div>

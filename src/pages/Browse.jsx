@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { MediaGrid } from '../components/media/MediaGrid';
 import { SkeletonGrid } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/cn';
+import { useSEO } from '../hooks/useSEO';
 export function Browse({ mediaType = 'movie' }) {
   const [genres, setGenres] = useState([]);
   const [activeGenre, setActiveGenre] = useState(null);
@@ -14,6 +15,7 @@ export function Browse({ mediaType = 'movie' }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const isTv = mediaType === 'tv';
   const title = isTv ? 'TV Shows' : 'Movies';
+  useSEO({ title: `Browse ${title}`, description: isTv ? 'Explore trending TV series by genre on MIYO-STREAM.' : 'Discover and browse popular movies by genre on MIYO-STREAM.' });
   useEffect(() => {
     const loadGenres = async () => {
       try {
@@ -71,12 +73,30 @@ export function Browse({ mediaType = 'movie' }) {
   };
   return (
     <div className="px-5 md:px-10 py-8 md:py-12">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-1.5 h-8 bg-transparent border border-accent animate-rgb-shift rounded-full" />
-        <h1 className="text-2xl md:text-3xl font-bold text-text-primary tracking-tight">
-          Browse {title}
-        </h1>
-      </div>
+      {/* Service intro + CTA above the fold */}
+      <section className="mb-10 p-6 md:p-8 rounded-[2rem] bg-surface/30 backdrop-blur-xl border border-white/5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-text-primary tracking-tight mb-2">
+              Browse {title}
+            </h1>
+            <p className="text-text-secondary text-sm leading-relaxed max-w-xl">
+              {isTv
+                ? 'Explore trending TV series, filter by genre, and find your next binge. All data sourced from TMDB.'
+                : 'Discover popular and upcoming movies, browse by genre, and start watching instantly. Powered by TMDB.'}
+            </p>
+          </div>
+          <div className="flex gap-3 flex-shrink-0">
+            <Link to="/search" className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-semibold text-text-secondary hover:text-text-primary hover:border-accent/20 transition-all">
+              Search
+            </Link>
+            <Link to="/download" className="px-5 py-2.5 rounded-xl cyber-gradient text-sm font-bold text-white hover:opacity-90 active:scale-95 transition-all">
+              Get the App
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-4 mb-8">
         <button
           onClick={() => handleGenreClick(null)}
@@ -104,6 +124,7 @@ export function Browse({ mediaType = 'movie' }) {
           </button>
         ))}
       </div>
+
       {loading ? (
         <SkeletonGrid count={20} />
       ) : (
@@ -128,6 +149,16 @@ export function Browse({ mediaType = 'movie' }) {
           </div>
         </>
       )}
+
+      {/* Internal cross-links */}
+      <div className="flex flex-wrap gap-3 mt-10 pt-8 border-t border-white/5">
+        <Link to={isTv ? '/movies' : '/tv'} className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">
+          {isTv ? '→ Browse Movies' : '→ Browse TV Shows'}
+        </Link>
+        <Link to="/anime" className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">→ Anime</Link>
+        <Link to="/manga" className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">→ Manga</Link>
+        <Link to="/search" className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">→ Search All</Link>
+      </div>
     </div>
   );
 }

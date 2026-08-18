@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import useSWR from 'swr';
 import { cn } from '../lib/cn';
+import { useSEO } from '../hooks/useSEO';
+import { FAQ } from '../components/ui/FAQ';
 
 const REPO = 'cyber-winner/MIYO-STREAM';
 const RELEASES_API = `https://api.github.com/repos/${REPO}/releases/latest`;
@@ -27,6 +29,7 @@ function matchAsset(assets, patterns) {
 }
 
 export function Download() {
+  useSEO({ title: 'Download', description: 'Download the MIYO-STREAM app for Windows, Android, and Linux. Fully local, no servers needed.' });
   const { data: release, error, isLoading } = useSWR(RELEASES_API, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 300000,
@@ -82,7 +85,7 @@ export function Download() {
         <section className="rounded-2xl border border-border bg-surface/60 p-8 text-center">
           <h2 className="text-lg font-bold text-text-primary mb-2">No release published yet</h2>
           <p className="text-sm text-text-secondary leading-relaxed max-w-xl mx-auto">
-            AUTO
+            The first release is being prepared. Check back soon, or visit GitHub for updates.
           </p>
           <a
             href={`https://github.com/${REPO}/releases`}
@@ -239,6 +242,39 @@ export function Download() {
           </section>
         </>
       )}
+
+      {/* FAQ Section */}
+      <section className="mt-12 pt-10 border-t border-border">
+        <h2 className="text-xl font-bold text-text-primary mb-6 flex items-center gap-2">
+          <span className="text-accent">?</span> Frequently Asked Questions
+        </h2>
+        <FAQ items={[
+          {
+            question: 'Is MIYO-STREAM free?',
+            answer: 'Yes. MIYO-STREAM is completely free and open source. No subscriptions, no hidden fees.',
+          },
+          {
+            question: 'Do I need to create an account?',
+            answer: 'No. MIYO-STREAM works without any registration or login. Your preferences are stored locally on your device.',
+          },
+          {
+            question: 'Is my data safe?',
+            answer: 'We do not collect, store, or transmit any personal data. All viewing history and settings stay on your device. Check our Privacy Policy for details.',
+          },
+          {
+            question: 'Which platforms are supported?',
+            answer: 'MIYO-STREAM is available as a web app (any browser), a Windows desktop app (.exe / .msi), an Android app (.apk), and Linux packages (.AppImage / .deb / .rpm).',
+          },
+          {
+            question: 'How do I update the app?',
+            answer: 'Visit this page or the GitHub Releases page to download the latest version. Auto-update support is coming in a future release.',
+          },
+          {
+            question: 'Can I self-host MIYO-STREAM?',
+            answer: 'Absolutely. Clone the GitHub repository, run npm install, and start the dev server. See the README for full instructions.',
+          },
+        ]} />
+      </section>
     </div>
   );
 }
