@@ -469,7 +469,7 @@ export function AnimeDetail() {
         detail: { message: 'Stream failed to load. Falling back to online servers...', type: 'warning' }
       }));
 
-      // If it was a local stream, playerSrc will contain 'localhost' or 'MIYO' or similar local paths.
+      // If it was a local stream, playerSrc will contain 'localhost' or 'TETO' or similar local paths.
       // Or even if it was online, if it failed, we can re-try fetching the native stream (maybe another source).
       // We will re-trigger handleEpisodeClick but bypass the offline check.
       window._miyo_bypass_offline = true;
@@ -482,7 +482,7 @@ export function AnimeDetail() {
     };
 
     const onLocalFatal = async () => {
-      if (!isHls || !playerSrc.includes('MIYO')) return;
+      if (!isHls || !playerSrc.includes('TETO')) return;
       const downloadId = `${data?.id || id}-${activeEpisode}`;
       const { removeDownloadMetadata } = await import('../lib/downloadsManager.js');
       removeDownloadMetadata(downloadId);

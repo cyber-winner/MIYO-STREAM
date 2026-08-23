@@ -118,7 +118,7 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
                   <p className="text-sm text-text-primary font-bold mb-1 uppercase tracking-tight">Ad Protection Active</p>
                   <p className="text-sm text-text-secondary leading-relaxed">
                     Pop-up ads and redirects from the player are <span className="text-accent font-bold">blocked by the app</span>.
-                    If an ad appears inside the video frame, just close it — it cannot open a browser or leave MIYO.
+                    If an ad appears inside the video frame, just close it — it cannot open a browser or leave TETO.
                   </p>
                 </>
               ) : (
@@ -135,7 +135,7 @@ export function VideoPlayer({ src, isHls, subtitles, className }) {
                     >
                       uBlock Origin
                     </a>{' '}
-                    extension — or use the <span className="text-accent font-bold">MIYO desktop/mobile app</span>, which blocks ads automatically.
+                    extension — or use the <span className="text-accent font-bold">TETO desktop/mobile app</span>, which blocks ads automatically.
                   </p>
                 </>
               )}

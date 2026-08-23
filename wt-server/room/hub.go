@@ -69,7 +69,7 @@ func (h *Hub) DestroyRoom(code string) {
 	delete(h.rooms, code)
 }
 
-// ServeWS handles the WebSocket upgrade — no auth required for MIYO.
+// ServeWS handles the WebSocket upgrade — no auth required for TETO.
 // The username is taken from the JOIN_ROOM packet.
 func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -102,7 +102,7 @@ func (h *Hub) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":         "ok",
-		"server":         "MIYO Watch Together",
+		"server":         "TETO Watch Together",
 		"active_rooms":   activeRooms,
 		"active_clients": activeClients,
 	})
@@ -153,5 +153,5 @@ func (h *Hub) RoomsInfoHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func init() {
-	fmt.Println("[MIYO-WT] Room hub module loaded")
+	fmt.Println("[TETO-WT] Room hub module loaded")
 }

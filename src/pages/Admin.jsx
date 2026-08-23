@@ -97,7 +97,7 @@ function LoginScreen({ onLogin }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a' }}>
       <div style={{ textAlign: 'center', background: '#111', borderRadius: 24, padding: '60px 48px', border: '1px solid #222', maxWidth: 420 }}>
         <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
-        <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: '0 0 8px' }}>MIYO <span style={{ color: '#00d4aa' }}>Admin</span></h1>
+        <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: '0 0 8px' }}>TETO <span style={{ color: '#00d4aa' }}>Admin</span></h1>
         <p style={{ color: '#888', fontSize: 14, margin: '0 0 32px' }}>Restricted access — authorized personnel only</p>
         {error && <div style={{ background: '#ff000020', border: '1px solid #ff000040', borderRadius: 12, padding: '12px', marginBottom: 20, color: '#ff6b6b', fontSize: 13 }}>{error}</div>}
         <div ref={btnRef} style={{ display: 'flex', justifyContent: 'center' }} />
@@ -307,7 +307,7 @@ function Dashboard({ user, onLogout }) {
     <div style={S.shell}>
       {/* Sidebar */}
       <aside style={S.sidebar}>
-        <div style={S.logo}>🔮 <span style={{ color: '#00d4aa' }}>MIYO</span> <span style={{ color: '#fff' }}>Admin</span></div>
+        <div style={S.logo}>🔮 <span style={{ color: '#00d4aa' }}>TETO</span> <span style={{ color: '#fff' }}>Admin</span></div>
         <nav style={S.nav}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{ ...S.navBtn, ...(tab === t.id ? S.navBtnActive : {}) }}>

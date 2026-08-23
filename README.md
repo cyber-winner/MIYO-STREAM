@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=timeGradient&height=200&section=header&text=MIYO-STREAM&fontSize=90" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=timeGradient&height=200&section=header&text=TETO-STREAM&fontSize=90" />
   
   <p><strong>A full-stack streaming application that aggregates metadata and proxies video streams.</strong></p>
   
@@ -15,7 +15,7 @@
 
 ## Overview
 
-MIYO-STREAM is a React and Express-based application that acts as a front-end interface for querying TMDB and AniList, while the Node.js backend handles the actual data fetching to prevent CORS issues and hide API keys. For anime playback, we avoid embedding iframes by scraping video hosters on the backend and proxying the resulting HLS (`.m3u8`) streams directly to the client.
+TETO-STREAM is a React and Express-based application that acts as a front-end interface for querying TMDB and AniList, while the Node.js backend handles the actual data fetching to prevent CORS issues and hide API keys. For anime playback, we avoid embedding iframes by scraping video hosters on the backend and proxying the resulting HLS (`.m3u8`) streams directly to the client.
 
 A lot of the anime scraping logic is based on [StrawVerse](https://github.com/TheYogMehta/StrawVerse). We use their extension architecture to extract source URLs from providers and route the HTTP traffic through our Express server, which allows the native HTML5 player to consume the video chunks without running into cross-origin restrictions.
 
@@ -86,7 +86,7 @@ graph TD
 ## Directory Layout
 
 ```text
-MIYO-STREAM/
+TETO-STREAM/
 ├── server.js                 # The Express application. Handles API routes, proxying, caching, and cloudflared.
 ├── extensions/               # JavaScript plugins for scraping anime video sources.
 ├── src/
@@ -111,8 +111,8 @@ MIYO-STREAM/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/cyber-winner/MIYO-STREAM.git
-   cd MIYO-STREAM
+   git clone https://github.com/cyber-winner/TETO-STREAM.git
+   cd TETO-STREAM
    ```
 
 2. **Install node modules:**
@@ -172,5 +172,5 @@ Refer to [CONTRIBUTING.md](CONTRIBUTING.md) for more specifics.
 MIT License. See [LICENSE](LICENSE).
 
 <div align="center">
-  <p>Made with ❤️ by the MIYO-STREAM community.</p>
+  <p>Made with ❤️ by the TETO-STREAM community.</p>
 </div>

@@ -5,11 +5,11 @@
   "type": "module",
   "author": {
     "name": "CYBER",
-    "email": "contact@cyber-winner.site",
-    "url": "https://cyber-winner.site"
+    "email": "contact@tetocreations.bond",
+    "url": "https://tetocreations.bond"
   },
-  "description": "MIYO - Stream anime, movies and TV shows",
-  "homepage": "https://miyo-stream.cyber-winner.site",
+  "description": "TETO - Stream anime, movies and TV shows",
+  "homepage": "https://miyo-stream.tetocreations.bond",
   "scripts": {
     "start": "concurrently \"node server.js\" \"vite\"",
     "dev": "concurrently \"node server.js\" \"vite\"",

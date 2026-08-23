@@ -1,5 +1,5 @@
 /**
- * MIYO-STREAM Database Layer v2
+ * TETO-STREAM Database Layer v2
  * MongoDB connection + Mongoose models for fingerprints, analytics, bans, sessions,
  * content access tracking, and IP geolocation cache.
  */
@@ -12,7 +12,7 @@ async function connectDB() {
   if (isConnected) return;
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.warn('[MIYO-DB] MONGODB_URI not set — admin features disabled');
+    console.warn('[TETO-DB] MONGODB_URI not set — admin features disabled');
     return;
   }
   try {
@@ -21,9 +21,9 @@ async function connectDB() {
       socketTimeoutMS: 45000,
     });
     isConnected = true;
-    console.log('[MIYO-DB] Connected to MongoDB');
+    console.log('[TETO-DB] Connected to MongoDB');
   } catch (err) {
-    console.error('[MIYO-DB] MongoDB connection failed:', err.message);
+    console.error('[TETO-DB] MongoDB connection failed:', err.message);
   }
 }
 
@@ -190,7 +190,7 @@ async function refreshBanCache() {
     }
     banCache = { ips, fingerprints: fps, lastRefresh: Date.now() };
   } catch (e) {
-    console.error('[MIYO-DB] Ban cache refresh failed:', e.message);
+    console.error('[TETO-DB] Ban cache refresh failed:', e.message);
   }
 }
 

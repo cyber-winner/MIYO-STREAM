@@ -10,8 +10,8 @@
         android:theme="@style/AppTheme">
 
         <meta-data android:name="publisher" android:value="CYBER" />
-        <meta-data android:name="contact" android:value="contact@cyber-winner.site" />
-        <meta-data android:name="website" android:value="https://cyber-winner.site" />
+        <meta-data android:name="contact" android:value="contact@tetocreations.bond" />
+        <meta-data android:name="website" android:value="https://tetocreations.bond" />
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"

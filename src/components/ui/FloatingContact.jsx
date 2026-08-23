@@ -15,17 +15,17 @@ export function FloatingContact() {
       >
         <p className="text-xs font-bold text-text-primary mb-2">Get in touch</p>
         <a
-          href="mailto:contact@cyber-winner.site"
+          href="mailto:contact@tetocreations.bond"
           className="flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent text-sm font-medium hover:bg-accent/20 transition-colors"
         >
           <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
             <polyline points="22,6 12,13 2,6" />
           </svg>
-          contact@cyber-winner.site
+          contact@tetocreations.bond
         </a>
         <a
-          href="https://github.com/cyber-winner/MIYO-STREAM"
+          href="https://github.com/cyber-winner/TETO-STREAM"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-3 py-2 mt-2 rounded-xl bg-white/5 border border-border text-text-secondary text-sm font-medium hover:text-text-primary hover:bg-white/10 transition-colors"

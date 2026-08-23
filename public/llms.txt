@@ -1,9 +1,9 @@
-# MIYO-STREAM
+# TETO-STREAM
 
 > Free, open-source streaming platform for movies, TV shows, anime, and manga.
 
 ## About
-MIYO-STREAM is a React-based web application that provides a catalog and streaming interface for entertainment content. It uses TMDB and AniList APIs for metadata, supports embedded players and proxy-based streaming, and is available as a web app, desktop app (Tauri), and mobile app (Capacitor/Android).
+TETO-STREAM is a React-based web application that provides a catalog and streaming interface for entertainment content. It uses TMDB and AniList APIs for metadata, supports embedded players and proxy-based streaming, and is available as a web app, desktop app (Tauri), and mobile app (Capacitor/Android).
 
 ## Tech Stack
 - Frontend: React 19, Vite 8, Tailwind CSS
@@ -27,8 +27,8 @@ MIYO-STREAM is a React-based web application that provides a catalog and streami
 - /privacy — Privacy Policy
 
 ## Contact
-- Email: contact@cyber-winner.site
-- GitHub: https://github.com/cyber-winner/MIYO-STREAM
+- Email: contact@tetocreations.bond
+- GitHub: https://github.com/cyber-winner/TETO-STREAM
 
 ## License
 GNU General Public License v3.0 (GPL-3.0)

@@ -32,7 +32,7 @@ export function CookieBanner() {
     >
       <div className="max-w-xl mx-auto pointer-events-auto bg-surface border border-border rounded-2xl px-5 py-4 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <p className="text-sm text-text-secondary leading-relaxed flex-1">
-          MIYO-STREAM uses local storage for preferences and collects anonymous device data for platform security.{' '}
+          TETO-STREAM uses local storage for preferences and collects anonymous device data for platform security.{' '}
           <a href="/privacy" className="text-accent underline underline-offset-2 hover:opacity-80">Privacy Policy</a>
         </p>
         <button

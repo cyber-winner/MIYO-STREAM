@@ -1,4 +1,4 @@
-// MIYO desktop shell.
+// TETO desktop shell.
 //
 // The app UI is served from a real local HTTP server (http://localhost:<port>)
 // instead of Tauri's default custom protocol (tauri://). This gives the
@@ -35,7 +35,7 @@ pub fn run() {
             };
 
             WebviewWindowBuilder::new(app, "main", url)
-                .title("MIYO")
+                .title("TETO")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(800.0, 600.0)
                 .resizable(true)
@@ -55,5 +55,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running MIYO");
+        .expect("error while running TETO");
 }

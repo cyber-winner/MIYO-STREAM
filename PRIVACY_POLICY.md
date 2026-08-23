@@ -1,4 +1,4 @@
-# MIYO-STREAM Privacy Policy
+# TETO-STREAM Privacy Policy
 
 Last Updated: August 2026
 
@@ -6,23 +6,23 @@ Last Updated: August 2026
 
 ## 1. Information We Do Not Collect
 
-MIYO-STREAM is designed to respect your privacy. As an open-source catalog and streaming interface, we do not require you to register, log in, or provide an email address. We do not collect, store, or process personal identifiable information (PII) such as names, addresses, or payment details.
+TETO-STREAM is designed to respect your privacy. As an open-source catalog and streaming interface, we do not require you to register, log in, or provide an email address. We do not collect, store, or process personal identifiable information (PII) such as names, addresses, or payment details.
 
 ## 2. Local Storage & Client-Side Data
 
-To enhance your experience, MIYO-STREAM utilizes your browser's local storage to save preferences such as your watch history, progress on videos, UI preferences (e.g., light/dark mode), and saved bookmarks. This data remains strictly on your device and is never transmitted to our backend servers.
+To enhance your experience, TETO-STREAM utilizes your browser's local storage to save preferences such as your watch history, progress on videos, UI preferences (e.g., light/dark mode), and saved bookmarks. This data remains strictly on your device and is never transmitted to our backend servers.
 
 ## 3. Third-Party Services & APIs
 
-MIYO-STREAM functions as an interface that pulls data from various third-party services. We fetch movie and TV show metadata from TMDB, and anime/manga metadata from AniList. Anime playback utilizes a StrawVerse-inspired backend proxy engine to securely fetch video segments.
+TETO-STREAM functions as an interface that pulls data from various third-party services. We fetch movie and TV show metadata from TMDB, and anime/manga metadata from AniList. Anime playback utilizes a StrawVerse-inspired backend proxy engine to securely fetch video segments.
 
 ## 4. Embedded Video Players
 
-For non-anime content, MIYO-STREAM does not host any video content. All video playback is handled via embedded iframes from third-party providers. When you stream an embedded video, the player provider may collect IP addresses, device information, or utilize cookies to deliver the stream.
+For non-anime content, TETO-STREAM does not host any video content. All video playback is handled via embedded iframes from third-party providers. When you stream an embedded video, the player provider may collect IP addresses, device information, or utilize cookies to deliver the stream.
 
 ## 5. Device Fingerprinting & Anti-Abuse Data Collection
 
-To protect the platform from abuse, automated scraping, and denial-of-service attacks, MIYO-STREAM collects anonymous device fingerprint data. This fingerprint is a non-reversible hash generated from your browser and hardware characteristics. It does not identify you personally — it identifies your device configuration. The following categories of technical data are collected:
+To protect the platform from abuse, automated scraping, and denial-of-service attacks, TETO-STREAM collects anonymous device fingerprint data. This fingerprint is a non-reversible hash generated from your browser and hardware characteristics. It does not identify you personally — it identifies your device configuration. The following categories of technical data are collected:
 
 ### 5.1 Graphics & Hardware Rendering Data
 
@@ -73,7 +73,7 @@ Fingerprint data is stored in a secured MongoDB database. Request analytics logs
 
 ## 8. Analytics and Server Logs
 
-MIYO-STREAM logs API requests including endpoint, HTTP method, response status code, response time, IP address, and device fingerprint ID. These logs are used for platform monitoring, abuse detection, and performance optimization. They are retained for 30 days and then automatically purged.
+TETO-STREAM logs API requests including endpoint, HTTP method, response status code, response time, IP address, and device fingerprint ID. These logs are used for platform monitoring, abuse detection, and performance optimization. They are retained for 30 days and then automatically purged.
 
 ## 9. Administrative Access
 
@@ -85,4 +85,4 @@ If you have any questions about this Privacy Policy or how we handle data, pleas
 
 ---
 
-*Your privacy is our priority. MIYO-STREAM is an open-source project.*
+*Your privacy is our priority. TETO-STREAM is an open-source project.*

@@ -11,7 +11,7 @@ const PLATFORM_LABELS = {
 };
 
 export function Settings() {
-  useSEO({ title: 'Settings', description: 'Configure your MIYO-STREAM experience. Set API keys, choose providers, and manage preferences.' });
+  useSEO({ title: 'Settings', description: 'Configure your TETO-STREAM experience. Set API keys, choose providers, and manage preferences.' });
   const platform = getPlatform();
   const native = isNative();
   const [apiKey, setApiKey] = useState('');
@@ -92,7 +92,7 @@ export function Settings() {
           Set<span className="text-accent animate-rgb-shift">tings</span>
         </h1>
         <p className="text-text-secondary mt-2 leading-relaxed">
-          Configure your MIYO-STREAM experience.
+          Configure your TETO-STREAM experience.
         </p>
         <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border">
           <span className="w-2 h-2 rounded-full rgb-pattern-bg" />
@@ -184,7 +184,7 @@ export function Settings() {
           <div className="mb-4 px-4 py-3 rounded-xl bg-rating/10 border border-rating/30">
             <p className="text-sm text-rating font-semibold">⚠ Using shared default key</p>
             <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-              MIYO includes a shared TMDB key so the app works out of the box. This key is
+              TETO includes a shared TMDB key so the app works out of the box. This key is
               shared across all users and <span className="text-text-primary font-semibold">will hit rate limits</span> during
               peak usage (slow/missing movie metadata). Get your own free key below for the best experience.
             </p>
@@ -331,16 +331,16 @@ export function Settings() {
         <dl className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
             <dt className="text-sm font-semibold text-text-muted sm:w-24 flex-shrink-0">Author</dt>
-            <dd className="text-sm text-accent animate-rgb-shift font-semibold">CYBER</dd>
+            <dd className="text-sm text-accent animate-rgb-shift font-semibold">TetoCreations</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
             <dt className="text-sm font-semibold text-text-muted sm:w-24 flex-shrink-0">Contact</dt>
             <dd className="text-sm">
               <a
-                href="mailto:contact@cyber-winner.site"
+                href="mailto:contact@tetocreations.bond"
                 className="text-accent underline underline-offset-2 hover:opacity-80"
               >
-                contact@cyber-winner.site
+                contact@tetocreations.bond
               </a>
             </dd>
           </div>
@@ -348,12 +348,12 @@ export function Settings() {
             <dt className="text-sm font-semibold text-text-muted sm:w-24 flex-shrink-0">Website</dt>
             <dd className="text-sm">
               <a
-                href="https://cyber-winner.site"
+                href="https://tetocreations.bond"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-accent underline underline-offset-2 hover:opacity-80"
               >
-                cyber-winner.site
+                tetocreations.bond
               </a>
             </dd>
           </div>

@@ -56,7 +56,7 @@ child_process.spawn = function (...args) {
   if (cp && typeof cp.on === 'function') {
     cp.on('error', (err) => {
       if (err && err.code === 'ENOENT') {
-        console.warn(`[MIYO] Handled non-fatal child process spawn error (${args[0]}):`, err.message);
+        console.warn(`[TETO] Handled non-fatal child process spawn error (${args[0]}):`, err.message);
       }
     });
   }
@@ -225,7 +225,7 @@ if (fs.existsSync(setupScript)) {
   try {
     execSync('node setup.cjs', { stdio: 'inherit' });
   } catch (e) {
-    console.warn('[MIYO] Auto setup warning:', e.message);
+    console.warn('[TETO] Auto setup warning:', e.message);
   }
 }
 
@@ -1058,7 +1058,7 @@ class Room {
       ws.send(this.currentMedia);
     }
 
-    console.log(`[MIYO-WT] Room ${this.code}: ${username} (ID ${userID}) joined. Total: ${this.clients.size}`);
+    console.log(`[TETO-WT] Room ${this.code}: ${username} (ID ${userID}) joined. Total: ${this.clients.size}`);
     return info;
   }
 
@@ -1081,7 +1081,7 @@ class Room {
 
     if (this.clients.size === 0) {
       rooms.delete(this.code);
-      console.log(`[MIYO-WT] Room ${this.code}: destroyed (empty)`);
+      console.log(`[TETO-WT] Room ${this.code}: destroyed (empty)`);
     } else {
       this.broadcast(encodeUserEvent(USER_LEFT, info.id, info.username), ws);
     }
@@ -1125,7 +1125,7 @@ class Room {
       for (const [c] of this.clients) {
         if (c.readyState === 1) c.send(encodeStartPlayback());
       }
-      console.log(`[MIYO-WT] Room ${this.code}: All ${this.clients.size} clients ready. START_PLAYBACK.`);
+      console.log(`[TETO-WT] Room ${this.code}: All ${this.clients.size} clients ready. START_PLAYBACK.`);
     }
   }
 
@@ -1165,7 +1165,7 @@ function joinOrCreateRoom(code, ws, username, provider) {
 app.get('/api/wt/health', (req, res) => {
   let totalClients = 0;
   for (const room of rooms.values()) totalClients += room.clients.size;
-  res.json({ status: 'ok', server: 'MIYO Watch Together (Node.js)', active_rooms: rooms.size, active_clients: totalClients });
+  res.json({ status: 'ok', server: 'TETO Watch Together (Node.js)', active_rooms: rooms.size, active_clients: totalClients });
 });
 
 app.get('/api/wt/rooms', (req, res) => {
@@ -1253,7 +1253,7 @@ app.post('/api/fingerprint', async (req, res) => {
 
     res.json({ ok: true, id });
   } catch (err) {
-    console.error('[MIYO-FP] Fingerprint save error:', err.message);
+    console.error('[TETO-FP] Fingerprint save error:', err.message);
     res.status(500).json({ error: 'Internal error' });
   }
 });
@@ -1327,7 +1327,7 @@ app.post('/api/admin/auth/google', async (req, res) => {
 
     res.json({ token, user });
   } catch (err) {
-    console.error('[MIYO-ADMIN] Auth error:', err.message);
+    console.error('[TETO-ADMIN] Auth error:', err.message);
     res.status(500).json({ error: 'Authentication failed' });
   }
 });
@@ -1783,8 +1783,8 @@ if (fs.existsSync(distPath)) {
   // Automatically fix permissions for the dist directory so express.static can read it
   try {
     exec(`chmod -R 755 "${distPath}"`, (err) => {
-      if (err) console.error('[MIYO-WT] Failed to set permissions on dist:', err.message);
-      else console.log('[MIYO-WT] Successfully set read/execute permissions on dist/');
+      if (err) console.error('[TETO-WT] Failed to set permissions on dist:', err.message);
+      else console.log('[TETO-WT] Successfully set read/execute permissions on dist/');
     });
   } catch (err) {}
 
@@ -1805,7 +1805,7 @@ if (fs.existsSync(distPath)) {
 // ── Start HTTP server + attach WebSocket ──
 const server = app.listen(port, () => {
   console.log(`Backend server listening at http://localhost:${port}`);
-  console.log(`[MIYO-WT] Watch Together WebSocket running on same port (path: /ws)`);
+  console.log(`[TETO-WT] Watch Together WebSocket running on same port (path: /ws)`);
   const isDev = process.env.NODE_ENV === 'development' || process.env.npm_lifecycle_event === 'dev';
   if (process.env.CF_TOKEN && !isDev) {
     console.log('[CLOUDFLARE] Starting Cloudflare Tunnel...');
@@ -1924,4 +1924,4 @@ wss.on('connection', (ws) => {
   });
 });
 
-console.log('[MIYO-WT] Watch Together module loaded');
+console.log('[TETO-WT] Watch Together module loaded');

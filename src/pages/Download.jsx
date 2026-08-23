@@ -4,10 +4,10 @@ import { cn } from '../lib/cn';
 import { useSEO } from '../hooks/useSEO';
 import { FAQ } from '../components/ui/FAQ';
 
-const REPO = 'cyber-winner/MIYO-STREAM';
+const REPO = 'TetoCreations/TETO-STREAM';
 const RELEASES_API = `https://api.github.com/repos/${REPO}/releases/latest`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`;
-const INSTALL_CMD = 'curl -fsSL https://miyo-stream.cyber-winner.site/install.sh | bash';
+const INSTALL_CMD = 'curl -fsSL https://miyo-stream.tetocreations.bond/install.sh | bash';
 
 const fetcher = (url) => fetch(url, { headers: { Accept: 'application/vnd.github+json' } }).then((r) => {
   if (!r.ok) throw new Error('No release found');
@@ -29,7 +29,7 @@ function matchAsset(assets, patterns) {
 }
 
 export function Download() {
-  useSEO({ title: 'Download', description: 'Download the MIYO-STREAM app for Windows, Android, and Linux. Fully local, no servers needed.' });
+  useSEO({ title: 'Download', description: 'Download the TETO-STREAM app for Windows, Android, and Linux. Fully local, no servers needed.' });
   const { data: release, error, isLoading } = useSWR(RELEASES_API, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 300000,
@@ -58,7 +58,7 @@ export function Download() {
     <div className="max-w-5xl mx-auto px-5 md:px-10 py-10 md:py-16">
       <header className="mb-12 text-center">
         <h1 className="text-3xl md:text-5xl font-bold text-text-primary tracking-tight text-balance">
-          Download <span className="text-accent animate-rgb-shift">MIYO</span>
+          Download <span className="text-accent animate-rgb-shift">TETO</span>
         </h1>
         <p className="text-text-secondary mt-3 leading-relaxed max-w-2xl mx-auto text-pretty">
           Get the fully local app for your device. No servers, no dependencies — everything runs on
@@ -250,12 +250,12 @@ export function Download() {
         </h2>
         <FAQ items={[
           {
-            question: 'Is MIYO-STREAM free?',
-            answer: 'Yes. MIYO-STREAM is completely free and open source. No subscriptions, no hidden fees.',
+            question: 'Is TETO-STREAM free?',
+            answer: 'Yes. TETO-STREAM is completely free and open source. No subscriptions, no hidden fees.',
           },
           {
             question: 'Do I need to create an account?',
-            answer: 'No. MIYO-STREAM works without any registration or login. Your preferences are stored locally on your device.',
+            answer: 'No. TETO-STREAM works without any registration or login. Your preferences are stored locally on your device.',
           },
           {
             question: 'Is my data safe?',
@@ -263,14 +263,14 @@ export function Download() {
           },
           {
             question: 'Which platforms are supported?',
-            answer: 'MIYO-STREAM is available as a web app (any browser), a Windows desktop app (.exe / .msi), an Android app (.apk), and Linux packages (.AppImage / .deb / .rpm).',
+            answer: 'TETO-STREAM is available as a web app (any browser), a Windows desktop app (.exe / .msi), an Android app (.apk), and Linux packages (.AppImage / .deb / .rpm).',
           },
           {
             question: 'How do I update the app?',
             answer: 'Visit this page or the GitHub Releases page to download the latest version. Auto-update support is coming in a future release.',
           },
           {
-            question: 'Can I self-host MIYO-STREAM?',
+            question: 'Can I self-host TETO-STREAM?',
             answer: 'Absolutely. Clone the GitHub repository, run npm install, and start the dev server. See the README for full instructions.',
           },
         ]} />

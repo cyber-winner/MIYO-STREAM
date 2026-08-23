@@ -1,5 +1,5 @@
 /**
- * MIYO-STREAM Device Fingerprinting Engine
+ * TETO-STREAM Device Fingerprinting Engine
  * Collects signals from all 8 architectural layers to create a unique device fingerprint.
  * Runs client-side, sends composite hash + raw components to backend.
  */
@@ -31,7 +31,7 @@ function getCanvasFingerprint() {
     ctx.textBaseline = 'top';
     ctx.font = '14px Arial';
     ctx.fillStyle = '#069';
-    ctx.fillText('MIYO fingerprint 🎬🍿', 2, 2);
+    ctx.fillText('TETO fingerprint 🎬🍿', 2, 2);
 
     // Styled text
     ctx.font = '18px Georgia';
@@ -599,7 +599,7 @@ export async function sendFingerprint() {
     return fingerprint.id;
   } catch (e) {
     // Silently fail — fingerprinting should never break the app
-    console.debug('[MIYO-FP] Fingerprint collection failed:', e.message);
+    console.debug('[TETO-FP] Fingerprint collection failed:', e.message);
     return null;
   }
 }

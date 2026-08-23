@@ -1,5 +1,5 @@
 /**
- * MIYO-STREAM Setup Script (ported from Strawverse/AnimeMapper)
+ * TETO-STREAM Setup Script (ported from Strawverse/AnimeMapper)
  * Downloads Chrome + all required shared libraries for headless browser
  * operation on HidenCloud containers without root access.
  * 
@@ -28,7 +28,7 @@ function getBrowsersModule() {
 }
 
 async function setup() {
-  console.log("=== MIYO-STREAM: Starting System Setup ===");
+  console.log("=== TETO-STREAM: Starting System Setup ===");
 
   const localBrowsersDir = path.resolve(__dirname, "./.local-browsers");
 

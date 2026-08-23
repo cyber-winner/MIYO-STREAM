@@ -9,7 +9,7 @@ import { cn } from '../lib/cn';
 import { slugify } from '../lib/slugify';
 import { useSEO } from '../hooks/useSEO';
 export function Search() {
-  useSEO({ title: 'Search', description: 'Search across movies, TV shows, and anime on MIYO-STREAM.' });
+  useSEO({ title: 'Search', description: 'Search across movies, TV shows, and anime on TETO-STREAM.' });
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   const initialSource = searchParams.get('source') || 'media';

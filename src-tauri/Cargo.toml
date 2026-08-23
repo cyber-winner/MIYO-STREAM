@@ -1,9 +1,9 @@
 [package]
 name = "miyo"
 version = "5.0.0"
-description = "MIYO - Stream anime, movies and TV shows locally"
-authors = ["CYBER <contact@cyber-winner.site>"]
-homepage = "https://cyber-winner.site"
+description = "TETO - Stream anime, movies and TV shows locally"
+authors = ["CYBER <contact@tetocreations.bond>"]
+homepage = "https://tetocreations.bond"
 edition = "2021"
 
 [lib]

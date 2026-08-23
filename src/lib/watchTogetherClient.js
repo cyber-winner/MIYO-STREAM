@@ -1,6 +1,6 @@
 // Watch Together WebSocket client
 // Binary protocol matching the server in server.js
-// Adapted from StrawVerse's watchTogetherClient.js for MIYO
+// Adapted from StrawVerse's watchTogetherClient.js for TETO
 
 import { isNative } from '../platform/index.js';
 
@@ -89,7 +89,7 @@ class WatchTogetherClient {
     if (isNativePlatform) {
       // Use the production server — same one the website runs on.
       // Users can override this in localStorage('miyo_wt_server').
-      const prodUrl = localStorage.getItem('miyo_wt_prod_server') || 'wss://miyo-stream.cyber-winner.site/ws';
+      const prodUrl = localStorage.getItem('miyo_wt_prod_server') || 'wss://miyo-stream.tetocreations.bond/ws';
       return prodUrl;
     }
 

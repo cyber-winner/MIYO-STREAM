@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSEO } from '../hooks/useSEO';
 
 export function ThankYou() {
-  useSEO({ title: 'Thank You', description: 'Thank you for reaching out to MIYO-STREAM. We will get back to you shortly.' });
+  useSEO({ title: 'Thank You', description: 'Thank you for reaching out to TETO-STREAM. We will get back to you shortly.' });
 
   return (
     <div className="pt-24 pb-20 px-6 min-h-screen flex items-center justify-center animate-in fade-in duration-700">
@@ -21,7 +21,7 @@ export function ThankYou() {
         </p>
         <p className="text-text-muted text-sm mb-8">
           For urgent matters, email us directly at{' '}
-          <a href="mailto:contact@cyber-winner.site" className="text-accent underline hover:opacity-80">contact@cyber-winner.site</a>
+          <a href="mailto:contact@tetocreations.bond" className="text-accent underline hover:opacity-80">contact@tetocreations.bond</a>
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link to="/" className="px-6 py-3 rounded-xl cyber-gradient text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all">

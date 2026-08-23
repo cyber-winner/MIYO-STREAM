@@ -115,8 +115,8 @@ export function ApiStatusBanner() {
               </p>
               <p className="text-xs text-amber-200/70 mt-0.5">
                 {downServices.length === 1
-                  ? `${downServices[0].name} — ${downServices[0].desc}. This is not a MIYO issue.`
-                  : `${downServices.map((s) => s.name).join(', ')} are currently down. This is not a MIYO issue.`}
+                  ? `${downServices[0].name} — ${downServices[0].desc}. This is not a TETO issue.`
+                  : `${downServices.map((s) => s.name).join(', ')} are currently down. This is not a TETO issue.`}
               </p>
             </div>
 

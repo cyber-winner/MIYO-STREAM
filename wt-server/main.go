@@ -27,10 +27,10 @@ func main() {
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, "MIYO Watch Together WebSocket Server is running.\nConnect via WebSocket to /ws")
+		fmt.Fprintf(w, "TETO Watch Together WebSocket Server is running.\nConnect via WebSocket to /ws")
 	})
 
-	log.Printf("[MIYO-WT] Watch Together server starting on port %s...", port)
+	log.Printf("[TETO-WT] Watch Together server starting on port %s...", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}

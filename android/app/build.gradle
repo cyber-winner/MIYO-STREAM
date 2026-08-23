@@ -10,13 +10,13 @@ android {
         // Version is CI-driven so every published build is an upgrade
         // (Android refuses updates when versionCode doesn't increase).
         versionCode Integer.parseInt(
-            project.findProperty("MIYO_VERSION_CODE")?.toString() 
-            ?: System.getenv("MIYO_VERSION_CODE") 
+            project.findProperty("TETO_VERSION_CODE")?.toString() 
+            ?: System.getenv("TETO_VERSION_CODE") 
             ?: "5"
         )
         versionName (
-            project.findProperty("MIYO_VERSION_NAME")?.toString()
-            ?: System.getenv("MIYO_VERSION_NAME")
+            project.findProperty("TETO_VERSION_NAME")?.toString()
+            ?: System.getenv("TETO_VERSION_NAME")
             ?: "5.0.0"
         )
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -33,26 +33,26 @@ android {
         // installs over an existing copy with a "package conflict".
         // Every build (debug + release, local + CI) now signs with the same
         // committed keystore so updates always install over old versions.
-        // A private keystore can be swapped in via the MIYO_KEYSTORE_* env vars.
+        // A private keystore can be swapped in via the TETO_KEYSTORE_* env vars.
         miyo {
             storeFile file(
-                project.findProperty("MIYO_KEYSTORE_PATH")?.toString()
-                ?: System.getenv("MIYO_KEYSTORE_PATH")
+                project.findProperty("TETO_KEYSTORE_PATH")?.toString()
+                ?: System.getenv("TETO_KEYSTORE_PATH")
                 ?: "keystore/miyo-release.p12"
             )
             storePassword (
-                project.findProperty("MIYO_KEYSTORE_PASSWORD")?.toString()
-                ?: System.getenv("MIYO_KEYSTORE_PASSWORD")
+                project.findProperty("TETO_KEYSTORE_PASSWORD")?.toString()
+                ?: System.getenv("TETO_KEYSTORE_PASSWORD")
                 ?: "miyo-stream"
             )
             keyAlias (
-                project.findProperty("MIYO_KEY_ALIAS")?.toString()
-                ?: System.getenv("MIYO_KEY_ALIAS")
+                project.findProperty("TETO_KEY_ALIAS")?.toString()
+                ?: System.getenv("TETO_KEY_ALIAS")
                 ?: "miyo"
             )
             keyPassword (
-                project.findProperty("MIYO_KEY_PASSWORD")?.toString()
-                ?: System.getenv("MIYO_KEY_PASSWORD")
+                project.findProperty("TETO_KEY_PASSWORD")?.toString()
+                ?: System.getenv("TETO_KEY_PASSWORD")
                 ?: "miyo-stream"
             )
             storeType "PKCS12"

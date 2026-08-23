@@ -15,7 +15,7 @@ export function Browse({ mediaType = 'movie' }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const isTv = mediaType === 'tv';
   const title = isTv ? 'TV Shows' : 'Movies';
-  useSEO({ title: `Browse ${title}`, description: isTv ? 'Explore trending TV series by genre on MIYO-STREAM.' : 'Discover and browse popular movies by genre on MIYO-STREAM.' });
+  useSEO({ title: `Browse ${title}`, description: isTv ? 'Explore trending TV series by genre on TETO-STREAM.' : 'Discover and browse popular movies by genre on TETO-STREAM.' });
   useEffect(() => {
     const loadGenres = async () => {
       try {

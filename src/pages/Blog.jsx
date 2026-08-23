@@ -6,10 +6,10 @@ import { cn } from '../lib/cn';
 const POSTS = [
   {
     id: 'welcome',
-    title: 'Welcome to MIYO-STREAM',
-    date: 'June 15, 2026',
-    excerpt: 'Introducing MIYO-STREAM — a free, open-source streaming platform for movies, TV, anime, and manga. No signups, no paywalls.',
-    content: `MIYO-STREAM is officially live. After months of development, we're excited to open the doors to a platform built on a simple principle: entertainment should be accessible to everyone.
+    title: 'Welcome to TetoStream',
+    date: 'July 29, 2026',
+    excerpt: 'Introducing TetoStream — a free, open-source streaming platform for movies, TV, anime, and manga. No signups, no paywalls.',
+    content: `TetoStream is forked from MiyoStream. After months of development, we're excited to open the doors to a platform built on a simple principle: entertainment should be accessible to everyone.
 
 What makes us different? No account creation. No payment walls. No intrusive advertising. Just a search bar, a catalog powered by TMDB and AniList, and a clean, fast interface that gets out of your way.
 
@@ -54,10 +54,10 @@ Try it out: pick any title, click "Watch Together", and send the room link to a 
   },
   {
     id: 'desktop-app',
-    title: 'MIYO-STREAM Goes Desktop',
+    title: 'TetoStream Goes to Desktop',
     date: 'August 1, 2026',
-    excerpt: 'Announcing the MIYO-STREAM desktop app built with Tauri — native performance, tiny bundle size, and full platform integration.',
-    content: `We've shipped MIYO-STREAM as a native desktop application using Tauri.
+    excerpt: 'Announcing the TetoStream desktop app built with Tauri — native performance, tiny bundle size, and full platform integration.',
+    content: `We've shipped TetoStream as a native desktop application using Tauri.
 
 Why Tauri over Electron? Bundle size. Our Windows installer is under 8MB — compared to the 150MB+ typical of Electron apps. Tauri uses the system's native webview instead of bundling Chromium, which means lower memory usage and faster startup.
 
@@ -74,10 +74,10 @@ Head to the Download page to grab the latest release.`,
     id: 'privacy-first',
     title: 'Privacy First: Our Data Philosophy',
     date: 'August 18, 2026',
-    excerpt: 'An honest look at what data MIYO-STREAM collects, why we collect it, and how we protect it. No fake promises.',
+    excerpt: 'An honest look at what data TetoStream collects, why we collect it, and how we protect it. No fake promises.',
     content: `We want to be transparent about data.
 
-MIYO-STREAM collects anonymous device fingerprints for anti-abuse purposes. We hash your browser and hardware characteristics to create a non-reversible identifier that helps us detect bots, enforce rate limits, and prevent scraping attacks. This fingerprint does not identify you personally.
+TETO-STREAM collects anonymous device fingerprints for anti-abuse purposes. We hash your browser and hardware characteristics to create a non-reversible identifier that helps us detect bots, enforce rate limits, and prevent scraping attacks. This fingerprint does not identify you personally.
 
 We also log API requests (endpoint, status, response time, IP) for 30 days to monitor platform health and detect abuse. These logs are automatically purged via TTL indexes.
 
@@ -93,7 +93,7 @@ Read the full Privacy Policy for details, or check the source code on GitHub.`,
 export function Blog() {
   useSEO({
     title: 'Blog',
-    description: 'News, updates, and technical deep-dives from the MIYO-STREAM team.',
+    description: 'News, updates, and technical deep-dives from the TETO-STREAM team.',
   });
 
   const [expanded, setExpanded] = useState(null);
@@ -105,7 +105,7 @@ export function Blog() {
           <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase mb-4">
             <span className="text-accent animate-rgb-shift">Blog</span>
           </h1>
-          <p className="text-text-secondary text-sm">News, updates, and behind-the-scenes from MIYO-STREAM.</p>
+          <p className="text-text-secondary text-sm">News, updates, and behind-the-scenes from TETO-STREAM.</p>
         </header>
 
         <div className="space-y-8">

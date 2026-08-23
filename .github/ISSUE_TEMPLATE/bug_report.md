@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve MIYO-STREAM
+about: Create a report to help us improve TETO-STREAM
 title: "[BUG] "
 labels: bug
 assignees: cyber-winner

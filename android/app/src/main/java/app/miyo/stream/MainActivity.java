@@ -28,7 +28,7 @@ public class MainActivity extends BridgeActivity {
 
         // Ad protection: ad scripts inside player iframes (e.g. Videasy) try to
         // redirect the app or open the browser via top-level navigations.
-        // Block every main-frame navigation that isn't MIYO itself or an
+        // Block every main-frame navigation that isn't TETO itself or an
         // allowed player domain — instead of Capacitor's default behavior of
         // launching the system browser. Iframe/subframe loads are untouched,
         // so the players keep working.

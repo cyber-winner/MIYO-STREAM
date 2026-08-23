@@ -1,6 +1,6 @@
 {
   "appId": "app.miyo.stream",
-  "appName": "MIYO",
+  "appName": "TETO",
   "webDir": "dist-native",
   "android": {
     "allowMixedContent": true

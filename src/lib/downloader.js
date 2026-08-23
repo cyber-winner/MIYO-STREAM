@@ -77,7 +77,7 @@ export async function deleteDownloadFiles(title, epNum) {
     const tauriFs = await import('@tauri-apps/plugin-fs');
     const tauriPath = await import('@tauri-apps/api/path');
     const docsDir = await tauriPath.documentDir();
-    const dirPath = await tauriPath.join(docsDir, 'MIYO', 'Anime', safeTitle, `Episode_${safeEpNum}`);
+    const dirPath = await tauriPath.join(docsDir, 'TETO', 'Anime', safeTitle, `Episode_${safeEpNum}`);
     try {
       await tauriFs.remove(dirPath, { recursive: true });
     } catch (e) {
@@ -85,7 +85,7 @@ export async function deleteDownloadFiles(title, epNum) {
     }
   } else if (platform === 'capacitor') {
     const cap = await import('@capacitor/filesystem');
-    const dirPath = `MIYO/Anime/${safeTitle}/Episode_${safeEpNum}`;
+    const dirPath = `TETO/Anime/${safeTitle}/Episode_${safeEpNum}`;
     try {
       await cap.Filesystem.rmdir({
         path: dirPath,
@@ -146,7 +146,7 @@ async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, sub
       tauriFs = await import('@tauri-apps/plugin-fs');
       tauriPath = await import('@tauri-apps/api/path');
       const docsDir = await tauriPath.documentDir();
-      dirPath = await tauriPath.join(docsDir, 'MIYO', 'Anime', safeTitle, `Episode_${safeEpNum}`);
+      dirPath = await tauriPath.join(docsDir, 'TETO', 'Anime', safeTitle, `Episode_${safeEpNum}`);
       
       // Create directory recursively
       await tauriFs.mkdir(dirPath, { recursive: true });
@@ -162,7 +162,7 @@ async function downloadHlsNative(m3u8Url, referer, title, epNum, onProgress, sub
       Filesystem = cap.Filesystem;
       Directory = cap.Directory;
       Encoding = cap.Encoding;
-      dirPath = `MIYO/Anime/${safeTitle}/Episode_${safeEpNum}`;
+      dirPath = `TETO/Anime/${safeTitle}/Episode_${safeEpNum}`;
       
       console.log('[downloader] Creating directory:', dirPath);
       // Attempt to make directory, ignore if it exists

@@ -5,7 +5,7 @@ import { useSEO } from '../hooks/useSEO';
 export function NotFound() {
   useSEO({
     title: 'Page Not Found',
-    description: 'This page doesn\'t exist on MIYO-STREAM. Navigate back home or search for what you\'re looking for.',
+    description: 'This page doesn\'t exist on TETO-STREAM. Navigate back home or search for what you\'re looking for.',
   });
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] gap-6 px-5 text-center">

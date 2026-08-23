@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "MIYO",
+  "productName": "TETO",
   "version": "5.0.0",
   "identifier": "app.miyo.stream",
   "build": {
@@ -26,10 +26,10 @@
     ],
     "category": "Entertainment",
     "publisher": "CYBER",
-    "copyright": "Copyright © 2026 CYBER (contact@cyber-winner.site)",
-    "homepage": "https://cyber-winner.site",
-    "shortDescription": "MIYO - Stream anime, movies and TV shows",
-    "longDescription": "MIYO is a fully local streaming app for anime, movies and TV shows. It fetches data directly from TMDB, AniList and anime providers with no server dependency. Author: CYBER — contact@cyber-winner.site",
+    "copyright": "Copyright © 2026 CYBER (contact@tetocreations.bond)",
+    "homepage": "https://tetocreations.bond",
+    "shortDescription": "TETO - Stream anime, movies and TV shows",
+    "longDescription": "TETO is a fully local streaming app for anime, movies and TV shows. It fetches data directly from TMDB, AniList and anime providers with no server dependency. Author: CYBER — contact@tetocreations.bond",
     "linux": {
       "deb": {
         "section": "video"

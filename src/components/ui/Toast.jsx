@@ -92,7 +92,7 @@ export function ToastProvider({ children }) {
                     {style.icon}
                   </span>
                   <div className="min-w-0">
-                    <span className="font-semibold text-text-primary text-sm">MIYO-STREAM</span>
+                    <span className="font-semibold text-text-primary text-sm">TETO-STREAM</span>
                     <p className="text-sm text-text-secondary mt-0.5 break-words">{toast.message}</p>
                   </div>
                 </div>

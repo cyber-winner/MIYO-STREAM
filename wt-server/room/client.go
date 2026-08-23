@@ -132,7 +132,7 @@ func (c *Client) handleMessage(data []byte) {
 			c.Send <- protocol.EncodeError(0x01, "Invalid join packet")
 			return
 		}
-		// MIYO: No MAL auth — accept any username from the JOIN packet
+		// TETO: No MAL auth — accept any username from the JOIN packet
 		if username != "" {
 			c.Username = username
 		}

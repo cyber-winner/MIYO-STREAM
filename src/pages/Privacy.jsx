@@ -9,25 +9,25 @@ const ExtLink = ({ href, children }) => (
 export function Privacy() {
   useSEO({
     title: 'Privacy Policy',
-    description: 'Privacy Policy for MIYO-STREAM — what data we collect, how we store it, device fingerprinting, third-party integrations, and your rights.',
+    description: 'Privacy Policy for TETO-STREAM — what data we collect, how we store it, device fingerprinting, third-party integrations, and your rights.',
   });
 
   const sections = [
     {
       title: "1. Local-First Storage",
-      content: "MIYO-STREAM is designed as a local-first application. Your watch history, video progress, bookmarks, theme preferences, and UI settings are stored locally on your device via browser localStorage. This data never leaves your machine unless explicitly stated otherwise. MIYO-STREAM does not require user accounts, logins, or any form of personal registration."
+      content: "TETO-STREAM is designed as a local-first application. Your watch history, video progress, bookmarks, theme preferences, and UI settings are stored locally on your device via browser localStorage. This data never leaves your machine unless explicitly stated otherwise. TETO-STREAM does not require user accounts, logins, or any form of personal registration."
     },
     {
       title: "2. Data We Collect",
-      content: "MIYO-STREAM collects limited data for platform security and abuse prevention. This includes: anonymous device fingerprints (one-way hashes of GPU rendering, audio context, system fonts, screen resolution, timezone, locale, and browser entropy), API request logs (endpoint, HTTP method, response status, response time, IP address, fingerprint ID), and basic network information. We do not collect names, emails, phone numbers, or any personally identifiable information."
+      content: "TETO-STREAM collects limited data for platform security and abuse prevention. This includes: anonymous device fingerprints (one-way hashes of GPU rendering, audio context, system fonts, screen resolution, timezone, locale, and browser entropy), API request logs (endpoint, HTTP method, response status, response time, IP address, fingerprint ID), and basic network information. We do not collect names, emails, phone numbers, or any personally identifiable information."
     },
     {
       title: "3. Device Fingerprinting",
-      content: "To protect against automated abuse, scraping, and denial-of-service attacks, MIYO-STREAM generates anonymous device fingerprints. These fingerprints are non-reversible SHA-256 hashes derived from your browser and hardware characteristics. They identify device configurations — not individuals. You cannot be personally identified from a device fingerprint. Fingerprint records are retained as long as the associated device actively visits the platform."
+      content: "To protect against automated abuse, scraping, and denial-of-service attacks, TETO-STREAM generates anonymous device fingerprints. These fingerprints are non-reversible SHA-256 hashes derived from your browser and hardware characteristics. They identify device configurations — not individuals. You cannot be personally identified from a device fingerprint. Fingerprint records are retained as long as the associated device actively visits the platform."
     },
     {
       title: "4. Server Logs & Retention",
-      content: <>MIYO-STREAM logs API requests for platform monitoring, performance optimization, and abuse detection. Logs include the endpoint URL, HTTP method, response status code, response time, client IP address, and device fingerprint ID. All server logs are automatically purged after 30 days via <ExtLink href="https://www.mongodb.com/docs/manual/core/index-ttl/">MongoDB TTL (Time-To-Live) indexes</ExtLink>. No logs are retained beyond this period.</>
+      content: <>TETO-STREAM logs API requests for platform monitoring, performance optimization, and abuse detection. Logs include the endpoint URL, HTTP method, response status code, response time, client IP address, and device fingerprint ID. All server logs are automatically purged after 30 days via <ExtLink href="https://www.mongodb.com/docs/manual/core/index-ttl/">MongoDB TTL (Time-To-Live) indexes</ExtLink>. No logs are retained beyond this period.</>
     },
     {
       title: "5. Data Storage & Security",
@@ -35,7 +35,7 @@ export function Privacy() {
     },
     {
       title: "6. Third-Party Services",
-      content: <>MIYO-STREAM integrates with third-party services that may independently collect data according to their own privacy policies: <ExtLink href="https://www.themoviedb.org/">TMDB (The Movie Database)</ExtLink> — movie and TV metadata, images, and trailers. <ExtLink href="https://anilist.co/">AniList</ExtLink> — anime and manga metadata via GraphQL API. Third-party embedded video players — may collect IP addresses or set cookies to deliver streams. <ExtLink href="https://github.com/TheYogMehta/StrawVerse">StrawVerse</ExtLink>-inspired proxy endpoints — resolve HLS segment URLs client-side without storing media. MIYO-STREAM has no control over data practices of these external services.</>
+      content: <>TETO-STREAM integrates with third-party services that may independently collect data according to their own privacy policies: <ExtLink href="https://www.themoviedb.org/">TMDB (The Movie Database)</ExtLink> — movie and TV metadata, images, and trailers. <ExtLink href="https://anilist.co/">AniList</ExtLink> — anime and manga metadata via GraphQL API. Third-party embedded video players — may collect IP addresses or set cookies to deliver streams. <ExtLink href="https://github.com/TheYogMehta/StrawVerse">StrawVerse</ExtLink>-inspired proxy endpoints — resolve HLS segment URLs client-side without storing media. TETO-STREAM has no control over data practices of these external services.</>
     },
     {
       title: "7. Network Activity",
@@ -43,7 +43,7 @@ export function Privacy() {
     },
     {
       title: "8. Cookies & Tracking",
-      content: <>MIYO-STREAM itself does not use tracking cookies, advertising pixels, or cross-site tracking mechanisms. However, third-party embedded iframes (video players) may independently set cookies. If <ExtLink href="https://analytics.google.com/">Google Analytics</ExtLink> is enabled, it uses cookies to measure traffic. You can control cookie behavior via your browser settings or our cookie consent banner.</>
+      content: <>TETO-STREAM itself does not use tracking cookies, advertising pixels, or cross-site tracking mechanisms. However, third-party embedded iframes (video players) may independently set cookies. If <ExtLink href="https://analytics.google.com/">Google Analytics</ExtLink> is enabled, it uses cookies to measure traffic. You can control cookie behavior via your browser settings or our cookie consent banner.</>
     },
     {
       title: "9. Administrative Access",
@@ -51,15 +51,15 @@ export function Privacy() {
     },
     {
       title: "10. No Fake Testimonials",
-      content: "MIYO-STREAM does not fabricate user testimonials, generate fake reviews, create misleading endorsements, or inflate usage statistics. Any user feedback displayed on the platform is genuine and unaltered."
+      content: "TETO-STREAM does not fabricate user testimonials, generate fake reviews, create misleading endorsements, or inflate usage statistics. Any user feedback displayed on the platform is genuine and unaltered."
     },
     {
       title: "11. Your Rights",
-      content: "Since MIYO-STREAM does not require accounts or collect personally identifiable information, there is no personal profile to delete, export, or modify. Device fingerprints are anonymous hashes that cannot be traced back to an individual. To reset all local data (watch history, preferences, bookmarks), clear your browser's localStorage for this site at any time."
+      content: "Since TETO-STREAM does not require accounts or collect personally identifiable information, there is no personal profile to delete, export, or modify. Device fingerprints are anonymous hashes that cannot be traced back to an individual. To reset all local data (watch history, preferences, bookmarks), clear your browser's localStorage for this site at any time."
     },
     {
       title: "12. Open-Source Verification",
-      content: <>MIYO-STREAM is completely open source under the <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM/blob/main/LICENSE">GNU General Public License v3.0 (GPL-3.0)</ExtLink>. You can audit the entire source code — including the server, fingerprinting system, proxy architecture, and admin panel — at any time on our <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM">GitHub repository</ExtLink>. Every claim in this privacy policy can be independently verified against the codebase.</>
+      content: <>TETO-STREAM is completely open source under the <ExtLink href="https://github.com/cyber-winner/TETO-STREAM/blob/main/LICENSE">GNU General Public License v3.0 (GPL-3.0)</ExtLink>. You can audit the entire source code — including the server, fingerprinting system, proxy architecture, and admin panel — at any time on our <ExtLink href="https://github.com/cyber-winner/TETO-STREAM">GitHub repository</ExtLink>. Every claim in this privacy policy can be independently verified against the codebase.</>
     },
     {
       title: "13. Changes to This Policy",
@@ -67,7 +67,7 @@ export function Privacy() {
     },
     {
       title: "14. Contact",
-      content: <>If you have questions about this Privacy Policy, our data practices, or wish to report a concern, contact us at <a href="mailto:contact@cyber-winner.site" className="text-accent underline decoration-accent/30 hover:decoration-accent transition-colors">contact@cyber-winner.site</a> or open an issue on the official <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM/issues">MIYO-STREAM GitHub repository</ExtLink>.</>
+      content: <>If you have questions about this Privacy Policy, our data practices, or wish to report a concern, contact us at <a href="mailto:contact@tetocreations.bond" className="text-accent underline decoration-accent/30 hover:decoration-accent transition-colors">contact@tetocreations.bond</a> or open an issue on the official <ExtLink href="https://github.com/cyber-winner/TETO-STREAM/issues">TETO-STREAM GitHub repository</ExtLink>.</>
     }
   ];
 
@@ -92,7 +92,7 @@ export function Privacy() {
             <li>• Anonymous device fingerprints for anti-abuse only</li>
             <li>• Server logs auto-purged after 30 days</li>
             <li>• Private database — storage is not public</li>
-            <li>• 100% open source — <ExtLink href="https://github.com/cyber-winner/MIYO-STREAM">verify everything in our codebase</ExtLink></li>
+            <li>• 100% open source — <ExtLink href="https://github.com/cyber-winner/TETO-STREAM">verify everything in our codebase</ExtLink></li>
           </ul>
         </div>
 
@@ -111,14 +111,14 @@ export function Privacy() {
 
         <div className="mt-16 p-8 bg-accent/5 border border-accent/10 rounded-[2rem] text-center">
           <p className="text-sm font-bold text-text-secondary mb-4">
-            Transparency matters. MIYO-STREAM is open source — our code is public, our policies are honest.
+            Transparency matters. TETO-STREAM is open source — our code is public, our policies are honest.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <a href="https://github.com/cyber-winner/MIYO-STREAM" target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">
+            <a href="https://github.com/cyber-winner/TETO-STREAM" target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">
               Audit the Source Code
             </a>
-            <a href="mailto:contact@cyber-winner.site" className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent hover:bg-accent/20 transition-colors">
-              contact@cyber-winner.site
+            <a href="mailto:contact@tetocreations.bond" className="px-4 py-2 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent hover:bg-accent/20 transition-colors">
+              contact@tetocreations.bond
             </a>
             <Link to="/terms" className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-text-secondary hover:text-accent hover:border-accent/20 transition-colors">
               Terms of Service

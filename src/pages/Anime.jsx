@@ -11,7 +11,7 @@ import { useDevice } from '../context/DeviceContext';
 import { cn } from '../lib/cn';
 import { useSEO } from '../hooks/useSEO';
 export function Anime() {
-  useSEO({ title: 'Anime', description: 'Browse trending anime powered by AniList on MIYO-STREAM.' });
+  useSEO({ title: 'Anime', description: 'Browse trending anime powered by AniList on TETO-STREAM.' });
   const { isTv = false } = useDevice() || {};
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -4,4 +4,4 @@ Disallow: /admin
 Disallow: /dev-console
 Disallow: /api/
 
-Sitemap: https://miyo-stream.cyber-winner.site/sitemap.xml
+Sitemap: https://miyo-stream.tetocreations.bond/sitemap.xml

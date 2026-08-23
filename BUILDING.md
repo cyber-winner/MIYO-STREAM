@@ -1,4 +1,4 @@
-# Building MIYO Native Apps
+# Building TETO Native Apps
 
 The website is unchanged and still runs with `npm run dev` / deploys as before.
 The native apps (Windows, Linux, Android) run **fully locally** — no server, no
@@ -17,9 +17,9 @@ The repo ships with `.github/workflows/build-apps.yml`.
 2. Go to **Actions → Build Desktop & Mobile Apps → Run workflow**
    (or push a tag like `v5.0.0`).
 3. Download the artifacts:
-   - `MIYO-windows` — `.msi` and `.exe` installers
-   - `MIYO-linux` — `.AppImage`, `.deb`, `.rpm`
-   - `MIYO-android` — debug `.apk` (installable directly on any Android device)
+   - `TETO-windows` — `.msi` and `.exe` installers
+   - `TETO-linux` — `.AppImage`, `.deb`, `.rpm`
+   - `TETO-android` — debug `.apk` (installable directly on any Android device)
 
 ## Building locally
 
@@ -69,7 +69,7 @@ For a signed release APK use `assembleRelease` with your own keystore.
 | AniList | `/api/anilist` proxy | Direct `graphql.anilist.co` |
 | Anime providers | `/api/anime/*` (server runs extension) | anikoto extension bundled into the app, runs on-device |
 | Video streams | `/api/proxy` (server adds Referer) | Native HTTP with Referer via a custom hls.js loader |
-| Downloads | Browser save dialog | Native save dialog (desktop) / `Documents/MIYO` (Android) |
+| Downloads | Browser save dialog | Native save dialog (desktop) / `Documents/TETO` (Android) |
 
 Key files:
 - `src/platform/` — platform detection, native HTTP adapters (Tauri/Capacitor),

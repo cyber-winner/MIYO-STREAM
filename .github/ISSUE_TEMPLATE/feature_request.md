@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for MIYO-STREAM
+about: Suggest an idea for TETO-STREAM
 title: "[FEATURE] "
 labels: enhancement
 assignees: cyber-winner

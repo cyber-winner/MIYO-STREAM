@@ -1,14 +1,14 @@
 import { useEffect } from 'react';
 
-const SITE_URL = 'https://miyo-stream.cyber-winner.site';
+const SITE_URL = 'https://miyo-stream.tetocreations.bond';
 
 export function useSEO({ title, description, image, url }) {
   useEffect(() => {
     // Title
     if (title) {
-      document.title = `${title} | MIYO-STREAM`;
-      setMetaTag('property', 'og:title', `${title} | MIYO-STREAM`);
-      setMetaTag('name', 'twitter:title', `${title} | MIYO-STREAM`);
+      document.title = `${title} | TETO-STREAM`;
+      setMetaTag('property', 'og:title', `${title} | TETO-STREAM`);
+      setMetaTag('name', 'twitter:title', `${title} | TETO-STREAM`);
     }
     // Description
     if (description) {
@@ -30,12 +30,12 @@ export function useSEO({ title, description, image, url }) {
     setLinkTag('canonical', canonicalUrl);
 
     return () => {
-      document.title = 'MIYO-STREAM - Watch Free Movies & TV';
-      setMetaTag('property', 'og:title', 'MIYO-STREAM - Watch Free Movies & TV');
-      setMetaTag('name', 'description', 'Stream movies and TV shows for free on MIYO-STREAM. No registration required.');
-      setMetaTag('property', 'og:description', 'Stream movies and TV shows for free on MIYO-STREAM. No registration required.');
-      setMetaTag('property', 'og:image', 'https://miyo-stream.cyber-winner.site/og-image.png');
-      setMetaTag('name', 'twitter:image', 'https://miyo-stream.cyber-winner.site/og-image.png');
+      document.title = 'TETO-STREAM - Watch Free Movies & TV';
+      setMetaTag('property', 'og:title', 'TETO-STREAM - Watch Free Movies & TV');
+      setMetaTag('name', 'description', 'Stream movies and TV shows for free on TETO-STREAM. No registration required.');
+      setMetaTag('property', 'og:description', 'Stream movies and TV shows for free on TETO-STREAM. No registration required.');
+      setMetaTag('property', 'og:image', 'https://miyo-stream.tetocreations.bond/og-image.png');
+      setMetaTag('name', 'twitter:image', 'https://miyo-stream.tetocreations.bond/og-image.png');
       setLinkTag('canonical', SITE_URL + '/');
     };
   }, [title, description, image, url]);

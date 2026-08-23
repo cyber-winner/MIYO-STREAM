@@ -1,5 +1,5 @@
 /**
- * MIYO-STREAM Fetch Interceptor
+ * TETO-STREAM Fetch Interceptor
  * Monkey-patches window.fetch to attach the device fingerprint ID
  * as an `x-fingerprint-id` header on every API request.
  * This ensures ALL routes, components, and API calls carry the fingerprint.

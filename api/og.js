@@ -13,9 +13,9 @@ export default async function handler(req, res) {
     const urlParts = req.url.split('?')[0].split('/').filter(Boolean);
     const type = urlParts[0]; 
     const id = urlParts[1] ? urlParts[1].replace(/[^a-zA-Z0-9-]/g, '') : null;
-    let title = 'MIYO-STREAM - Watch Free Movies & TV';
-    let description = 'Stream your favorite movies and TV shows for free on MIYO-STREAM. High quality, no registration required, and premium experience.';
-    let image = 'https://miyo-stream.cyber-winner.site/og-image.png';
+    let title = 'TETO-STREAM - Watch Free Movies & TV';
+    let description = 'Stream your favorite movies and TV shows for free on TETO-STREAM. High quality, no registration required, and premium experience.';
+    let image = 'https://miyo-stream.tetocreations.bond/og-image.png';
     if (type && id) {
       if (type === 'movie' || type === 'tv') {
         const tmdbType = type === 'movie' ? 'movie' : 'tv';
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         const response = await fetch(tmdbUrl);
         if (response.ok) {
           const data = await response.json();
-          title = `${data.title || data.name} | MIYO-STREAM`;
+          title = `${data.title || data.name} | TETO-STREAM`;
           description = data.overview || description;
           if (data.poster_path) {
             image = `https://image.tmdb.org/t/p/w1280${data.poster_path}`;
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
           const { data } = await response.json();
           if (data?.Media) {
             const m = data.Media;
-            title = `${m.title?.english || m.title?.romaji || m.title?.userPreferred} | MIYO-STREAM`;
+            title = `${m.title?.english || m.title?.romaji || m.title?.userPreferred} | TETO-STREAM`;
             description = m.description?.replace(/<[^>]*>/g, '') || description;
             image = m.coverImage?.extraLarge || m.coverImage?.large || image;
           }

@@ -1,6 +1,6 @@
-# Contributing to MIYO-STREAM
+# Contributing to TETO-STREAM
 
-First off, thank you for considering contributing to MIYO-STREAM! It's people like you that make open-source projects great.
+First off, thank you for considering contributing to TETO-STREAM! It's people like you that make open-source projects great.
 
 ## Where do I go from here?
 
@@ -8,7 +8,7 @@ If you've noticed a bug or have a feature request, make sure to check our [Issue
 
 ## Fork & create a branch
 
-If this is something you think you can fix, then [fork MIYO-STREAM](https://help.github.com/articles/fork-a-repo) and create a branch with a descriptive name.
+If this is something you think you can fix, then [fork TETO-STREAM](https://help.github.com/articles/fork-a-repo) and create a branch with a descriptive name.
 
 A good branch name would be (where issue #325 is the ticket you're working on):
 

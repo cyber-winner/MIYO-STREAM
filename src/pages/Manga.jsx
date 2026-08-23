@@ -11,7 +11,7 @@ import { cn } from '../lib/cn';
 import { useDevice } from '../context/DeviceContext';
 import { useSEO } from '../hooks/useSEO';
 export function Manga() {
-  useSEO({ title: 'Manga', description: 'Read manga, light novels, and one shots for free on MIYO-STREAM.' });
+  useSEO({ title: 'Manga', description: 'Read manga, light novels, and one shots for free on TETO-STREAM.' });
   const { isMobile = false, isTv = false } = useDevice() || {};
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

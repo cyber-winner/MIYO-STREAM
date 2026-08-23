@@ -14,12 +14,12 @@ export default defineConfig({
   define: {
     // The provider extensions use `global.axios` etc. (Node-style globals)
     global: 'globalThis',
-    __MIYO_BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
+    __TETO_BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
   },
   server: {
     host: true, // Bind to all interfaces (including IPv6 [::1]) for Cloudflare Tunnel
     port: 24729,
-    allowedHosts: ["miyo-stream.cyber-winner.site"],
+    allowedHosts: ["miyo-stream.tetocreations.bond"],
     proxy: {
       '/api': {
         // Follow the same port resolution as server.js (SERVER_PORT || PORT || 3000)

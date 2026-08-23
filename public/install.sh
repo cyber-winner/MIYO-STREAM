@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# MIYO installer for Linux — works on any distro.
-# - Removes any previously installed MIYO first (clean update)
+# TETO installer for Linux — works on any distro.
+# - Removes any previously installed TETO first (clean update)
 # - Installs the latest release (.deb / .rpm / AppImage)
-# - Adds a desktop entry so MIYO shows up in your app launcher (Super key search)
-# Usage: curl -fsSL https://miyo-stream.cyber-winner.site/install.sh | bash
+# - Adds a desktop entry so TETO shows up in your app launcher (Super key search)
+# Usage: curl -fsSL https://miyo-stream.tetocreations.bond/install.sh | bash
 set -euo pipefail
 
-REPO="cyber-winner/MIYO-STREAM"
+REPO="TetoCreations/TETO-STREAM"
 API="https://api.github.com/repos/${REPO}/releases/latest"
-SITE="https://miyo-stream.cyber-winner.site"
+SITE="https://miyo-stream.tetocreations.bond"
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 info() { printf '\033[36m==>\033[0m %s\n' "$1"; }
@@ -17,16 +17,16 @@ err()  { printf '\033[31mError:\033[0m %s\n' "$1" >&2; exit 1; }
 
 command -v curl >/dev/null 2>&1 || err "curl is required. Install it with your package manager first."
 
-bold "MIYO installer"
+bold "TETO installer"
 
 # ---------------------------------------------------------------------------
-# 1. Remove ALL previous MIYO installations (any install method)
+# 1. Remove ALL previous TETO installations (any install method)
 # ---------------------------------------------------------------------------
-info "Removing previous MIYO installations (if any)..."
+info "Removing previous TETO installations (if any)..."
 
 # Old distro packages (deb-based)
 if command -v dpkg >/dev/null 2>&1; then
-  for pkg in miyo MIYO miyo-stream; do
+  for pkg in miyo TETO miyo-stream; do
     if dpkg -s "$pkg" >/dev/null 2>&1; then
       warn "Removing old package: $pkg"
       sudo apt-get remove -y "$pkg" >/dev/null 2>&1 || sudo dpkg -r "$pkg" >/dev/null 2>&1 || true
@@ -35,7 +35,7 @@ if command -v dpkg >/dev/null 2>&1; then
 fi
 # Old distro packages (rpm-based)
 if command -v rpm >/dev/null 2>&1; then
-  for pkg in miyo MIYO miyo-stream; do
+  for pkg in miyo TETO miyo-stream; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
       warn "Removing old package: $pkg"
       if command -v dnf >/dev/null 2>&1; then sudo dnf remove -y "$pkg" >/dev/null 2>&1 || true
@@ -45,9 +45,9 @@ if command -v rpm >/dev/null 2>&1; then
   done
 fi
 # Old AppImages and desktop entries from previous runs of this script
-rm -f "${HOME}/.local/bin/MIYO.AppImage" \
+rm -f "${HOME}/.local/bin/TETO.AppImage" \
       "${HOME}/.local/bin/miyo" \
-      "${HOME}/Applications/MIYO.AppImage" \
+      "${HOME}/Applications/TETO.AppImage" \
       "${HOME}/.local/share/applications/miyo.desktop" \
       "${HOME}/.local/share/icons/hicolor/512x512/apps/miyo.png" 2>/dev/null || true
 
@@ -101,14 +101,14 @@ case "$PKG_TYPE" in
     info "Using universal AppImage (works on any distro)..."
     APP_DIR="${HOME}/.local/bin"
     mkdir -p "$APP_DIR"
-    curl -fL --progress-bar "$URL" -o "$APP_DIR/MIYO.AppImage"
-    chmod +x "$APP_DIR/MIYO.AppImage"
+    curl -fL --progress-bar "$URL" -o "$APP_DIR/TETO.AppImage"
+    chmod +x "$APP_DIR/TETO.AppImage"
 
     # -----------------------------------------------------------------------
-    # Desktop integration: icon + .desktop entry so MIYO appears in the app
+    # Desktop integration: icon + .desktop entry so TETO appears in the app
     # launcher / Super-key search on GNOME, KDE, XFCE, Cinnamon, etc.
     # -----------------------------------------------------------------------
-    info "Adding MIYO to your app launcher..."
+    info "Adding TETO to your app launcher..."
     ICON_DIR="${HOME}/.local/share/icons/hicolor/512x512/apps"
     DESKTOP_DIR="${HOME}/.local/share/applications"
     mkdir -p "$ICON_DIR" "$DESKTOP_DIR"
@@ -117,15 +117,15 @@ case "$PKG_TYPE" in
     cat > "$DESKTOP_DIR/miyo.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=MIYO
+Name=TETO
 GenericName=Streaming App
 Comment=Stream anime, movies and TV shows
-Exec=${APP_DIR}/MIYO.AppImage %U
+Exec=${APP_DIR}/TETO.AppImage %U
 Icon=miyo
 Terminal=false
 Categories=AudioVideo;Video;Player;
 Keywords=miyo;stream;anime;movies;tv;
-StartupWMClass=MIYO
+StartupWMClass=TETO
 EOF
     chmod +x "$DESKTOP_DIR/miyo.desktop"
     # Refresh launcher caches where available
@@ -134,5 +134,5 @@ EOF
     ;;
 esac
 
-bold "MIYO ${TAG:-} installed!"
-info "Press the Super key and search for \"MIYO\" to launch it."
+bold "TETO ${TAG:-} installed!"
+info "Press the Super key and search for \"TETO\" to launch it."
