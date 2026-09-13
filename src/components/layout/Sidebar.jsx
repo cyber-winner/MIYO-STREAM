@@ -59,11 +59,12 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
           <Link
             key={item.path}
             to={item.path}
+            aria-current={isActive ? 'page' : undefined}
             onClick={() => onClose && onClose()}
             className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group',
+              'cinema-nav-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group',
               isActive
-                ? 'text-accent border border-accent animate-rgb-shift'
+                ? 'text-accent border border-accent/20 bg-accent/10'
                 : 'border border-transparent text-text-secondary hover:text-text-primary hover:bg-white/5'
             )}
           >
@@ -79,8 +80,11 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
   );
   return (
     <aside
+      id="primary-sidebar"
+      aria-label="Main navigation"
+      inert={!isOpen ? '' : undefined}
       className={cn(
-        "fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-surface/95 backdrop-blur-xl border-r border-border transition-transform duration-300 w-[240px] overflow-y-auto",
+        "cinema-sidebar fixed left-0 top-0 bottom-0 z-50 flex flex-col bg-surface/95 backdrop-blur-xl border-r border-border transition-transform duration-300 w-[240px] overflow-y-auto",
         !isDesktop && !isOpen ? "-translate-x-full" : "translate-x-0"
       )}
     >

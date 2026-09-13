@@ -129,15 +129,39 @@ export function Home() {
         </div>
       )}
       <HeroSection items={heroItems} />
-      <div className="px-5 md:px-10 -mt-8 relative z-30 mb-6">
-        <InlineSearchBar
-          placeholder="Search movies & TV shows..."
-          source="media"
-          onSearch={handleSearch}
-          renderResult={renderSearchResult}
-        />
-      </div>
-      <div className={cn(isTv && 'px-4 -mt-20 relative z-20')}>
+      <section className="cinema-discovery" aria-labelledby="discovery-title">
+        <div className="cinema-discovery__heading">
+          <div>
+            <p className="cinema-eyebrow">Find your next obsession</p>
+            <h2 id="discovery-title">What are you in the mood for?</h2>
+          </div>
+          <p>Big-screen stories. A world of anime. All in one place.</p>
+        </div>
+        <div className="cinema-discovery__search">
+          <InlineSearchBar
+            placeholder="Find a movie or TV show..."
+            source="media"
+            onSearch={handleSearch}
+            renderResult={renderSearchResult}
+          />
+        </div>
+        <nav className="cinema-destinations" aria-label="Explore collections">
+          {[
+            { path: '/movies', number: '01', title: 'Movie night', detail: 'Find your next favourite film', tone: 'cyan' },
+            { path: '/tv', number: '02', title: 'One more episode', detail: 'Discover your next series', tone: 'violet' },
+            { path: '/anime', number: '03', title: 'Beyond imagination', detail: 'Step into the world of anime', tone: 'amber' },
+            { path: '/manga', number: '04', title: 'Turn the page', detail: 'Explore manga and new worlds', tone: 'rose' },
+          ].map(destination => (
+            <Link key={destination.path} to={destination.path} className={`cinema-destination cinema-destination--${destination.tone}`}>
+              <span className="cinema-destination__number">{destination.number}</span>
+              <span className="cinema-destination__arrow" aria-hidden="true">↗</span>
+              <strong>{destination.title}</strong>
+              <span>{destination.detail}</span>
+            </Link>
+          ))}
+        </nav>
+      </section>
+      <div className={cn(isTv && 'px-4 relative z-20')}>
         <Row title="Trending This Week" items={data.trending.results} />
         <Row title="Popular Movies" items={data.popMovies.results} mediaType="movie" />
         <Row title="Popular TV Shows" items={data.popTv.results} mediaType="tv" />

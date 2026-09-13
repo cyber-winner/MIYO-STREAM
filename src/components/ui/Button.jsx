@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/cn';
 const variants = {
-  primary: 'cyber-gradient text-white shadow-lg shadow-accent-glow hover:-translate-y-0.5 hover:shadow-xl hover:shadow-accent-glow active:translate-y-0 animate-cyber-hue-shift',
+  primary: 'bg-accent text-background shadow-lg shadow-accent/15 hover:bg-accent-light hover:-translate-y-0.5 hover:shadow-accent/25 active:translate-y-0',
   secondary: 'bg-surface border border-border text-text-primary hover:bg-surface-hover active:bg-surface',
   ghost: 'bg-transparent text-text-secondary hover:text-text-primary hover:bg-white/5',
   danger: 'bg-red-600/10 border border-red-600/30 text-red-400 hover:bg-red-600/20',
