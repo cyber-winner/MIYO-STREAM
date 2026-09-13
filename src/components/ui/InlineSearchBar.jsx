@@ -65,11 +65,13 @@ export function InlineSearchBar({ placeholder, source, onSearch, renderResult, a
         <SearchIcon className={cn('w-5 h-5 flex-shrink-0 transition-colors', showResults ? accentColor + ' animate-rgb-shift' : 'text-text-muted')} />
         <input
           type="text"
+          aria-label={placeholder || 'Search titles'}
           placeholder={placeholder}
           value={query}
           onChange={handleInput}
           onFocus={() => query.length >= 2 && setShowResults(true)}
           onKeyDown={(e) => {
+            if (e.key === 'Escape') setShowResults(false);
             if (e.key === 'Enter' && query.trim()) {
               setShowResults(false);
               navigate(`/search?q=${encodeURIComponent(query)}&source=${source}`);
@@ -81,7 +83,7 @@ export function InlineSearchBar({ placeholder, source, onSearch, renderResult, a
           <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin flex-shrink-0" />
         )}
         {query && !searching && (
-          <button onClick={clearSearch} className="text-text-muted hover:text-text-primary transition-colors">
+          <button type="button" aria-label="Clear search" onClick={clearSearch} className="text-text-muted hover:text-text-primary transition-colors">
             <XIcon className="w-4 h-4" />
           </button>
         )}

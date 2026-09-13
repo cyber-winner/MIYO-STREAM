@@ -4,112 +4,93 @@ import { cn } from '../../lib/cn';
 import { slugify } from '../../lib/slugify';
 import { api } from '../../lib/api';
 import { useDevice } from '../../context/DeviceContext';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { TruncatedText } from '../pretext/TruncatedText';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+
 export function HeroSection({ items = [] }) {
-  const { isMobile, isTv } = useDevice();
+  const { isTv } = useDevice();
+  const reducedMotion = useReducedMotion();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const slides = items || [];
+  const index = slides.length ? currentIndex % slides.length : 0;
+  const rotating = !paused && !hovered && !focused && !reducedMotion;
+
   useEffect(() => {
-    if (items.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % items.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [items.length]);
-  if (!items || items.length === 0) return null;
+    if (slides.length < 2 || !rotating) return;
+    const timer = window.setInterval(() => {
+      if (!document.hidden) setCurrentIndex(previous => (previous + 1) % slides.length);
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [slides.length, rotating]);
+
+  if (!slides.length) return null;
+  const item = slides[index];
+  const isTvShow = item.media_type === 'tv' || (!item.title && !!item.name);
+  const title = (isTvShow ? item.name : item.title) || 'Untitled';
+  const year = (isTvShow ? item.first_air_date : item.release_date)?.slice(0, 4);
+  const backdrop = api.getBackdropUrl(item.backdrop_path);
+  const linkPath = `/${isTvShow ? 'tv' : 'movie'}/${item.id}/${slugify(title)}`;
+  const selectSlide = next => {
+    setCurrentIndex((next + slides.length) % slides.length);
+    setPaused(true);
+  };
+
   return (
-    <div
-      className={cn(
-        'relative w-full overflow-hidden flex items-end',
-        isMobile ? 'h-[75vh]' : isTv ? 'h-[95vh]' : 'h-[80vh]'
-      )}
+    <section
+      className={cn('cinema-hero', isTv && 'cinema-hero--tv')}
+      aria-label="Featured titles"
+      aria-roledescription="carousel"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+      }}
     >
-      {items.map((item, index) => {
-        const isTvShow = item.media_type === 'tv';
-        const title = isTvShow ? item.name : item.title;
-        const desc = item.overview;
-        const backdrop = api.getBackdropUrl(item.backdrop_path);
-        const rating = item.vote_average ? item.vote_average.toFixed(1) : 'NR';
-        const linkPath = `/${isTvShow ? 'tv' : 'movie'}/${item.id}/${slugify(title)}`;
-        const isActive = index === currentIndex;
-        return (
-          <div
-            key={item.id}
-            className={cn(
-              'absolute inset-0 bg-cover bg-center bg-no-repeat flex items-end transition-opacity duration-1000',
-              isActive ? 'opacity-100 z-10' : 'opacity-0 z-0'
-            )}
-            style={{ 
-              backgroundImage: (isActive || Math.abs(index - currentIndex) === 1) && backdrop 
-                ? `url('${backdrop}')` 
-                : undefined 
-            }}
-          >
-            <div className="absolute inset-0 gradient-overlay" />
-            <div className={cn(
-              'relative z-10 max-w-3xl transform transition-all duration-1000 delay-300',
-              isActive ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0',
-              isMobile ? 'p-5 pb-12' : 'p-10 pb-16 lg:p-16 lg:pb-20'
-            )}>
-              <h1
-                className={cn(
-                  'font-black leading-[1.05] tracking-tight text-text-primary text-shadow-hero mb-6',
-                  isMobile ? 'text-4xl' : isTv ? 'text-8xl' : 'text-5xl lg:text-7xl'
-                )}
-              >
-                {title}
-              </h1>
-              <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <Badge variant="accent">{isTvShow ? 'TV Series' : 'Movie'}</Badge>
-                <span className="text-sm md:text-base text-text-secondary flex items-center gap-1">
-                  <span className="text-rating">★</span> {rating}/10
-                </span>
-              </div>
-              <TruncatedText
-                lines={isMobile ? 2 : 3}
-                className={cn(
-                  'text-text-secondary mb-6 transition-all duration-500 delay-500',
-                  isActive ? 'opacity-100' : 'opacity-0',
-                  isMobile ? 'text-sm' : 'text-base lg:text-lg'
-                )}
-              >
-                {desc}
-              </TruncatedText>
-              <div className="flex items-center gap-3">
-                <Link to={linkPath}>
-                  <Button variant="primary" size={isTv ? 'tv' : isMobile ? 'md' : 'lg'}>
-                    <PlayIcon className="w-5 h-5" />
-                    Watch Now
-                  </Button>
-                </Link>
-              </div>
-            </div>
+      <div className="cinema-hero__art" aria-hidden="true">
+        {backdrop && <img key={backdrop} src={backdrop} alt="" fetchPriority="high" />}
+      </div>
+      <div className="cinema-hero__shade" aria-hidden="true" />
+      <div className="cinema-hero__topline">
+        <span className="cinema-eyebrow">MIYO SELECT</span>
+        <span className="cinema-hero__edition">Your next great watch</span>
+      </div>
+      <div className="cinema-hero__content" aria-live={rotating ? 'off' : 'polite'} aria-atomic="true">
+        <div role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${slides.length}: ${title}`}>
+          <p className="cinema-eyebrow cinema-hero__kicker"><span aria-hidden="true" /> In the spotlight</p>
+          <h1>{title}</h1>
+          <div className="cinema-hero__metadata">
+            <span className="cinema-tag">{isTvShow ? 'TV series' : 'Movie'}</span>
+            {year && <span>{year}</span>}
+            {item.vote_average > 0 && <span className="cinema-rating"><span aria-hidden="true">★</span> {item.vote_average.toFixed(1)} <span className="cinema-rating__scale">/ 10</span></span>}
           </div>
-        );
-      })}
-      {items.length > 1 && (
-        <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-2">
-          {items.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={cn(
-                'w-2 h-2 rounded-full transition-all duration-300',
-                idx === currentIndex ? 'bg-transparent border border-accent w-6 animate-rgb-shift' : 'bg-white/30 hover:bg-white/50'
-              )}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
-          ))}
+          {item.overview && <p className="cinema-hero__description">{item.overview}</p>}
+        </div>
+        <div className="cinema-hero__actions">
+          <Link to={linkPath} className="cinema-action cinema-action--primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l14-8z" /></svg>
+            Explore title
+          </Link>
+          <Link to={isTvShow ? '/tv' : '/movies'} className="cinema-action cinema-action--secondary">Browse {isTvShow ? 'series' : 'movies'} <span aria-hidden="true">↗</span></Link>
+        </div>
+      </div>
+      {slides.length > 1 && (
+        <div className="cinema-hero__controls">
+          <span className="cinema-hero__counter"><strong>{String(index + 1).padStart(2, '0')}</strong> / {String(slides.length).padStart(2, '0')}</span>
+          <div className="cinema-hero__dots" aria-label="Choose a featured title">
+            {slides.map((slide, slideIndex) => (
+              <button key={`${slide.media_type || 'media'}-${slide.id}`} type="button" aria-label={`Show ${slide.title || slide.name || `title ${slideIndex + 1}`}`} aria-current={slideIndex === index ? 'true' : undefined} onClick={() => selectSlide(slideIndex)}><span /></button>
+            ))}
+          </div>
+          <div className="cinema-hero__arrows">
+            <button type="button" className="cinema-icon-button" onClick={() => selectSlide(index - 1)} aria-label="Previous featured title">←</button>
+            {!reducedMotion && <button type="button" className="cinema-icon-button" onClick={() => setPaused(value => !value)} aria-label={paused ? 'Resume automatic slides' : 'Pause automatic slides'}>{paused ? '▶' : 'Ⅱ'}</button>}
+            <button type="button" className="cinema-icon-button" onClick={() => selectSlide(index + 1)} aria-label="Next featured title">→</button>
+          </div>
         </div>
       )}
-    </div>
-  );
-}
-function PlayIcon({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="5 3 19 12 5 21 5 3" />
-    </svg>
+    </section>
   );
 }

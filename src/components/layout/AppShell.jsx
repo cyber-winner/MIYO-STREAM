@@ -10,6 +10,7 @@ import { ScrollToTop } from '../ui/ScrollToTop';
 import { FloatingContact } from '../ui/FloatingContact';
 import { Breadcrumbs } from '../ui/Breadcrumbs';
 import { StickyMobileCTA } from '../ui/StickyMobileCTA';
+import '../../cinematic.css';
 
 export function AppShell({ children }) {
   const { isDesktop } = useDevice();
@@ -43,6 +44,9 @@ export function AppShell({ children }) {
       {!isDesktop && (
         <div className="fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 h-14 bg-surface/80 backdrop-blur-xl border-b border-white/5">
           <button
+            aria-label="Open navigation"
+            aria-expanded={isSidebarOpen}
+            aria-controls="primary-sidebar"
             onClick={() => setIsSidebarOpen(true)}
             className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white active:scale-90 transition-all"
           >
