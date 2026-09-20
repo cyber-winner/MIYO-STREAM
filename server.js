@@ -448,8 +448,27 @@ app.get('/api/anime/:provider/:action', async (req, res) => {
       }
       case 'sources': {
         const id = req.query.id;
+        const category = req.query.category || null;
         if (!p.fetchEpisodeSources) return res.status(400).json({ error: 'Not supported' });
-        const data = await p.fetchEpisodeSources(id);
+        const data = await p.fetchEpisodeSources(id, category);
+        // Resolve lazy sources if processServer is available
+        if (data && Array.isArray(data.sources) && p.processServer) {
+          const resolvePromises = data.sources.map(async (src) => {
+            if ((src.isUnresolved || !src.url) && src.rawServer) {
+              try {
+                const resolved = await Promise.race([
+                  p.processServer(src.rawServer),
+                  new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+                ]);
+                if (resolved && resolved.url) return { ...src, ...resolved, isUnresolved: false };
+              } catch (e) { /* skip failed server */ }
+              return null;
+            }
+            return src;
+          });
+          const results = await Promise.allSettled(resolvePromises);
+          data.sources = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+        }
         return res.json(data);
       }
       default:
@@ -579,22 +598,41 @@ app.post('/api/watch', async (req, res) => {
   const { ep, provider = 'anikoto', subdub } = req.body;
   try {
     if (!ep) throw new Error('Episode ID Not Found');
-        const p = providers[provider];
+    const p = providers[provider];
     if (!p || !p.fetchEpisodeSources) {
       throw new Error(`Provider '${provider}' not found or doesn't support sources`);
     }
-    let resolvedEp = ep;
-    if (subdub && !ep.endsWith('-sub') && !ep.endsWith('-dub') && !ep.endsWith('-both')) {
-      resolvedEp = `${ep}-${subdub}`;
-    }
-    const sourcesData = await p.fetchEpisodeSources(resolvedEp);
-    if (sourcesData) {
-      const allSources = [
-        ...(Array.isArray(sourcesData.sources) ? sourcesData.sources : []),
-        ...(sourcesData.sub?.sources || []),
-        ...(sourcesData.dub?.sources || []),
-      ];
-      for (const src of allSources) {
+    // Pass subdub as category parameter (new v5 API) instead of appending suffixes
+    const sourcesData = await p.fetchEpisodeSources(ep, subdub || null);
+    if (sourcesData && Array.isArray(sourcesData.sources)) {
+      // Resolve lazy/unresolved sources server-side via processServer
+      const resolvedSources = [];
+      const resolvePromises = sourcesData.sources.map(async (src) => {
+        if ((src.isUnresolved || !src.url) && p.processServer && src.rawServer) {
+          try {
+            const resolved = await Promise.race([
+              p.processServer(src.rawServer),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+            ]);
+            if (resolved && resolved.url) {
+              return { ...src, ...resolved, isUnresolved: false };
+            }
+          } catch (e) {
+            console.error(`Failed to resolve server ${src.name}:`, e.message);
+          }
+          return null; // server resolution failed
+        }
+        return src; // already resolved
+      });
+      const results = await Promise.allSettled(resolvePromises);
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) {
+          resolvedSources.push(r.value);
+        }
+      }
+      sourcesData.sources = resolvedSources;
+      // Register referers for all resolved sources
+      for (const src of resolvedSources) {
         if (src.url) {
           try {
             const cdnDomain = new URL(src.url).hostname;
@@ -610,7 +648,7 @@ app.post('/api/watch', async (req, res) => {
     res.status(200).json(sourcesData);
   } catch (err) {
     console.error('Watch error:', err.message);
-    res.status(200).json({ sources: [] });
+    res.status(200).json({ sources: [], subtitles: [] });
   }
 });
 app.get('/api/proxy', async (req, res) => {

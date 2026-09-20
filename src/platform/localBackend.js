@@ -119,17 +119,28 @@ export const localBackend = {
       if (!p || !p.fetchEpisodeSources) {
         throw new Error(`Provider '${provider}' not found or doesn't support sources`);
       }
-      let resolvedEp = ep;
-      if (subdub && !ep.endsWith('-sub') && !ep.endsWith('-dub') && !ep.endsWith('-both')) {
-        resolvedEp = `${ep}-${subdub}`;
+      // Pass subdub as category parameter (new v5 API) instead of appending suffixes
+      const sourcesData = await p.fetchEpisodeSources(ep, subdub || null);
+      if (sourcesData && Array.isArray(sourcesData.sources) && p.processServer) {
+        // Resolve lazy/unresolved sources via processServer
+        const resolvePromises = sourcesData.sources.map(async (src) => {
+          if ((src.isUnresolved || !src.url) && src.rawServer) {
+            try {
+              const resolved = await Promise.race([
+                p.processServer(src.rawServer),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+              ]);
+              if (resolved && resolved.url) return { ...src, ...resolved, isUnresolved: false };
+            } catch (e) { /* skip failed server */ }
+            return null;
+          }
+          return src;
+        });
+        const results = await Promise.allSettled(resolvePromises);
+        sourcesData.sources = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
       }
-      const sourcesData = await p.fetchEpisodeSources(resolvedEp);
       if (sourcesData) {
-        const allSources = [
-          ...(Array.isArray(sourcesData.sources) ? sourcesData.sources : []),
-          ...(sourcesData.sub?.sources || []),
-          ...(sourcesData.dub?.sources || []),
-        ];
+        const allSources = Array.isArray(sourcesData.sources) ? sourcesData.sources : [];
         for (const src of allSources) {
           if (src.url) {
             try {
@@ -146,7 +157,7 @@ export const localBackend = {
       return sourcesData;
     } catch (err) {
       console.error('[localBackend] Watch error:', err.message);
-      return { sources: [] };
+      return { sources: [], subtitles: [] };
     }
   },
 };

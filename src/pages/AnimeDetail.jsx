@@ -258,34 +258,36 @@ export function AnimeDetail() {
               // Get AnimeInfo to get dataId
               const providerInfo = await api.getProviderInfo(animeProvider, bestMatch.id);
               if (providerInfo) {
-                // Determine available audio types
-                const idStr = providerInfo.id || '';
-                const types = [];
-                if (idStr.includes('sub') || idStr.includes('both')) types.push('sub');
-                if (idStr.includes('dub') || idStr.includes('both')) types.push('dub');
-                if (types.length > 0) setAvailableAudio(types);
-                // If the user's preference isn't available, switch to what is
-                if (types.length > 0 && !types.includes(audioPreference)) {
-                  setAudioPreference(types[0]);
-                }
                 if (providerInfo.dataId) {
                   // Get episodes
                   const epData = await api.getProviderEpisodes(animeProvider, providerInfo.dataId);
                   const episodesList = epData?.episodes || [];
                   setAnikotoEpisodes(episodesList);
+                  // Determine available audio types from the episodes' langs arrays
+                  const types = [];
+                  for (const ep of episodesList) {
+                    const epLangs = ep.langs || (ep.lang ? (ep.lang === 'both' ? ['sub', 'dub'] : [ep.lang]) : []);
+                    for (const l of epLangs) {
+                      if (!types.includes(l)) types.push(l);
+                    }
+                  }
+                  if (types.length > 0) setAvailableAudio(types);
+                  // If the user's preference isn't available, switch to what is
+                  if (types.length > 0 && !types.includes(audioPreference)) {
+                    setAudioPreference(types[0]);
+                  }
                   if (episodesList.length > 0) {
                     const firstEp = episodesList[0];
                     handleEpisodeClick(firstEp.number, firstEp.id, types.length > 0 ? (types.includes(audioPreference) ? audioPreference : types[0]) : null);
                   }
-
                 }
               }
             }
           } catch (e) {
             console.error(`${animeProvider} fetch failed:`, e);
-            // Fallback to Videasy if Anikoto fails
-            setPlayerSrc(api.getAnimePlayerUrl(id, 1));
-            setIsHls(false);
+            window.dispatchEvent(new CustomEvent('miyo-toast', {
+              detail: { message: 'Failed to load anime sources. Try refreshing.', type: 'error' }
+            }));
           }
         } else if (result.type === 'MANGA') {
           // ── Manga: Search providers with fallback and fetch chapters ──
@@ -407,46 +409,46 @@ export function AnimeDetail() {
         const currentEp = anikotoEpisodes.find(e => e.id === anikotoEpId);
         // Use the StrawVerse /api/watch POST endpoint to fetch sources
         const sourceData = await api.getProviderSources(animeProvider, targetEpId, prefAudio);
-        let sourcesList = [];
-        let subsList = [];
-        // Handle StrawVerse format response
-        if (prefAudio === 'dub' && sourceData?.dub?.sources?.length > 0) {
+        let sourcesList = sourceData?.sources || [];
+        let subsList = sourceData?.subtitles || [];
+        // Also check for per-category sources (legacy format)
+        if (sourcesList.length === 0 && prefAudio === 'dub' && sourceData?.dub?.sources?.length > 0) {
           sourcesList = sourceData.dub.sources;
           subsList = sourceData.dub.subtitles || sourceData.subtitles || [];
-        } else if (prefAudio === 'sub' && sourceData?.sub?.sources?.length > 0) {
+        } else if (sourcesList.length === 0 && prefAudio === 'sub' && sourceData?.sub?.sources?.length > 0) {
           sourcesList = sourceData.sub.sources;
           subsList = sourceData.sub.subtitles || sourceData.subtitles || [];
-        } else if (sourceData?.sources?.length > 0) {
-          sourcesList = sourceData.sources;
-          subsList = sourceData.subtitles || [];
         }
         if (sourcesList.length > 0) {
            const source = sourcesList[0];
            const hlsUrl = source.url || source.file;
            const referer = source.headers?.Referer || '';
-           // Use our proxy builder for the video player
-           const proxiedUrl = api.buildProxiedHlsUrl(hlsUrl, referer);
-           // We'll pass the unproxied URL to VideoPlayer with the referer hash
+           // Pass the unproxied URL to VideoPlayer with the referer hash
            // VideoPlayer handles proxying through hls.js
            setPlayerSrc(`${hlsUrl}#referer=${encodeURIComponent(referer)}`);
            setIsHls(true);
-           setHlsSubtitles(subsList);
+           // Collect subtitles from the first source that has them, or from top-level
+           const srcSubs = source.subtitles || [];
+           setHlsSubtitles(srcSubs.length > 0 ? srcSubs : subsList);
         } else {
            throw new Error('No valid sources returned');
         }
       } catch (e) {
         console.error('Failed to get sources:', e);
-        // Fallback to Videasy Embed (data may still be null on first load, use route id)
-        setPlayerSrc(api.getAnimePlayerUrl(data?.id || id, epNum));
+        setPlayerSrc('');
         setIsHls(false);
         setHlsSubtitles([]);
         window.dispatchEvent(new CustomEvent('miyo-toast', {
-          detail: { message: `Switched to fallback player.`, type: 'warning' }
+          detail: { message: 'No sources available for this episode.', type: 'error' }
         }));
       }
     } else {
+      // No episode ID available — show error
+      setPlayerSrc('');
       setIsHls(false);
-      setPlayerSrc(api.getAnimePlayerUrl(data?.id || id, epNum));
+      window.dispatchEvent(new CustomEvent('miyo-toast', {
+        detail: { message: 'Episode not found.', type: 'error' }
+      }));
     }
     setLoadingEpisode(false);
     // Only scroll to player if not already in view
@@ -497,8 +499,11 @@ export function AnimeDetail() {
       if (currentEp) {
         handleEpisodeClick(activeEpisode, currentEp.id);
       } else {
-        setPlayerSrc(api.getAnimePlayerUrl(data?.id || id, activeEpisode));
+        setPlayerSrc('');
         setIsHls(false);
+        window.dispatchEvent(new CustomEvent('miyo-toast', {
+          detail: { message: 'Local file missing and no online source found.', type: 'error' }
+        }));
       }
     };
 
@@ -518,7 +523,8 @@ export function AnimeDetail() {
           handleEpisodeClick(activeEpisode, currentEp.id);
         }
       } else {
-        setPlayerSrc(api.getAnimePlayerUrl(data?.id || id, activeEpisode));
+        // No anikoto episodes available — nothing to play
+        setPlayerSrc('');
         setIsHls(false);
       }
     } else {
@@ -852,10 +858,10 @@ export function AnimeDetail() {
                               {isActive ? "Now Playing" : ep.number}
                             </span>
                             {/* Audio indicator dots */}
-                            {ep.lang && !isActive && (
+                            {!isActive && (ep.langs?.length > 0 || ep.lang) && (
                               <div className="absolute bottom-1 w-full flex justify-center gap-0.5 z-10">
-                                {(ep.lang === 'sub' || ep.lang === 'both') && <div className="w-1 h-1 rounded-full bg-blue-400 opacity-60" title="Sub available" />}
-                                {(ep.lang === 'dub' || ep.lang === 'both') && <div className="w-1 h-1 rounded-full bg-red-400 opacity-60" title="Dub available" />}
+                                {(ep.langs?.includes('sub') || ep.lang === 'sub' || ep.lang === 'both') && <div className="w-1 h-1 rounded-full bg-blue-400 opacity-60" title="Sub available" />}
+                                {(ep.langs?.includes('dub') || ep.lang === 'dub' || ep.lang === 'both') && <div className="w-1 h-1 rounded-full bg-red-400 opacity-60" title="Dub available" />}
                               </div>
                             )}
                           </button>
