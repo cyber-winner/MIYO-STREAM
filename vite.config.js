@@ -19,7 +19,13 @@ export default defineConfig({
   server: {
     host: true, // Bind to all interfaces (including IPv6 [::1]) for Cloudflare Tunnel
     port: 24729,
-    allowedHosts: ["miyo-stream.cyber-winner.site"],
+    allowedHosts: "all",
+    hmr: {
+      // HMR connects directly to Vite, not through Nginx.
+      // Friends won't get hot-reload (they don't need it).
+      host: 'localhost',
+      port: 24729,
+    },
     proxy: {
       '/api': {
         // Follow the same port resolution as server.js (SERVER_PORT || PORT || 3000)
