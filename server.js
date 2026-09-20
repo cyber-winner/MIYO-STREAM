@@ -10,6 +10,7 @@ import { createRequire } from 'module';
 import child_process, { exec, execSync, spawn } from 'child_process';
 import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
+import { startCrawler, getCachedMedia, cacheMediaEntry, cacheMediaFromResponse, getCrawlerStatus } from './utils/anilistCrawler.js';
 
 // ── Database Layer ──
 const dbReady = import('./utils/db.js').then(m => m.default || m).catch(() => null);
@@ -716,10 +717,13 @@ app.get('/api/proxy', async (req, res) => {
   }
 });
 const CACHE_DIR = path.join(__dirname, '.cache', 'anilist');
-if (!fs.existsSync(CACHE_DIR)) {
-  fs.mkdirSync(CACHE_DIR, { recursive: true });
+const QUERIES_CACHE_DIR = path.join(CACHE_DIR, 'queries');
+const MEDIA_CACHE_DIR = path.join(CACHE_DIR, 'media');
+for (const dir of [CACHE_DIR, QUERIES_CACHE_DIR, MEDIA_CACHE_DIR]) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
-const CACHE_DURATION_MS = 1000 * 60 * 60;
+// How long before we try to refresh from AniList (cache is still served if refresh fails)
+const CACHE_REFRESH_MS = 1000 * 60 * 60 * 6; // 6 hours
 
 // AniList GraphQL proxy — route renamed from /api/anilist to /api/al to avoid
 // ad-blocker false positives that match "anilist" in filter lists.
@@ -858,25 +862,74 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.post('/api/al', async (req, res) => {
-  const hash = crypto.createHash('md5').update(JSON.stringify(req.body)).digest('hex');
-  const cacheFile = path.join(CACHE_DIR, `${hash}.json`);
+  const bodyStr = JSON.stringify(req.body);
+  const hash = crypto.createHash('md5').update(bodyStr).digest('hex');
+  const cacheFile = path.join(QUERIES_CACHE_DIR, `${hash}.json`);
+  // Also check legacy cache location for backward compat
+  const legacyCacheFile = path.join(CACHE_DIR, `${hash}.json`);
 
-  // Try to read cache (fresh or stale)
-  let cachedData = null;
-  if (fs.existsSync(cacheFile)) {
-    try {
-      cachedData = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
-    } catch (_) {}
+  // Detect if this is a single-media detail query (Media(id: X))
+  const detailIdMatch = bodyStr.match(/"id"\s*:\s*(\d+)/);
+  const queryStr = req.body?.query || '';
+  const isDetailQuery = detailIdMatch && /\bMedia\s*\(/.test(queryStr) && !/\bPage\s*\(/.test(queryStr);
+  const detailId = isDetailQuery ? parseInt(detailIdMatch[1]) : null;
+
+  // ── 1. Try media cache for detail queries ──
+  if (detailId) {
+    const mediaCached = getCachedMedia(detailId);
+    if (mediaCached?.data) {
+      const age = Date.now() - mediaCached.timestamp;
+      // Serve from media cache immediately
+      res.setHeader('X-Cache', age < CACHE_REFRESH_MS ? 'HIT' : 'STALE');
+      res.setHeader('X-Cache-Age', Math.round(age / 1000));
+      // If older than refresh threshold, try background refresh (don't block response)
+      if (age > CACHE_REFRESH_MS) {
+        fetchAniListWithRetry(req.body).then(response => {
+          if (response.data?.data?.Media) {
+            cacheMediaEntry(response.data.data.Media.id, response.data.data.Media);
+            try { fs.writeFileSync(cacheFile, JSON.stringify({ timestamp: Date.now(), data: response.data })); } catch (_) {}
+          }
+        }).catch(() => { /* background refresh failed, that's fine */ });
+      }
+      return res.json({ data: { Media: mediaCached.data } });
+    }
   }
 
-  // Return fresh cache if available
-  if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION_MS) {
+  // ── 2. Try query cache ──
+  let cachedData = null;
+  for (const file of [cacheFile, legacyCacheFile]) {
+    if (fs.existsSync(file)) {
+      try {
+        cachedData = JSON.parse(fs.readFileSync(file, 'utf8'));
+        break;
+      } catch (_) {}
+    }
+  }
+
+  // Serve cached data if available (permanent cache — never expires)
+  if (cachedData) {
+    const age = Date.now() - cachedData.timestamp;
+    res.setHeader('X-Cache', age < CACHE_REFRESH_MS ? 'HIT' : 'STALE');
+    res.setHeader('X-Cache-Age', Math.round(age / 1000));
+
+    // If older than refresh threshold, try background refresh
+    if (age > CACHE_REFRESH_MS) {
+      fetchAniListWithRetry(req.body).then(response => {
+        try {
+          fs.writeFileSync(cacheFile, JSON.stringify({ timestamp: Date.now(), data: response.data }));
+          // Also extract and cache individual media entries
+          cacheMediaFromResponse(response.data?.data || response.data);
+        } catch (_) {}
+      }).catch(() => { /* background refresh failed, that's fine */ });
+    }
+
     return res.json(cachedData.data);
   }
 
-  // Try to fetch from AniList
+  // ── 3. No cache — fetch from AniList ──
   try {
     const response = await fetchAniListWithRetry(req.body);
+    // Save to query cache (permanent)
     try {
       fs.writeFileSync(cacheFile, JSON.stringify({
         timestamp: Date.now(),
@@ -885,19 +938,15 @@ app.post('/api/al', async (req, res) => {
     } catch (err) {
       console.error('Failed to write cache to disk:', err.message);
     }
+    // Extract and cache individual media entries from the response
+    cacheMediaFromResponse(response.data?.data || response.data);
+    res.setHeader('X-Cache', 'MISS');
     return res.json(response.data);
   } catch (err) {
     const status = err.response?.status || 500;
     const source = err.response ? 'AniList API' : 'network/timeout';
     const anilistMsg = err.response?.data?.errors?.[0]?.message || '';
     console.error(`[AniList] Proxy error (source: ${source}):`, status, err.message, anilistMsg ? `| AniList says: "${anilistMsg}"` : '');
-
-    // Serve stale cache if AniList is down (better than nothing)
-    if (cachedData) {
-      console.warn(`[AniList] Serving stale cache (age: ${Math.round((Date.now() - cachedData.timestamp) / 60000)}min) because AniList is unavailable`);
-      res.setHeader('X-Cache', 'STALE');
-      return res.json(cachedData.data);
-    }
 
     // AniList global outage — friendly error
     if (status === 403 && anilistMsg.includes('temporarily disabled')) {
@@ -912,6 +961,15 @@ app.post('/api/al', async (req, res) => {
     } else {
       res.status(status).json({ error: err.message });
     }
+  }
+});
+
+// ── Crawler Status Endpoint ──
+app.get('/api/crawler-status', (req, res) => {
+  try {
+    res.json(getCrawlerStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 // Backward-compat redirect: old /api/anilist path -> /api/al
@@ -1854,6 +1912,11 @@ const server = app.listen(port, () => {
       console.log(`[CLOUDFLARE] Tunnel process exited with code ${code}`);
     });
   }
+  // Start the AniList metadata crawler after a short delay
+  setTimeout(() => {
+    console.log('[Crawler] Starting AniList metadata crawler in background...');
+    startCrawler();
+  }, 15000);
 });
 
 // ── Attach WebSocket server to the same HTTP server ──
