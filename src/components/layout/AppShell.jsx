@@ -136,10 +136,10 @@ export function AppShell({ children }) {
             <Link to="/download" className="text-text-muted/60 text-xs hover:text-accent transition-colors">Download App</Link>
             <a href="https://github.com/cyber-winner/MIYO-STREAM" target="_blank" rel="noopener noreferrer" className="text-text-muted/60 text-xs hover:text-accent transition-colors">GitHub</a>
           </div>
-          <p className="text-text-muted/60 text-xs mt-2">Data provided by TMDB &amp; AniList.</p>
+          <p className="text-text-muted/60 text-xs mt-2">Data provided by AniList &amp; StrawVerse.</p>
           <p className="text-text-muted/50 text-xs mt-4 max-w-xl mx-auto leading-relaxed">
             Disclaimer: MIYO-STREAM collects anonymous device data for anti-abuse and platform security.
-            We use third-party APIs (TMDB, AniList) for content metadata. No signup required.
+            We use third-party APIs (AniList) for anime metadata. No signup required.
             For inquiries, contact{' '}
             <a href="mailto:contact@cyber-winner.site" className="text-accent underline hover:text-accent">
               contact@cyber-winner.site

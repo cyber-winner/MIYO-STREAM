@@ -880,8 +880,20 @@ export function AnimeDetail() {
                   </div>
                 ) : (
                   <div className="text-center py-12 bg-surface/50 border border-surface-light rounded-2xl">
-                    <p className="text-text-secondary font-medium">No episodes found on streaming provider.</p>
-                    <p className="text-xs text-text-muted mt-2">Checking fallbacks...</p>
+                    {data?.status === 'NOT_YET_RELEASED' ? (
+                      <div className="space-y-2">
+                        <span className="text-3xl">⏳</span>
+                        <p className="text-white font-bold text-base">Not Yet Aired</p>
+                        <p className="text-xs text-text-muted max-w-sm mx-auto">
+                          This anime is scheduled for release soon. Episodes will become available as soon as they air!
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-text-secondary font-medium">No episodes found on streaming provider.</p>
+                        <p className="text-xs text-text-muted mt-2">Checking fallbacks...</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

@@ -57,6 +57,11 @@ export function AnimeHero({ items = [] }) {
             )}>
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <Badge variant="accent">{format}</Badge>
+                {item.status === 'NOT_YET_RELEASED' && (
+                  <Badge variant="outline" className="border-yellow-400/50 text-yellow-400 bg-yellow-400/10">
+                    Upcoming
+                  </Badge>
+                )}
                 {score && (
                   <span className="text-sm md:text-base text-text-secondary flex items-center gap-1">
                     <span className="text-rating">★</span> {score}%
@@ -90,7 +95,7 @@ export function AnimeHero({ items = [] }) {
                 <Link to={`/anime/${item.id}/${slugify(title)}`}>
                   <Button variant="primary" size={isTv ? 'tv' : isMobile ? 'md' : 'lg'}>
                     <PlayIcon className="w-5 h-5" />
-                    Watch Now
+                    {item.status === 'NOT_YET_RELEASED' ? 'View Details' : 'Watch Now'}
                   </Button>
                 </Link>
               </div>

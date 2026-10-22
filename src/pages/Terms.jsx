@@ -23,7 +23,7 @@ export function Terms() {
     },
     {
       title: "3. Third-Party APIs & Metadata",
-      content: <>All movie and TV show metadata, images, trailers, and synopses are fetched dynamically from <ExtLink href="https://www.themoviedb.org/">TMDB (The Movie Database)</ExtLink>. Anime and manga data is sourced from <ExtLink href="https://anilist.co/">AniList</ExtLink> via GraphQL. MIYO-STREAM is not endorsed, affiliated with, or certified by TMDB, AniList, or any content provider. All trademarks belong to their respective owners.</>
+      content: <>All anime and manga metadata, images, and synopses are sourced dynamically from <ExtLink href="https://anilist.co/">AniList</ExtLink> via GraphQL. MIYO-STREAM is not endorsed, affiliated with, or certified by AniList or any content provider. All trademarks belong to their respective owners.</>
     },
     {
       title: "4. Embedded Players & Streaming",

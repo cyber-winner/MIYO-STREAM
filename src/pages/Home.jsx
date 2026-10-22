@@ -1,151 +1,202 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { slugify } from '../lib/slugify';
-import { api } from '../lib/api';
 import { anilistApi } from '../lib/anilistApi';
-import { HeroSection } from '../components/media/HeroSection';
-import { MediaRow } from '../components/media/MediaRow';
-import { TVRow } from '../components/media/TVRow';
+import { AnimeHero } from '../components/media/AnimeHero';
 import { AnimeRow } from '../components/media/AnimeRow';
 import { InlineSearchBar } from '../components/ui/InlineSearchBar';
 import { SkeletonRow, SkeletonHero } from '../components/ui/Skeleton';
 import { Badge } from '../components/ui/Badge';
 import { useDevice } from '../context/DeviceContext';
 import { cn } from '../lib/cn';
-import { isNative, getTmdbApiKey } from '../platform/index.js';
 import { useSEO } from '../hooks/useSEO';
+
 export function Home() {
-  useSEO({ title: 'Home', description: 'Stream movies, TV shows, and anime for free on MIYO-STREAM. No registration required.' });
-  const { isTv = false, isMobile = false } = useDevice() || {};
+  useSEO({
+    title: 'Anime Home - Free Anime Streaming',
+    description: 'Stream trending anime series, movies, and manga online for free on MIYO-STREAM. High quality, no ads, no registration required.',
+  });
+
+  const { isTv = false } = useDevice() || {};
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showKeyWarning, setShowKeyWarning] = useState(false);
-  
-  // Native apps require a TMDB key to work
-  useEffect(() => {
-    if (isNative()) {
-      const hasKey = getTmdbApiKey();
-      setShowKeyWarning(!hasKey);
-    }
-  }, []);
+  const [error, setError] = useState(null);
+
   const handleSearch = useCallback(async (query) => {
-    const data = await api.searchMulti(query);
-    return data.results.filter(r => r.media_type === 'movie' || r.media_type === 'tv').slice(0, 8);
+    const result = await anilistApi.searchAnime(query, 1, 8);
+    return result.media || [];
   }, []);
+
   const renderSearchResult = useCallback((item, clearSearch) => {
-    const isTvShow = item.media_type === 'tv';
-    const title = isTvShow ? item.name : item.title;
-    const year = (isTvShow ? item.first_air_date : item.release_date)?.slice(0, 4) || '';
-    const poster = api.getImageUrl(item.poster_path, 'w92');
-    const rating = item.vote_average?.toFixed(1) || 'NR';
+    const title = item.title?.english || item.title?.romaji || item.title?.userPreferred || 'Unknown';
+    const cover = item.coverImage?.medium || item.coverImage?.large;
+    const score = item.averageScore;
+    const format = anilistApi.formatFormat(item.format);
+
     return (
-      <Link key={item.id} to={`/${isTvShow ? 'tv' : 'movie'}/${item.id}/${slugify(title)}`} onClick={clearSearch}
-        className="flex gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
-        {poster ? (
-          <img src={poster} alt={title} className="w-12 h-[72px] rounded-lg object-cover flex-shrink-0 shadow-md" />
+      <Link
+        key={item.id}
+        to={`/anime/${item.id}/${slugify(title)}`}
+        onClick={clearSearch}
+        className="flex gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+      >
+        {cover ? (
+          <img src={cover} alt={title} className="w-12 h-[72px] rounded-lg object-cover flex-shrink-0 shadow-md" />
         ) : (
           <div className="w-12 h-[72px] rounded-lg bg-surface-hover flex-shrink-0" />
         )}
         <div className="flex flex-col justify-center min-w-0">
           <p className="text-sm font-semibold text-text-primary truncate">{title}</p>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant="accent" size="sm">{isTvShow ? 'TV' : 'Movie'}</Badge>
-            <span className="text-xs text-text-muted">{year}</span>
-            <span className="text-xs text-rating">★ {rating}</span>
+            <Badge variant="accent" size="sm">{format}</Badge>
+            {score && <span className="text-xs text-rating">★ {score}%</span>}
+            {item.episodes && <span className="text-xs text-text-muted">{item.episodes} EP</span>}
           </div>
         </div>
       </Link>
     );
   }, []);
+
   useEffect(() => {
-    if (isNative()) return; // No server to warm up in the native apps
-    const BUILD_ID = '__miyo_v2__';
-    if (localStorage.getItem('miyo_cache_warmed') !== BUILD_ID) {
-      localStorage.setItem('miyo_cache_warmed', BUILD_ID);
-      fetch('/api/cron/sync').catch(() => {});
-    }
-  }, []);
-  useEffect(() => {
+    let cancelled = false;
     const loadData = async () => {
       try {
-        const [trending, popMovies, popTv, nowPlaying, topRated, animeTrending] = await Promise.all([
-          api.getTrending().catch(() => ({ results: [] })),
-          api.getPopularMovies().catch(() => ({ results: [] })),
-          api.getPopularTV().catch(() => ({ results: [] })),
-          api.getNowPlayingMovies().catch(() => ({ results: [] })),
-          api.getTopRatedMovies().catch(() => ({ results: [] })),
-          anilistApi.getTrending(1, 15).catch(() => ({ media: [] })),
+        const currentSeason = anilistApi.getCurrentSeason();
+        const [trending, airing, seasonal, movies, popular, topRated] = await Promise.all([
+          anilistApi.getTrending(1, 10).catch(() => ({ media: [] })),
+          anilistApi.getAiring(1, 20).catch(() => ({ media: [] })),
+          anilistApi.getSeason(currentSeason.season, currentSeason.year, 1, 20).catch(() => ({ media: [] })),
+          anilistApi.browse({ type: 'ANIME', format: 'MOVIE', sort: ['POPULARITY_DESC'], perPage: 20 }).catch(() => ({ media: [] })),
+          anilistApi.getPopular(1, 20).catch(() => ({ media: [] })),
+          anilistApi.getTopRated(1, 20).catch(() => ({ media: [] })),
         ]);
-        setData({ trending, popMovies, popTv, nowPlaying, topRated, animeTrending });
+
+        if (cancelled) return;
+        setData({ trending, airing, seasonal, movies, popular, topRated, currentSeason });
       } catch (err) {
-        console.error('Failed to load home data:', err);
+        console.error('Failed to load anime home data:', err);
+        if (!cancelled) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
+
     loadData();
+    return () => { cancelled = true; };
   }, []);
+
   if (loading) {
     return (
       <div>
         <SkeletonHero />
-        <SkeletonRow />
-        <SkeletonRow />
-        <SkeletonRow />
+        <div className="px-5 md:px-10">
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
+        </div>
       </div>
     );
   }
-  if (!data) {
+
+  if (error || !data) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-text-muted">Failed to load content. Please try again later.</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center text-red-500 text-3xl font-bold">!</div>
+        <h2 className="text-2xl font-black text-white uppercase">Failed to Load</h2>
+        <p className="text-text-muted max-w-md text-center">{error || 'Could not fetch anime data. Please try again later.'}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-6 py-3 bg-accent text-white text-sm font-bold uppercase tracking-widest rounded-xl hover:opacity-90 active:scale-95 transition-all"
+        >
+          Retry
+        </button>
       </div>
     );
   }
-  const heroItems = data.trending.results.slice(0, 5);
-  const Row = isTv ? TVRow : MediaRow;
+
+  // Prioritize currently airing/released anime in Hero so "Watch Now" streams immediately
+  const streamableTrending = data.trending.media?.filter(m => m.status !== 'NOT_YET_RELEASED') || [];
+  const heroItems = (streamableTrending.length >= 3 ? streamableTrending : data.trending.media)?.slice(0, 6) || [];
+  const seasonTitle = `${anilistApi.formatSeason(data.currentSeason.season)} ${data.currentSeason.year}`;
+
   return (
     <div className={cn(isTv && 'space-y-4 pb-20')}>
-      {showKeyWarning && (
-        <div className="mx-4 md:mx-10 mt-4 p-4 rounded-xl border-l-4 border-accent bg-accent/10 backdrop-blur-sm">
-          <p className="text-sm text-text-primary font-bold mb-2">🔑 Setup Required</p>
-          <p className="text-sm text-text-secondary mb-3">
-            To stream movies and TV shows, you need to add your free TMDB API key. AniList anime works without a key.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link 
-              to="/settings" 
-              className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-bold hover:opacity-90 transition-all text-center"
-            >
-              Add API Key in Settings
-            </Link>
-            <button
-              onClick={() => setShowKeyWarning(false)}
-              className="px-4 py-2 bg-background border border-border text-text-primary rounded-lg text-sm font-semibold hover:border-accent/50 transition-all"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-      <HeroSection items={heroItems} />
+      <AnimeHero items={heroItems} />
+
+      {/* Inline Search Bar */}
       <div className="px-5 md:px-10 -mt-8 relative z-30 mb-6">
         <InlineSearchBar
-          placeholder="Search movies & TV shows..."
-          source="media"
+          placeholder="Search anime series, movies, characters..."
+          source="anime"
           onSearch={handleSearch}
           renderResult={renderSearchResult}
         />
       </div>
-      <div className={cn(isTv && 'px-4 -mt-20 relative z-20')}>
-        <Row title="Trending This Week" items={data.trending.results} />
-        <Row title="Popular Movies" items={data.popMovies.results} mediaType="movie" />
-        <Row title="Popular TV Shows" items={data.popTv.results} mediaType="tv" />
-        <Row title="Now Playing" items={data.nowPlaying.results} mediaType="movie" />
-        <Row title="Top Rated" items={data.topRated.results} mediaType="movie" />
-        {data.animeTrending.media?.length > 0 && (
-          <AnimeRow title="Anime Spotlight" items={data.animeTrending.media} />
-        )}
+
+      {/* Quick Navigation / Category Chips */}
+      <div className="px-5 md:px-10 mb-6 relative z-20">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide py-1">
+          <Link
+            to="/tv"
+            className="px-4 py-2 rounded-xl bg-surface/80 border border-white/5 hover:border-accent/40 text-text-secondary hover:text-white text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all"
+          >
+            📺 Anime TV Series
+          </Link>
+          <Link
+            to="/movies"
+            className="px-4 py-2 rounded-xl bg-surface/80 border border-white/5 hover:border-accent/40 text-text-secondary hover:text-white text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all"
+          >
+            🎬 Anime Movies
+          </Link>
+          <Link
+            to="/anime/browse?status=RELEASING"
+            className="px-4 py-2 rounded-xl bg-surface/80 border border-white/5 hover:border-accent/40 text-text-secondary hover:text-white text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all"
+          >
+            ⚡ Airing This Season
+          </Link>
+          <Link
+            to="/anime/browse"
+            className="px-4 py-2 rounded-xl bg-surface/80 border border-white/5 hover:border-accent/40 text-text-secondary hover:text-white text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all"
+          >
+            ✨ Browse All Formats
+          </Link>
+          <Link
+            to="/manga"
+            className="px-4 py-2 rounded-xl bg-surface/80 border border-white/5 hover:border-accent/40 text-text-secondary hover:text-white text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all"
+          >
+            📖 Read Manga
+          </Link>
+        </div>
+      </div>
+
+      {/* StrawVerse Engine Banner */}
+      <div className="px-5 md:px-10 mb-8 relative z-20">
+        <div className="bg-accent/10 border border-accent/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-sm">
+          <div>
+            <h3 className="text-white font-black uppercase tracking-tight text-sm flex items-center gap-2">
+              <span className="text-accent animate-pulse">⚡</span> Anime Streaming Powered by StrawVerse
+            </h3>
+            <p className="text-text-secondary text-xs mt-1">
+              Stream any anime in HD with instant episode loading and multiple audio options.
+            </p>
+          </div>
+          <Link
+            to="/anime/browse"
+            className="px-4 py-2 bg-accent/20 text-accent font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-accent hover:text-black transition-colors border border-accent/30 whitespace-nowrap"
+          >
+            Explore Catalog →
+          </Link>
+        </div>
+      </div>
+
+      {/* Anime Rows */}
+      <div className={cn('px-5 md:px-10', isTv && '-mt-20 relative z-20')}>
+        <AnimeRow title="Trending Anime" items={data.trending.media} />
+        <AnimeRow title="Currently Airing TV Series" items={data.airing.media} />
+        <AnimeRow title={`${seasonTitle} Anime`} items={data.seasonal.media} />
+        <AnimeRow title="Popular Anime Movies" items={data.movies.media} />
+        <AnimeRow title="All-Time Popular Anime" items={data.popular.media} />
+        <AnimeRow title="Top Rated Anime" items={data.topRated.media} />
       </div>
     </div>
   );

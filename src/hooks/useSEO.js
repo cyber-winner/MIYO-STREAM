@@ -30,10 +30,10 @@ export function useSEO({ title, description, image, url }) {
     setLinkTag('canonical', canonicalUrl);
 
     return () => {
-      document.title = 'MIYO-STREAM - Watch Free Movies & TV';
-      setMetaTag('property', 'og:title', 'MIYO-STREAM - Watch Free Movies & TV');
-      setMetaTag('name', 'description', 'Stream movies and TV shows for free on MIYO-STREAM. No registration required.');
-      setMetaTag('property', 'og:description', 'Stream movies and TV shows for free on MIYO-STREAM. No registration required.');
+      document.title = 'MIYO-STREAM - Watch Anime Online Free';
+      setMetaTag('property', 'og:title', 'MIYO-STREAM - Watch Anime Online Free');
+      setMetaTag('name', 'description', 'Stream anime series, movies, and manga for free on MIYO-STREAM. No registration required.');
+      setMetaTag('property', 'og:description', 'Stream anime series, movies, and manga for free on MIYO-STREAM. No registration required.');
       setMetaTag('property', 'og:image', 'https://miyo-stream.cyber-winner.site/og-image.png');
       setMetaTag('name', 'twitter:image', 'https://miyo-stream.cyber-winner.site/og-image.png');
       setLinkTag('canonical', SITE_URL + '/');

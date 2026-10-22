@@ -10,7 +10,7 @@ const TECH_STACK = [
   { name: 'Capacitor', desc: 'Android app', color: 'text-green-400' },
   { name: 'Node.js', desc: 'Backend', color: 'text-lime-400' },
   { name: 'MongoDB', desc: 'Database', color: 'text-emerald-400' },
-  { name: 'TMDB', desc: 'Movie/TV data', color: 'text-blue-400' },
+  { name: 'StrawVerse', desc: 'HLS Stream Engine', color: 'text-blue-400' },
   { name: 'AniList', desc: 'Anime/Manga data', color: 'text-pink-400' },
 ];
 
@@ -57,7 +57,7 @@ export function About() {
             About <span className="text-accent animate-rgb-shift">MIYO-STREAM</span>
           </h1>
           <p className="text-text-secondary max-w-2xl mx-auto leading-relaxed">
-            A free, open-source streaming platform for movies, TV shows, anime, and manga.
+            A free, open-source streaming platform dedicated to anime series, anime movies, and manga.
             No signups. No paywalls. Just content.
           </p>
           <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-semibold">
@@ -75,8 +75,8 @@ export function About() {
               intrusive ads, and mandatory account signups just to browse a catalog.
             </p>
             <p>
-              The idea was simple: build a clean, fast interface that pulls metadata from public APIs (TMDB, AniList)
-              and lets people find and watch content without barriers. No registration, no credit cards, no tracking pixels — just a search bar and a play button.
+              The idea was simple: build a clean, fast interface that pulls metadata from AniList
+              and lets people find and watch anime without barriers. No registration, no credit cards, no tracking pixels — just a search bar and a play button.
             </p>
             <p>
               What began as a weekend experiment grew into a full platform: a custom anime engine,

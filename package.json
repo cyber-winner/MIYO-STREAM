@@ -8,7 +8,7 @@
     "email": "contact@cyber-winner.site",
     "url": "https://cyber-winner.site"
   },
-  "description": "MIYO - Stream anime, movies and TV shows",
+  "description": "MIYO - Stream anime and manga",
   "homepage": "https://miyo-stream.cyber-winner.site",
   "scripts": {
     "start": "concurrently \"node server.js\" \"vite\"",

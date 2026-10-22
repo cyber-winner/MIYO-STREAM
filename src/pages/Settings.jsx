@@ -102,14 +102,24 @@ export function Settings() {
         </div>
       </header>
 
+      <section className="rounded-2xl border border-accent/20 bg-accent/5 p-6 mb-8 backdrop-blur-sm">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-xl">✨</span>
+          <h2 className="text-lg font-bold text-text-primary">
+            100% Free Anime &amp; Manga Streaming
+          </h2>
+        </div>
+        <p className="text-sm text-text-secondary leading-relaxed">
+          MIYO-STREAM is focused on anime and manga. All streams are resolved dynamically via StrawVerse extensions and metadata is powered by AniList. <strong className="text-accent">No API keys or registration required!</strong>
+        </p>
+      </section>
+
       {!native && (
         <section className="rounded-2xl border border-border bg-surface/60 p-6 mb-8">
           <h2 className="text-lg font-bold text-text-primary mb-2">You&apos;re on the website</h2>
           <p className="text-sm text-text-secondary leading-relaxed">
-            No configuration is needed here — the website handles TMDB, AniList, and streaming
-            through its own server. The settings below only apply to the{' '}
-            <span className="text-accent font-semibold">desktop and Android apps</span>, which run
-            fully locally on your device.
+            No configuration is needed here — the website handles AniList and anime streaming
+            through its built-in proxy engine. The provider settings below customize your preferred sources.
           </p>
         </section>
       )}

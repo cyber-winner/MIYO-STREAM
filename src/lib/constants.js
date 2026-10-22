@@ -1,5 +1,6 @@
 export const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
 export const VIDEASY_BASE = 'https://player.videasy.net';
+export const VIDSRC_BASE = 'https://vidsrc.sbs/embed';
 export const ACCENT_COLOR = '7c3aed';
 export const BREAKPOINTS = {
   mobile: 768,

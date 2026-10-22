@@ -4,9 +4,9 @@ import { cn } from '../../lib/cn';
 
 const ROUTE_LABELS = {
   '': 'Home',
-  'movies': 'Movies',
-  'tv': 'TV Shows',
-  'movie': 'Movie',
+  'movies': 'Anime Movies',
+  'tv': 'Anime Series',
+  'movie': 'Anime Movie',
   'anime': 'Anime',
   'manga': 'Manga',
   'search': 'Search',

@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api } from '../lib/api';
 import { anilistApi } from '../lib/anilistApi';
 import { useDevice } from '../context/DeviceContext';
 import { Badge } from '../components/ui/Badge';
@@ -8,19 +7,25 @@ import { SEARCH_DEBOUNCE_MS } from '../lib/constants';
 import { cn } from '../lib/cn';
 import { slugify } from '../lib/slugify';
 import { useSEO } from '../hooks/useSEO';
+
 export function Search() {
-  useSEO({ title: 'Search', description: 'Search across movies, TV shows, and anime on MIYO-STREAM.' });
+  useSEO({
+    title: 'Search Anime - MIYO-STREAM',
+    description: 'Search across anime series, anime movies, and manga on MIYO-STREAM.',
+  });
+
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
-  const initialSource = searchParams.get('source') || 'media';
+  const initialSource = searchParams.get('source') || 'all';
   const [query, setQuery] = useState(initialQuery);
-  const [source, setSource] = useState(initialSource === 'youtube' ? 'media' : initialSource);
+  const [source, setSource] = useState(initialSource === 'media' ? 'all' : initialSource);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
   const timerRef = useRef(null);
   const { isMobile } = useDevice();
+
   const performSearch = useCallback(async (searchQuery, currentSource) => {
     if (!searchQuery || searchQuery.length < 2) {
       setResults([]);
@@ -33,21 +38,22 @@ export function Search() {
     setError(null);
     try {
       if (currentSource === 'anime') {
+        const data = await anilistApi.searchAnime(searchQuery, 1, 30);
+        setResults((data.media || []).map((m) => ({ ...m, _searchType: 'anime' })));
+      } else if (currentSource === 'manga') {
+        const data = await anilistApi.searchManga(searchQuery, 1, 30);
+        setResults((data.media || []).map((m) => ({ ...m, _searchType: 'manga' })));
+      } else {
+        // 'all' - search both anime and manga
         const [animeData, mangaData] = await Promise.all([
-          anilistApi.searchAnime(searchQuery, 1, 15),
-          anilistApi.searchManga(searchQuery, 1, 9),
+          anilistApi.searchAnime(searchQuery, 1, 20).catch(() => ({ media: [] })),
+          anilistApi.searchManga(searchQuery, 1, 10).catch(() => ({ media: [] })),
         ]);
         const combined = [
-          ...(animeData.media || []).map(m => ({ ...m, _searchType: 'anime' })),
-          ...(mangaData.media || []).map(m => ({ ...m, _searchType: 'manga' })),
+          ...(animeData.media || []).map((m) => ({ ...m, _searchType: 'anime' })),
+          ...(mangaData.media || []).map((m) => ({ ...m, _searchType: 'manga' })),
         ];
         setResults(combined);
-      } else {
-        const data = await api.searchMulti(searchQuery);
-        const filtered = data.results
-          .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
-          .slice(0, 24);
-        setResults(filtered);
       }
       setSearchParams({ q: searchQuery, source: currentSource });
     } catch (err) {
@@ -58,21 +64,25 @@ export function Search() {
       setLoading(false);
     }
   }, [setSearchParams]);
+
   useEffect(() => {
     if (initialQuery) {
       performSearch(initialQuery, source);
     }
   }, [initialQuery, source, performSearch]);
+
   const handleInput = (e) => {
     const value = e.target.value;
     setQuery(value);
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => performSearch(value.trim(), source), SEARCH_DEBOUNCE_MS);
   };
+
   const toggleSource = (newSource) => {
     setSource(newSource);
     if (query) performSearch(query, newSource);
   };
+
   return (
     <div className="px-5 md:px-10 py-8 md:py-12 max-w-[1600px] mx-auto">
       <div className="max-w-3xl mx-auto mb-10 space-y-6">
@@ -84,7 +94,7 @@ export function Search() {
           <SearchIcon className="w-6 h-6 flex-shrink-0 transition-colors text-accent" />
           <input
             type="text"
-            placeholder="Search movies, TV shows, anime..."
+            placeholder="Search anime series, movies, manga..."
             value={query}
             onChange={handleInput}
             autoFocus
@@ -101,101 +111,87 @@ export function Search() {
             )}
           </div>
         </div>
+
+        {/* Source Filter Tabs */}
         <div className="flex justify-center gap-3">
           <button 
-            onClick={() => toggleSource('media')}
+            onClick={() => toggleSource('all')}
             className={cn(
-              "px-6 py-2 rounded-xl text-xs font-bold transition-all border uppercase tracking-widest",
-              source === 'media' ? "bg-accent/10 border-accent text-accent animate-rgb-shift" : "bg-surface border-border text-text-muted hover:text-text-primary"
+              "px-6 py-2 rounded-xl text-xs font-bold transition-all border uppercase tracking-widest cursor-pointer",
+              source === 'all' ? "bg-accent/15 border-accent text-accent animate-rgb-shift shadow-md" : "bg-surface border-border text-text-muted hover:text-text-primary"
             )}
           >
-            Movies & TV
+            All
           </button>
           <button 
             onClick={() => toggleSource('anime')}
             className={cn(
-              "px-6 py-2 rounded-xl text-xs font-bold transition-all border uppercase tracking-widest",
-              source === 'anime' ? "bg-accent/10 border-accent text-accent animate-rgb-shift" : "bg-surface border-border text-text-muted hover:text-text-primary"
+              "px-6 py-2 rounded-xl text-xs font-bold transition-all border uppercase tracking-widest cursor-pointer",
+              source === 'anime' ? "bg-accent/15 border-accent text-accent animate-rgb-shift shadow-md" : "bg-surface border-border text-text-muted hover:text-text-primary"
             )}
           >
-            Anime & Manga
+            Anime Only
+          </button>
+          <button 
+            onClick={() => toggleSource('manga')}
+            className={cn(
+              "px-6 py-2 rounded-xl text-xs font-bold transition-all border uppercase tracking-widest cursor-pointer",
+              source === 'manga' ? "bg-accent/15 border-accent text-accent animate-rgb-shift shadow-md" : "bg-surface border-border text-text-muted hover:text-text-primary"
+            )}
+          >
+            Manga Only
           </button>
         </div>
       </div>
+
       {loading && (
         <div className="flex flex-col items-center justify-center py-24 space-y-4">
           <div className="w-12 h-12 border-4 rounded-full animate-spin border-t-transparent border-accent" />
-          <p className="text-text-muted text-sm animate-pulse tracking-widest uppercase">Fetching Results...</p>
+          <p className="text-text-muted text-sm animate-pulse tracking-widest uppercase">Fetching Anime Results...</p>
         </div>
       )}
+
       {!loading && results.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-          {source === 'anime'
-            ? results.map((item) => <AnimeResultCard key={item.id} item={item} />)
-            : results.map((item) => <MediaResultCard key={item.id} item={item} />)
-          }
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5">
+          {results.map((item) => (
+            <AnimeResultCard key={`${item._searchType || 'anime'}-${item.id}`} item={item} />
+          ))}
         </div>
       )}
+
       {!loading && hasSearched && results.length === 0 && (
         <div className="text-center py-24 bg-surface/20 rounded-[40px] border border-dashed border-border/40">
           <p className="text-text-muted text-xl font-bold">No results found for &ldquo;{query}&rdquo;</p>
-          <p className="text-text-muted/60 text-sm mt-2">Try using different keywords</p>
+          <p className="text-text-muted/60 text-sm mt-2">Try searching by Japanese romaji title or English name</p>
         </div>
       )}
+
       {!hasSearched && !loading && (
         <div className="text-center py-32 opacity-20">
           <SearchIcon className="w-24 h-24 mx-auto mb-6" />
-          <p className="text-2xl font-black uppercase tracking-[0.3em]">Miyo Search Engine</p>
+          <p className="text-2xl font-black uppercase tracking-[0.3em]">MIYO Anime Search</p>
         </div>
       )}
     </div>
   );
 }
-function MediaResultCard({ item }) {
-  const { isTv } = useDevice();
-  const isTvShow = item.media_type === 'tv';
-  const title = isTvShow ? item.name : item.title;
-  const yearRaw = isTvShow ? item.first_air_date : item.release_date;
-  const year = yearRaw ? new Date(yearRaw).getFullYear() : '';
-  const poster = api.getImageUrl(item.poster_path, 'w342');
-  const rating = item.vote_average ? item.vote_average.toFixed(1) : 'NR';
-  return (
-    <Link
-      to={`/${isTvShow ? 'tv' : 'movie'}/${item.id}/${slugify(title)}`}
-      className={cn(
-        "group relative bg-surface rounded-2xl overflow-hidden border border-transparent transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-        isTv ? "tv-focus-ring" : "hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.6)]"
-      )}
-      tabIndex={isTv ? 0 : undefined}
-    >
-      <div className="aspect-[2/3] overflow-hidden">
-        {poster ? (
-          <img src={poster} alt={title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-        ) : (
-          <div className="w-full h-full bg-surface-hover flex items-center justify-center text-text-muted">No Poster</div>
-        )}
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex flex-col justify-end p-5 transition-opacity">
-        <h3 className="font-bold text-white text-base line-clamp-2 mb-1 uppercase tracking-tight">{title}</h3>
-        <div className="flex items-center gap-3">
-          <Badge variant="accent" size="sm">{isTvShow ? 'TV' : 'Movie'}</Badge>
-          <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">{year}</span>
-          <span className="text-rating text-[10px] font-bold">★ {rating}</span>
-        </div>
-      </div>
-    </Link>
-  );
-}
+
 function AnimeResultCard({ item }) {
   const { isTv } = useDevice();
   const title = item.title?.english || item.title?.romaji || item.title?.userPreferred || 'Unknown';
   const cover = item.coverImage?.large || item.coverImage?.medium;
   const score = item.averageScore;
   const format = anilistApi.formatFormat(item.format);
-  const isAnime = item.type === 'ANIME';
+  const isManga = item._searchType === 'manga' || item.type === 'MANGA';
+  const mangaProvider = (() => { try { return localStorage.getItem('miyo-manga-provider') || 'weebcentral'; } catch { return 'weebcentral'; } })();
+
+  const targetUrl = isManga
+    ? `/manga/read/${mangaProvider}/${item.id}/${slugify(title)}`
+    : `/anime/${item.id}/${slugify(title)}`;
+
   return (
     <Link
-      to={`/anime/${item.id}/${slugify(title)}`}
+      to={targetUrl}
       className={cn(
         "group relative bg-surface rounded-2xl overflow-hidden border border-transparent transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
         isTv ? "tv-focus-ring" : "hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.6)]"
@@ -206,19 +202,21 @@ function AnimeResultCard({ item }) {
         {cover ? (
           <img src={cover} alt={title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
         ) : (
-          <div className="w-full h-full bg-surface-hover flex items-center justify-center text-text-muted">No Cover</div>
+          <div className="w-full h-full bg-surface-hover flex items-center justify-center text-text-muted text-xs">No Cover</div>
         )}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex flex-col justify-end p-5 transition-opacity">
-        <h3 className="font-bold text-white text-base line-clamp-2 mb-1 uppercase tracking-tight">{title}</h3>
-        <div className="flex items-center gap-3">
-          <Badge variant="accent" size="sm">{isAnime ? format : 'Manga'}</Badge>
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex flex-col justify-end p-4 transition-opacity">
+        <h3 className="font-bold text-white text-sm line-clamp-2 mb-1 tracking-tight">{title}</h3>
+        <div className="flex items-center gap-2">
+          <Badge variant="accent" size="sm">{isManga ? 'Manga' : format}</Badge>
           {score && <span className="text-rating text-[10px] font-bold">★ {score}%</span>}
+          {item.episodes && <span className="text-white/60 text-[10px]">{item.episodes} EP</span>}
         </div>
       </div>
     </Link>
   );
 }
+
 function SearchIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -226,6 +224,7 @@ function SearchIcon({ className }) {
     </svg>
   );
 }
+
 function XIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

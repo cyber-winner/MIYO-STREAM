@@ -34,7 +34,7 @@ export function DMCA() {
     },
     {
       title: "7. Metadata & API Attribution",
-      content: "Movie and TV show metadata, images, and synopses are provided by TMDB (The Movie Database). Anime and manga metadata is provided by AniList. MIYO-STREAM is not endorsed, certified, or affiliated with TMDB, AniList, or any content provider. All trademarks, logos, and images belong to their respective owners."
+      content: "Anime and manga metadata, images, and synopses are provided by AniList. Streaming sources are resolved dynamically via StrawVerse-compatible proxy extensions. MIYO-STREAM is not endorsed, certified, or affiliated with AniList or any content provider. All trademarks, logos, and images belong to their respective owners."
     },
     {
       title: "8. No Warranty",

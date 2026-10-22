@@ -1,4 +1,4 @@
-import { TMDB_IMAGE_BASE, VIDEASY_BASE, ACCENT_COLOR } from './constants';
+import { TMDB_IMAGE_BASE, VIDEASY_BASE, VIDSRC_BASE, ACCENT_COLOR } from './constants';
 import { isNative, platformFetch, getTmdbApiKey, MissingTmdbKeyError } from '../platform/index.js';
 import { getCached, setCached } from './cache.js';
 const TMDB_PROXY = '/api/tmdb';
@@ -121,13 +121,13 @@ export const api = {
   getImageUrl: (path, size = 'w500') => path ? `${TMDB_IMAGE_BASE}${size}${path}` : null,
   getBackdropUrl: (path, size = 'original') => path ? `${TMDB_IMAGE_BASE}${size}${path}` : null,
   getMoviePlayerUrl: (tmdbId, progress = 0) => {
-    let url = `${VIDEASY_BASE}/movie/${tmdbId}?color=${ACCENT_COLOR}`;
-    if (progress > 0) url += `&progress=${progress}`;
+    let url = `${VIDSRC_BASE}/movie/${tmdbId}`;
+    if (progress > 0) url += `?t=${progress}`;
     return url;
   },
   getTvPlayerUrl: (tmdbId, season, episode, progress = 0) => {
-    let url = `${VIDEASY_BASE}/tv/${tmdbId}/${season}/${episode}?color=${ACCENT_COLOR}&nextEpisode=true&episodeSelector=true&autoplayNextEpisode=true&overlay=true`;
-    if (progress > 0) url += `&progress=${progress}`;
+    let url = `${VIDSRC_BASE}/tv/${tmdbId}/${season}/${episode}`;
+    if (progress > 0) url += `?t=${progress}`;
     return url;
   },
   getAnimePlayerUrl: (anilistId, episode = null, progress = 0) => {

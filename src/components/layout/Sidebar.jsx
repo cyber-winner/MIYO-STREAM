@@ -1,17 +1,19 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/cn';
-import { useDevice } from '../../context/DeviceContext';
 import { Badge } from '../ui/Badge';
 import { isNative } from '../../platform/index.js';
+
 const MAIN_NAV = [
   { path: '/', label: 'Home', icon: HomeIcon },
-  { path: '/movies', label: 'Movies', icon: FilmIcon },
   { path: '/tv', label: 'TV Shows', icon: TvIcon },
+  { path: '/movies', label: 'Movies', icon: FilmIcon },
+  { path: '/anime/browse?status=RELEASING', label: 'Airing Now', icon: LiveIcon },
+  { path: '/anime/browse', label: 'Browse All', icon: AnimeIcon },
 ];
-const ANIME_NAV = [
-  { path: '/anime', label: 'Anime Home', icon: AnimeIcon },
-  { path: '/anime/browse?format=TV', label: 'TV', icon: TvIcon },
+
+const ANIME_FORMATS = [
+  { path: '/anime/browse?format=TV', label: 'TV Series', icon: TvIcon },
   { path: '/anime/browse?format=TV_SHORT', label: 'TV Short', icon: TvIcon },
   { path: '/anime/browse?format=MOVIE', label: 'Movie', icon: FilmIcon },
   { path: '/anime/browse?format=SPECIAL', label: 'Special', icon: AnimeIcon },
@@ -19,6 +21,7 @@ const ANIME_NAV = [
   { path: '/anime/browse?format=ONA', label: 'ONA', icon: FilmIcon },
   { path: '/anime/browse?format=MUSIC', label: 'Music', icon: MusicIcon },
 ];
+
 const MANGA_NAV = [
   { path: '/manga', label: 'Manga Home', icon: MangaIcon },
   { path: '/anime/browse?type=MANGA&format=MANGA', label: 'Manga', icon: MangaIcon },
@@ -27,8 +30,8 @@ const MANGA_NAV = [
   { path: '/anime/browse?type=MANGA&status=RELEASING', label: 'Publishing', icon: LiveIcon },
   { path: '/anime/browse?type=MANGA&status=FINISHED', label: 'Finished', icon: CheckIcon },
   { path: '/anime/browse?type=MANGA&status=NOT_YET_RELEASED', label: 'Upcoming', icon: ClockIcon },
-  { path: '/anime/browse?type=MANGA&status=HIATUS', label: 'Hiatus', icon: ClockIcon },
 ];
+
 const SECONDARY_NAV = [
   { path: '/about', label: 'About', icon: HomeIcon },
   { path: '/blog', label: 'Blog', icon: HistoryIcon },
@@ -37,6 +40,7 @@ const SECONDARY_NAV = [
   ...(isNative() ? [{ path: '/downloads', label: 'Downloads', icon: DownloadIcon }] : []),
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
+
 export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
   const location = useLocation();
   const [devMode, setDevMode] = useState(() => {
@@ -48,6 +52,7 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
     window.addEventListener('miyo-devmode', handler);
     return () => window.removeEventListener('miyo-devmode', handler);
   }, []);
+
   const renderLinks = (items) => (
     <nav className="space-y-1">
       {items.map((item) => {
@@ -77,6 +82,7 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
       })}
     </nav>
   );
+
   return (
     <aside
       className={cn(
@@ -88,7 +94,7 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
         <Link to="/" onClick={() => onClose && onClose()} className="flex items-center gap-2.5 min-w-0 flex-1">
           <img src="/logo.png" alt="MIYO-STREAM" className="w-8 h-8 rounded-lg flex-shrink-0" />
           <span className="text-lg font-bold text-text-primary whitespace-nowrap">
-            MIYO -<span className="text-accent animate-rgb-shift">STREAM</span>
+            MIYO -<span className="text-accent animate-rgb-shift">ANIME</span>
           </span>
         </Link>
         {!isDesktop && (
@@ -103,24 +109,29 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
           </button>
         )}
       </div>
+
       <div className="flex-1 px-2 mt-4 space-y-6 pb-8">
         {renderLinks(MAIN_NAV)}
+
         <div className="pt-2">
           <div className="px-3 mb-2 flex items-center justify-between">
-             <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] opacity-50">Anime</span>
-             <Badge variant="accent" size="sm" className="scale-75 origin-right">ANILIST</Badge>
+            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] opacity-50">Formats</span>
+            <Badge variant="accent" size="sm" className="scale-75 origin-right">ANILIST</Badge>
           </div>
-          {renderLinks(ANIME_NAV)}
+          {renderLinks(ANIME_FORMATS)}
         </div>
+
         <div className="pt-2">
           <div className="px-3 mb-2 flex items-center justify-between">
-             <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] opacity-50">Manga</span>
+            <span className="text-[10px] font-bold text-text-secondary uppercase tracking-[0.2em] opacity-50">Manga</span>
           </div>
           {renderLinks(MANGA_NAV)}
         </div>
+
         <div className="pt-2 border-t border-border/40">
           {renderLinks(SECONDARY_NAV)}
         </div>
+
         {devMode && (
           <div className="pt-2 border-t border-border/40">
             <div className="px-3 mb-2">
@@ -133,6 +144,7 @@ export function Sidebar({ isDesktop = true, isOpen = true, onClose }) {
     </aside>
   );
 }
+
 function HomeIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

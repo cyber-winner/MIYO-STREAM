@@ -8,12 +8,12 @@ const POSTS = [
     id: 'welcome',
     title: 'Welcome to MIYO-STREAM',
     date: 'June 15, 2026',
-    excerpt: 'Introducing MIYO-STREAM — a free, open-source streaming platform for movies, TV, anime, and manga. No signups, no paywalls.',
-    content: `MIYO-STREAM is officially live. After months of development, we're excited to open the doors to a platform built on a simple principle: entertainment should be accessible to everyone.
+    excerpt: 'Introducing MIYO-STREAM — a free, open-source streaming platform focused on anime and manga. No signups, no paywalls.',
+    content: `MIYO-STREAM is officially live. After months of development, we're excited to open the doors to a platform built on a simple principle: anime entertainment should be accessible to everyone.
 
-What makes us different? No account creation. No payment walls. No intrusive advertising. Just a search bar, a catalog powered by TMDB and AniList, and a clean, fast interface that gets out of your way.
+What makes us different? No account creation. No payment walls. No intrusive advertising. Just a search bar, a rich catalog powered by AniList and StrawVerse, and a clean, fast interface that gets out of your way.
 
-We support Movies, TV Shows, Anime, and Manga — all from one interface. Browse trending content, search across all media types, and start watching in seconds. The platform is fully open source and available on GitHub.
+We support Anime TV Series, Anime Movies, and Manga — all from one interface. Browse trending content, search across thousands of titles, and start streaming in seconds. The platform is fully open source and available on GitHub.
 
 This is just the beginning. We have a roadmap full of features: desktop apps, mobile apps, watch parties, and more. Stay tuned.`,
     tags: ['launch', 'announcement'],
@@ -47,7 +47,7 @@ The sync engine uses WebRTC for peer-to-peer communication, which means there's 
 
 We also built in live voice chat powered by WebRTC audio channels. No third-party voice apps needed — just click the microphone button and talk.
 
-The Watch Together feature works across all content types: movies, TV shows, and anime. Manga reading parties are on the roadmap.
+The Watch Together feature works across anime series and movies. Manga reading parties are on the roadmap.
 
 Try it out: pick any title, click "Watch Together", and send the room link to a friend.`,
     tags: ['feature', 'social'],

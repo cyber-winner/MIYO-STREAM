@@ -68,8 +68,8 @@ function AppContent() {
                 <Route path="/" element={<Home />} />
                 <Route path="/movies" element={<Browse mediaType="movie" />} />
                 <Route path="/tv" element={<Browse mediaType="tv" />} />
-                <Route path="/movie/:id/:slug?" element={<Detail mediaType="movie" />} />
-                <Route path="/tv/:id/:slug?" element={<Detail mediaType="tv" />} />
+                <Route path="/movie/:id/:slug?" element={<AnimeDetail />} />
+                <Route path="/tv/:id/:slug?" element={<AnimeDetail />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/person/:id" element={<Person />} />
                 <Route path="/collection/:id" element={<Collection />} />
