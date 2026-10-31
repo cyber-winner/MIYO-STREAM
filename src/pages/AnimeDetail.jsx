@@ -17,6 +17,7 @@ import { useSEO } from '../hooks/useSEO';
 import { slugify } from '../lib/slugify';
 import { isNative, youTubeEmbedUrl } from '../platform/index.js';
 import { getDownloadForEpisode, saveDownloadMetadata } from '../lib/downloadsManager.js';
+import { MangaDownloadModal, DownloadIcon } from '../components/media/MangaDownloadModal';
 export function AnimeDetail() {
   const { id, slug } = useParams();
   const navigate = useNavigate();
@@ -60,6 +61,8 @@ export function AnimeDetail() {
   const [mangaPagesError, setMangaPagesError] = useState(null);
   const [mangaProgress, setMangaProgress] = useState(0);
   const [mangaFullscreen, setMangaFullscreen] = useState(false);
+  const [mangaDownloadModalOpen, setMangaDownloadModalOpen] = useState(false);
+  const [mangaDownloadModalInitialId, setMangaDownloadModalInitialId] = useState(null);
   const mangaReaderRef = useRef(null);
   const mangaScrollRef = useRef(null);
 
@@ -1337,6 +1340,9 @@ function MangaReaderSection({
   mangaReaderRef, mangaScrollRef,
   readLinks,
 }) {
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [downloadModalInitialId, setDownloadModalInitialId] = useState(null);
+
   const openChapter = useCallback(async (ch, idx) => {
     setMangaActiveIdx(idx);
     setMangaPagesLoading(true);
@@ -1446,6 +1452,19 @@ function MangaReaderSection({
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
               </div>
+              {/* Download Active Chapter ZIP */}
+              <button
+                onClick={() => {
+                  if (activeChapter) {
+                    setDownloadModalInitialId(activeChapter.id);
+                    setDownloadModalOpen(true);
+                  }
+                }}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white cursor-pointer"
+                title="Download Chapter ZIP"
+              >
+                <DownloadIcon className="w-5 h-5" />
+              </button>
               <button onClick={toggleFullscreen}
                 className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white cursor-pointer"
                 title={mangaFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}>
@@ -1527,12 +1546,25 @@ function MangaReaderSection({
           </span>
         </div>
         {mangaChapters.length > 0 && (
-          <button
-            onClick={() => setMangaChaptersReversed(r => !r)}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-text-secondary hover:text-accent hover:border-accent transition-all cursor-pointer"
-          >
-            {mangaChaptersReversed ? '↑ Oldest First' : '↓ Newest First'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setDownloadModalInitialId(null);
+                setDownloadModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-text-secondary hover:text-accent hover:border-accent transition-all cursor-pointer inline-flex items-center gap-1.5"
+              title="Download Manga Chapters ZIP"
+            >
+              <DownloadIcon className="w-3.5 h-3.5" />
+              Download ZIP
+            </button>
+            <button
+              onClick={() => setMangaChaptersReversed(r => !r)}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-text-secondary hover:text-accent hover:border-accent transition-all cursor-pointer"
+            >
+              {mangaChaptersReversed ? '↑ Oldest First' : '↓ Newest First'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -1563,19 +1595,35 @@ function MangaReaderSection({
             const realIdx = mangaChaptersReversed ? mangaChapters.length - 1 - i : i;
             const isActive = mangaActiveIdx === realIdx;
             return (
-              <button
+              <div
                 key={ch.id}
                 onClick={() => openChapter(ch, realIdx)}
                 className={cn(
-                  "px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-left cursor-pointer",
+                  "px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-left cursor-pointer flex items-center justify-between group",
                   isActive
                     ? "bg-accent/15 border-2 border-accent text-accent"
-                    : "bg-surface border border-border text-text-primary hover:border-accent hover:text-accent"
+                    : "bg-surface border border-border text-text-primary hover:border-accent"
                 )}
               >
-                Ch. {ch.number}
-                {isActive && <span className="block text-[10px] text-accent/60 mt-0.5 uppercase tracking-wider">Reading</span>}
-              </button>
+                <div className="min-w-0 pr-1">
+                  <span className={cn("truncate block", isActive ? "text-accent" : "group-hover:text-accent")}>
+                    Ch. {ch.number}
+                  </span>
+                  {isActive && <span className="block text-[10px] text-accent/60 mt-0.5 uppercase tracking-wider">Reading</span>}
+                </div>
+                <button
+                  type="button"
+                  title={`Download Chapter ${ch.number} ZIP`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDownloadModalInitialId(ch.id);
+                    setDownloadModalOpen(true);
+                  }}
+                  className="p-1 rounded text-text-muted hover:text-accent hover:bg-white/10 opacity-70 group-hover:opacity-100 transition-all"
+                >
+                  <DownloadIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -1589,6 +1637,19 @@ function MangaReaderSection({
           </button>
         </div>
       )}
+
+      {/* Manga Download Modal */}
+      <MangaDownloadModal
+        open={downloadModalOpen}
+        onClose={() => {
+          setDownloadModalOpen(false);
+          setDownloadModalInitialId(null);
+        }}
+        mangaTitle={mangaMatchTitle || 'Manga'}
+        chapters={mangaChapters}
+        provider={mangaProvider || 'weebcentral'}
+        initialChapterId={downloadModalInitialId}
+      />
     </section>
   );
 }

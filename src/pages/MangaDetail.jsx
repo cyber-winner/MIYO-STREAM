@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { cn } from '../lib/cn';
 import { useDevice } from '../context/DeviceContext';
+import { MangaDownloadModal, DownloadIcon } from '../components/media/MangaDownloadModal';
 
 export function MangaDetail() {
   const { provider, id, slug } = useParams();
@@ -18,6 +19,10 @@ export function MangaDetail() {
   const [chaptersReversed, setChaptersReversed] = useState(false);
   const [visibleCount, setVisibleCount] = useState(100);
   const [isPosterExpanded, setIsPosterExpanded] = useState(false);
+
+  // ─── Download Modal State ───
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [downloadModalInitialChapterId, setDownloadModalInitialChapterId] = useState(null);
 
   // ─── Inline Reader State ───
   const [activeChapterIdx, setActiveChapterIdx] = useState(null);
@@ -228,15 +233,25 @@ export function MangaDetail() {
               </div>
             )}
 
-            {/* Quick Read Button */}
+            {/* Quick Read & Download Buttons */}
             {chapters.length > 0 && (
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => openChapter(chapters[0], 0)}
-                  className="px-6 py-3 rounded-xl font-bold text-sm cyber-gradient text-white hover:opacity-90 transition-all active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-3 rounded-xl font-bold text-sm cyber-gradient text-white hover:opacity-90 transition-all active:scale-95 inline-flex items-center gap-2 cursor-pointer shadow-lg shadow-accent/20"
                 >
                   <ReadIcon className="w-4 h-4" />
                   Start Reading
+                </button>
+                <button
+                  onClick={() => {
+                    setDownloadModalInitialChapterId(null);
+                    setDownloadModalOpen(true);
+                  }}
+                  className="px-6 py-3 rounded-xl font-bold text-sm bg-surface border border-border text-white hover:border-accent hover:text-accent transition-all active:scale-95 inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <DownloadIcon className="w-4 h-4" />
+                  Download Manga
                 </button>
               </div>
             )}
@@ -304,6 +319,20 @@ export function MangaDetail() {
                   <ChevRightIcon className="w-5 h-5" />
                 </button>
               </div>
+
+              {/* Download Active Chapter */}
+              <button
+                onClick={() => {
+                  if (activeChapter) {
+                    setDownloadModalInitialChapterId(activeChapter.id);
+                    setDownloadModalOpen(true);
+                  }
+                }}
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white cursor-pointer"
+                title="Download Chapter ZIP"
+              >
+                <DownloadIcon className="w-5 h-5" />
+              </button>
 
               {/* Fullscreen toggle */}
               <button
@@ -399,12 +428,27 @@ export function MangaDetail() {
             </h2>
             <span className="text-sm text-text-muted font-bold">({chapters.length})</span>
           </div>
-          <button
-            onClick={() => setChaptersReversed(r => !r)}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-text-secondary hover:text-accent hover:border-accent transition-all cursor-pointer"
-          >
-            {chaptersReversed ? '↑ Oldest First' : '↓ Newest First'}
-          </button>
+          <div className="flex items-center gap-2">
+            {chapters.length > 0 && (
+              <button
+                onClick={() => {
+                  setDownloadModalInitialChapterId(null);
+                  setDownloadModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-text-secondary hover:text-accent hover:border-accent transition-all cursor-pointer inline-flex items-center gap-1.5"
+                title="Download Manga Chapters ZIP"
+              >
+                <DownloadIcon className="w-3.5 h-3.5" />
+                Download ZIP
+              </button>
+            )}
+            <button
+              onClick={() => setChaptersReversed(r => !r)}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border text-text-secondary hover:text-accent hover:border-accent transition-all cursor-pointer"
+            >
+              {chaptersReversed ? '↑ Oldest First' : '↓ Newest First'}
+            </button>
+          </div>
         </div>
 
         {chapters.length === 0 ? (
@@ -418,23 +462,37 @@ export function MangaDetail() {
               const realIdx = chaptersReversed ? chapters.length - 1 - i : i;
               const isActive = activeChapterIdx === realIdx;
               return (
-                <button
+                <div
                   key={ch.id}
                   onClick={() => openChapter(ch, realIdx)}
                   className={cn(
-                    "px-4 py-3 rounded-xl text-sm font-bold transition-all group text-left cursor-pointer",
+                    "px-4 py-3 rounded-xl text-sm font-bold transition-all group cursor-pointer flex items-center justify-between",
                     isActive
                       ? "bg-accent/15 border-2 border-accent text-accent animate-rgb-shift"
-                      : "bg-surface border border-border text-text-primary hover:border-accent hover:text-accent"
+                      : "bg-surface border border-border text-text-primary hover:border-accent"
                   )}
                 >
-                  <span className="group-hover:text-accent transition-colors">
-                    Ch. {ch.number}
-                  </span>
-                  {isActive && (
-                    <span className="block text-[10px] text-accent/60 mt-0.5 uppercase tracking-wider">Reading</span>
-                  )}
-                </button>
+                  <div className="min-w-0 pr-1">
+                    <span className={cn("transition-colors block truncate", isActive ? "text-accent" : "group-hover:text-accent")}>
+                      Ch. {ch.number}
+                    </span>
+                    {isActive && (
+                      <span className="block text-[10px] text-accent/60 mt-0.5 uppercase tracking-wider">Reading</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    title={`Download Chapter ${ch.number} ZIP`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDownloadModalInitialChapterId(ch.id);
+                      setDownloadModalOpen(true);
+                    }}
+                    className="p-1.5 rounded-lg text-text-muted hover:text-accent hover:bg-white/10 transition-colors opacity-70 group-hover:opacity-100"
+                  >
+                    <DownloadIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -458,6 +516,19 @@ export function MangaDetail() {
           <img src={cover} alt={info.title} className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl" />
         </div>
       )}
+
+      {/* Manga Download Modal */}
+      <MangaDownloadModal
+        open={downloadModalOpen}
+        onClose={() => {
+          setDownloadModalOpen(false);
+          setDownloadModalInitialChapterId(null);
+        }}
+        mangaTitle={info?.title || 'Manga'}
+        chapters={chapters}
+        provider={provider}
+        initialChapterId={downloadModalInitialChapterId}
+      />
     </div>
   );
 }

@@ -124,6 +124,8 @@ function getHeaders(url, method = "GET") {
   // weebcentral
   else if (
     url.includes("temp.compsci88.com") ||
+    url.includes("scans.lastation.us") ||
+    url.includes("lastation.us") ||
     url.includes("weebcentral.com")
   ) {
     headers.Referer = "https://weebcentral.com/";

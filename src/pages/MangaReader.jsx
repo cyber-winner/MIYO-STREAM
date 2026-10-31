@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { cn } from '../lib/cn';
+import { MangaDownloadModal, DownloadIcon } from '../components/media/MangaDownloadModal';
 
 export function MangaReader() {
   const { provider, chapterId } = useParams();
@@ -17,17 +18,23 @@ export function MangaReader() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chapters, setChapters] = useState([]);
+  const [mangaTitle, setMangaTitle] = useState('');
   const [currentChapterIdx, setCurrentChapterIdx] = useState(chapterIndex);
   const [showControls, setShowControls] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const controlsTimer = useRef(null);
   const containerRef = useRef(null);
 
-  // Load chapters list for navigation
+  // Load manga info and chapters list for navigation & download
   useEffect(() => {
     if (!decodedMangaId) return;
     api.getMangaChapters(provider, decodedMangaId)
       .then(data => setChapters(data?.chapters || []))
+      .catch(() => {});
+
+    api.getMangaInfo(provider, decodedMangaId)
+      .then(info => { if (info?.title) setMangaTitle(info.title); })
       .catch(() => {});
   }, [provider, decodedMangaId]);
 
@@ -124,6 +131,13 @@ export function MangaReader() {
             <p className="text-xs text-white/60">{progress}% read</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDownloadModalOpen(true)}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white"
+              title="Download Chapter ZIP"
+            >
+              <DownloadIcon className="w-5 h-5" />
+            </button>
             <button
               onClick={() => hasPrev && navigateChapter(currentChapterIdx - 1)}
               disabled={!hasPrev}
@@ -223,6 +237,15 @@ export function MangaReader() {
           </div>
         )}
       </div>
+      {/* Download Modal */}
+      <MangaDownloadModal
+        open={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+        mangaTitle={mangaTitle || decodedMangaId || 'Manga'}
+        chapters={chapters}
+        provider={provider}
+        initialChapterId={decodedChapterId}
+      />
     </div>
   );
 }

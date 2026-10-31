@@ -9,6 +9,7 @@ import axios from 'axios';
 import { createRequire } from 'module';
 import child_process, { exec, execSync, spawn } from 'child_process';
 import rateLimit from 'express-rate-limit';
+import JSZip from 'jszip';
 import 'dotenv/config';
 import { startCrawler, getCachedMedia, cacheMediaEntry, cacheMediaFromResponse, getCrawlerStatus } from './utils/anilistCrawler.js';
 
@@ -538,6 +539,77 @@ app.get('/api/manga/:provider/:action', async (req, res) => {
         if (!p.fetchChapterPages) return res.status(400).json({ error: 'Not supported' });
         const data = await p.fetchChapterPages(id);
         return res.json(data);
+      }
+      case 'download-zip': {
+        const mangaId = req.query.id;
+        const rawTitle = req.query.title || 'Manga';
+        const rawChapterIds = req.query.chapters ? String(req.query.chapters).split(',') : [];
+        if (!p.fetchChapters || !p.fetchChapterPages) {
+          return res.status(400).json({ error: 'Manga download not supported by this provider' });
+        }
+
+        const safeMangaName = String(rawTitle).replace(/[\\/:*?"<>|]+/g, '_').trim() || 'Manga';
+        const chapData = await p.fetchChapters(mangaId);
+        const allChapters = chapData?.chapters || [];
+
+        let selectedChapters = allChapters;
+        if (rawChapterIds.length > 0) {
+          selectedChapters = allChapters.filter(c => rawChapterIds.includes(String(c.id)));
+        }
+        // Limit batch on server to prevent memory DOS
+        if (selectedChapters.length > 30) {
+          selectedChapters = selectedChapters.slice(0, 30);
+        }
+
+        if (selectedChapters.length === 0) {
+          return res.status(404).json({ error: 'No chapters found to download' });
+        }
+
+        const zip = new JSZip();
+        const mangaFolder = zip.folder(safeMangaName);
+
+        for (let cIdx = 0; cIdx < selectedChapters.length; cIdx++) {
+          const ch = selectedChapters[cIdx];
+          const chNum = ch.number !== undefined ? ch.number : cIdx + 1;
+          const chFolder = mangaFolder.folder(`Chapter ${chNum}`);
+
+          try {
+            const pages = await p.fetchChapterPages(ch.id);
+            const validPages = Array.isArray(pages) ? pages.filter(p => p && p.img) : [];
+
+            for (let pIdx = 0; pIdx < validPages.length; pIdx++) {
+              const page = validPages[pIdx];
+              const pNum = String(pIdx + 1).padStart(3, '0');
+              const reqHeaders = getHeaders(page.img, 'GET');
+              if (page.headers?.Referer) reqHeaders['Referer'] = page.headers.Referer;
+
+              try {
+                const imgRes = await axios.get(page.img, {
+                  headers: reqHeaders,
+                  responseType: 'arraybuffer',
+                  timeout: 20000,
+                });
+                const contentType = imgRes.headers['content-type'] || '';
+                let ext = 'jpg';
+                if (contentType.includes('png')) ext = 'png';
+                else if (contentType.includes('webp')) ext = 'webp';
+
+                chFolder.file(`${pNum}.${ext}`, imgRes.data);
+              } catch (e) {
+                console.warn(`[Server] Failed to download panel ${pIdx + 1} of Chapter ${chNum}:`, e.message);
+              }
+            }
+          } catch (chErr) {
+            console.warn(`[Server] Failed chapter pages for ${ch.id}:`, chErr.message);
+          }
+        }
+
+        const fileName = `${safeMangaName}.zip`;
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+        
+        zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true }).pipe(res);
+        return;
       }
       default:
         return res.status(400).json({ error: 'Invalid action' });
